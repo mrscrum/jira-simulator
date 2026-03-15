@@ -50,6 +50,7 @@ jobs:
             cd /app/jira-simulator
             git config --global --add safe.directory /app/jira-simulator
             git pull
+            cd frontend && npm ci && npm run build && cd ..
             sudo docker compose up -d --build
 
       - name: Verify deployment
