@@ -1,3 +1,17 @@
+## [2026-03-15] Stage 0 — Infrastructure verification and CI/CD fix
+### Changed
+- Deployed .env to EC2 with all secrets (Jira, OpenAI, app config), chmod 600
+- Configured GitHub repository secrets (EC2_HOST, EC2_USER, SSH_PRIVATE_KEY) via API
+- Fixed deploy workflow: added git safe.directory and sudo for docker compose
+- Fixed /app/jira-simulator ownership to ec2-user (was root from user-data)
+- Fixed /data ownership to ec2-user
+- Updated Terraform user-data to set correct ownership on future instances
+- Verified full CI/CD pipeline end-to-end: tests pass, deploy succeeds, containers rebuilt
+- Updated agent_instruction.md with full handoff context for Stage 1
+### Fixed
+- CI/CD deploy failure: "dubious ownership" git error on EC2
+- CI/CD deploy failure: .env permission denied (owned by root, deploy runs as ec2-user)
+
 ## [2026-03-15] Stage 0 — Terraform apply and EC2 verification
 ### Changed
 - Terraform applied: 11 AWS resources created (EC2, EBS, EIP, SG, IAM, DLM)
