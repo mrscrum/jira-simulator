@@ -15,6 +15,13 @@ class MemberCreate(MemberBase):
     team_id: int
 
 
+class MemberCreateRequest(BaseModel):
+    name: str
+    role: str
+    daily_capacity_hours: float = 6.0
+    max_concurrent_wip: int = 3
+
+
 class MemberRead(MemberBase):
     model_config = ConfigDict(from_attributes=True)
 

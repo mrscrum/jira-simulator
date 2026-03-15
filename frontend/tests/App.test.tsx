@@ -1,10 +1,22 @@
-import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
 import App from "../src/App";
 
-test("renders the coming soon heading", () => {
+vi.mock("../src/lib/api", () => ({
+  fetchTeams: vi.fn().mockResolvedValue([]),
+}));
+
+afterEach(cleanup);
+
+test("renders sidebar and create team prompt", async () => {
   render(<App />);
+  expect(await screen.findByTestId("sidebar")).toBeInTheDocument();
   expect(
-    screen.getByText("Jira Team Simulator — coming soon"),
-  ).toBeDefined();
+    screen.getByText("Create a team to get started"),
+  ).toBeInTheDocument();
+});
+
+test("renders add team button", async () => {
+  render(<App />);
+  expect(await screen.findByTestId("add-team-btn")).toBeInTheDocument();
 });

@@ -14,6 +14,12 @@ class TeamCreate(TeamBase):
     organization_id: int
 
 
+class TeamCreateRequest(BaseModel):
+    name: str
+    jira_project_key: str
+    jira_board_id: int | None = None
+
+
 class TeamRead(TeamBase):
     model_config = ConfigDict(from_attributes=True)
 
