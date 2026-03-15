@@ -54,7 +54,8 @@ jobs:
             git reset --hard origin/main
             cd frontend && npm ci && npm run build && cd ..
             sudo mkdir -p /data
-            sudo docker compose up -d --build --force-recreate backend
+            sudo docker compose up -d --build --force-recreate
+            sleep 5
 
       - name: Verify deployment
         if: success()
