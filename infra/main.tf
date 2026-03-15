@@ -209,7 +209,7 @@ resource "aws_instance" "jira_simulator" {
   availability_zone      = data.aws_availability_zones.available.names[0]
 
   root_block_device {
-    volume_size = 20
+    volume_size = 30
     volume_type = "gp3"
   }
 
@@ -228,6 +228,15 @@ resource "aws_instance" "jira_simulator" {
     curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
       -o /usr/local/lib/docker/cli-plugins/docker-compose
     chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+    # Update Docker Buildx (compose build requires >= 0.17.0)
+    curl -SL "https://github.com/docker/buildx/releases/download/v0.19.3/buildx-v0.19.3.linux-amd64" \
+      -o /usr/local/lib/docker/cli-plugins/docker-buildx
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+
+    # Install Node.js 20 (for frontend build)
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+    dnf install -y nodejs
 
     # Install and enable fail2ban
     dnf install -y fail2ban
@@ -271,6 +280,11 @@ resource "aws_instance" "jira_simulator" {
 
     # Add ec2-user to docker group
     usermod -aG docker ec2-user
+
+    # Build frontend
+    cd /app/jira-simulator/frontend
+    npm ci
+    npm run build
 
     # Start application
     cd /app/jira-simulator
