@@ -1,0 +1,14 @@
+# AWS region where resources will be created
+aws_region = "us-east-1"
+
+# Name of the EC2 key pair (must already exist in your AWS account)
+key_pair_name = "your-key-pair-name"
+
+# EC2 instance type (default: t3.small)
+# instance_type = "t3.small"
+
+# EBS data volume size in GB (default: 20)
+# ebs_volume_size = 20
+
+# GitHub repository URL to clone on EC2 (default: mrscrum/jira-simulator)
+# github_repo_url = "https://github.com/mrscrum/jira-simulator.git"
