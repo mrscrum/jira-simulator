@@ -1,16 +1,26 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.api.routers.dependencies import router as deps_router
 from app.api.routers.dysfunctions import router as dysf_router
-from app.api.routers.jira_proxy import router as jira_router
+from app.api.routers.jira_integration import router as jira_router
 from app.api.routers.members import router as members_router
 from app.api.routers.simulation import router as sim_router
 from app.api.routers.teams import router as teams_router
 from app.api.routers.workflow import router as workflow_router
+from app.config import get_settings
 from app.database import create_engine_from_url, create_session_factory
+from app.integrations.alerting import AlertingService
+from app.integrations.jira_bootstrapper import JiraBootstrapper
+from app.integrations.jira_client import JiraClient
+from app.integrations.jira_health import JiraHealthMonitor
+from app.integrations.jira_write_queue import JiraWriteQueue
+from app.integrations.scheduler import create_scheduler
 from app.models.base import Base
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -18,9 +28,59 @@ async def lifespan(application: FastAPI):
     db_path = "/data/simulator.db"
     engine = create_engine_from_url(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
-    application.state.session_factory = create_session_factory(engine)
+    session_factory = create_session_factory(engine)
+    application.state.session_factory = session_factory
+
+    settings = get_settings()
+
+    jira_client = JiraClient(
+        settings.jira_base_url,
+        settings.jira_email,
+        settings.jira_api_token,
+    )
+    application.state.jira_client = jira_client
+
+    alerting = AlertingService(
+        settings.alert_email_from,
+        settings.alert_email_to,
+        settings.aws_ses_region,
+    )
+
+    health_monitor = JiraHealthMonitor(
+        jira_client,
+        on_status_change=_create_health_callback(alerting),
+    )
+    application.state.health_monitor = health_monitor
+
+    write_queue = JiraWriteQueue(session_factory, jira_client, health_monitor)
+    application.state.write_queue = write_queue
+
+    bootstrapper = JiraBootstrapper(
+        jira_client, session_factory, alerting.send_alert
+    )
+    application.state.bootstrapper = bootstrapper
+
+    scheduler = create_scheduler(health_monitor, alerting, write_queue)
+    scheduler.start()
+    logger.info("Scheduler started with health check and daily digest jobs")
+
     yield
+
+    scheduler.shutdown(wait=False)
+    await jira_client.close()
     engine.dispose()
+
+
+def _create_health_callback(alerting: AlertingService):
+    from app.integrations.alerting import AlertEvent
+
+    async def on_status_change(old_status: str, new_status: str) -> None:
+        if new_status == "OFFLINE":
+            await alerting.send_alert(AlertEvent.JIRA_OFFLINE, {})
+        elif new_status == "ONLINE" and old_status == "RECOVERING":
+            await alerting.send_alert(AlertEvent.JIRA_RECOVERED, {})
+
+    return on_status_change
 
 
 app = FastAPI(title="Jira Team Simulator", version="0.1.0", lifespan=lifespan)
@@ -35,4 +95,4 @@ app.include_router(jira_router)
 
 @app.get("/health")
 def health_check() -> dict:
-    return {"status": "ok", "stage": "2"}
+    return {"status": "ok", "stage": "3"}

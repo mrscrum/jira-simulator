@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -7,7 +9,15 @@ from sqlalchemy.orm import sessionmaker
 from app.api.dependencies import get_session
 from app.api.routers.dependencies import router as deps_router
 from app.api.routers.dysfunctions import router as dysf_router
-from app.api.routers.jira_proxy import router as jira_router
+from app.api.routers.jira_integration import (
+    get_bootstrapper,
+    get_health_monitor,
+    get_jira_client,
+    get_write_queue,
+)
+from app.api.routers.jira_integration import (
+    router as jira_router,
+)
 from app.api.routers.simulation import router as sim_router
 from app.api.routers.teams import router as teams_router
 from app.models import Base  # noqa: F401
@@ -39,7 +49,23 @@ def client(test_db):
         finally:
             session.close()
 
+    mock_jira = AsyncMock()
+    mock_jira.get_project_statuses = AsyncMock(return_value=[
+        {"name": "To Do", "statusCategory": {"key": "new"}},
+        {"name": "Done", "statusCategory": {"key": "done"}},
+    ])
+    mock_health = MagicMock()
+    mock_health.status = "ONLINE"
+    mock_health.last_checked = None
+    mock_health.last_online = None
+    mock_health.consecutive_failures = 0
+    mock_health.outage_start = None
+
     test_app.dependency_overrides[get_session] = override
+    test_app.dependency_overrides[get_jira_client] = lambda: mock_jira
+    test_app.dependency_overrides[get_health_monitor] = lambda: mock_health
+    test_app.dependency_overrides[get_bootstrapper] = lambda: AsyncMock()
+    test_app.dependency_overrides[get_write_queue] = lambda: MagicMock()
     with TestClient(test_app, raise_server_exceptions=False) as c:
         yield c
     test_app.dependency_overrides.clear()

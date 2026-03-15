@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     environment: str = "production"
     log_level: str = "INFO"
     tick_interval_minutes: int = 30
+    alert_email_from: str = ""
+    alert_email_to: str = ""
+    aws_ses_region: str = "us-east-1"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

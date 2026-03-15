@@ -2,7 +2,7 @@
 
 A multi-team Jira activity simulator that emulates how real engineering teams work, including realistic dysfunctions, handoffs, and cross-team dependencies. Generates authentic Jira data patterns for stress-testing a Sprint Risk Analyzer tool.
 
-**Current stage:** Stage 1 — Data Model (database layer implemented, no API endpoints yet)
+**Current stage:** Stage 3 — Jira Integration Layer (complete, pending UAT)
 
 ## Prerequisites
 
@@ -68,6 +68,16 @@ In the GitHub repo settings, add these secrets:
 - `EC2_USER` — `ec2-user`
 - `SSH_PRIVATE_KEY` — contents of your `.pem` file
 
+## Environment Variables
+
+In addition to the base variables in `.env.example`, Stage 3 adds:
+
+| Variable | Description | Default |
+|---|---|---|
+| `ALERT_EMAIL_FROM` | SES-verified sender email for alerts | `""` (alerting disabled) |
+| `ALERT_EMAIL_TO` | Recipient email for alerts | `""` (alerting disabled) |
+| `AWS_SES_REGION` | AWS region for SES | `us-east-1` |
+
 ## Local Development
 
 ```bash
@@ -81,40 +91,55 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 # API docs: http://localhost:8000/docs
 ```
 
-## Project Structure
+## API Endpoints
 
-See `AGENTS.md` for the complete directory layout and domain model.
+### Jira Integration (Stage 3)
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/jira/bootstrap/{team_id}` | Bootstrap Jira project for a team |
+| `GET` | `/api/jira/bootstrap/{team_id}/status` | Get bootstrap status |
+| `GET` | `/api/jira/health` | Jira connectivity health check |
+| `GET` | `/api/jira/queue/status` | Write queue status |
+| `POST` | `/api/jira/queue/retry-failed` | Retry failed queue entries |
+| `GET` | `/api/jira/projects/{project_key}/statuses` | Get project statuses from Jira |
+
+### System
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check (`{"status":"ok","stage":"3"}`) |
 
 ## Data Model
 
-Stage 1 implements the full SQLAlchemy data model with 10 tables:
+The SQLAlchemy data model spans 13 tables across two layers:
 
-- **Organization** → has many Teams
-- **Team** → has Members, Workflow, DysfunctionConfig, Sprints, Issues
-- **Member** → team member with role, capacity, WIP limits
-- **Workflow** → ordered sequence of WorkflowSteps (one per team)
-- **WorkflowStep** → Jira status mapping with role, wait time, WIP contribution
-- **TouchTimeConfig** → per step/issue-type/story-points time distribution
-- **DysfunctionConfig** → per-team dysfunction probabilities (one per team)
-- **Sprint** → sprint with dates, velocity tracking, scope change tracking
-- **Issue** → internal simulation state with Jira mapping, blocking, worker tracking
+**Simulation (Stage 1):** Organization, Team, Member, Workflow, WorkflowStep, TouchTimeConfig, DysfunctionConfig, Sprint, Issue
 
-Database uses SQLite with WAL mode and foreign keys enabled. Alembic manages migrations.
+**Jira Integration (Stage 3):** JiraConfig (key-value store), JiraWriteQueueEntry (persistent queue), JiraIssueMap (issue→Jira key mapping), JiraIssueLink (cross-team link tracking)
+
+Database uses SQLite with WAL mode and foreign keys enabled. Alembic manages migrations (7 migrations: 001-007).
 
 ## Running Tests
 
 ```bash
-cd backend
-python3.12 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest tests/ -v
-.venv/bin/ruff check app/ tests/
+# Inside Docker (recommended)
+docker compose exec backend pip install pytest pytest-asyncio ruff boto3
+docker compose exec backend python -m pytest tests/ -v
+docker compose exec backend ruff check app/ tests/
+
+# Integration tests (requires real Jira instance)
+INTEGRATION_TESTS=true docker compose exec backend python -m pytest tests/integration/ -v
 ```
 
-## Current Limitations (Stage 1)
+## Project Structure
 
-- No API endpoints (only /health)
+See `AGENTS.md` for the complete directory layout and domain model.
+
+## Current Limitations (Stage 3)
+
+- No simulation engine yet (Stage 4)
 - Frontend is a placeholder ("coming soon")
-- No simulation engine, no Jira integration
+- No CRUD API endpoints for domain entities (organizations, teams, etc.)
 - HTTPS not configured (HTTP only)
-- No CRUD operations — data model only
+- Alerting requires AWS SES setup (no-op when unconfigured)

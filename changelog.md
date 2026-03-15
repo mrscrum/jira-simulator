@@ -1,3 +1,23 @@
+## [2026-03-15] Stage 3 — Jira Integration Layer
+### Changed
+- Created JiraClient async httpx wrapper (all Jira REST API v3 methods)
+- Created JiraHealthMonitor with ONLINE/OFFLINE/RECOVERING state machine
+- Created JiraWriteQueue persistent queue with pacing, recovery, and priority ordering
+- Created JiraBootstrapper idempotent project/board/field/status provisioner
+- Created AlertingService with AWS SES email alerts and daily digest
+- Created APScheduler integration (health check every 60s, daily digest at 08:00 UTC)
+- Added 4 new DB models: JiraConfig, JiraWriteQueueEntry, JiraIssueMap, JiraIssueLink
+- Added 3 bootstrap columns to Team model (jira_bootstrapped, jira_bootstrap_warnings, jira_bootstrapped_at)
+- Created 5 Alembic migrations (003-007)
+- Added 6 new API endpoints: bootstrap, bootstrap status, health, queue status, retry-failed, project statuses
+- Replaced hardcoded jira_proxy.py with real Jira status proxy (with fallback)
+- Added Pydantic schemas for all Jira API responses
+- Added boto3 dependency for AWS SES
+- Added alert_email_from, alert_email_to, aws_ses_region to Settings
+- Wired all integration services into FastAPI lifespan
+- Updated health endpoint to stage "3"
+- 289 tests passing, ruff clean
+
 ## [2026-03-15] Stage 1 — Data Model & Database Layer
 ### Changed
 - Implemented Pydantic Settings config module (config.py) loading all env vars

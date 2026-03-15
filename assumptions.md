@@ -1,3 +1,16 @@
+## [2026-03-15] Stage 3 — Jira Integration Layer
+- Assumed JiraClient should use httpx.AsyncClient (confirmed by Pavel)
+- Assumed boto3 + AWS SES for alerting (confirmed by Pavel)
+- Assumed existing jira_board_id column on Team model is sufficient — skipped re-adding it in migration
+- Assumed JiraConfig table uses plain string key as PK (not auto-increment) per spec
+- Assumed JiraWriteQueueEntry uses UUID string PK with Python-side default
+- Assumed custom fields are checked globally (not per team) during bootstrap — spec says "run once globally"
+- Assumed StrEnum is preferred over str+Enum pattern (ruff UP042 enforced)
+- Assumed APScheduler AsyncIOScheduler is appropriate for async context (uvicorn runs asyncio event loop)
+- Assumed SES alerting gracefully skips when config is empty (no error, just warning log)
+- Assumed integration tests are gated behind INTEGRATION_TESTS=true env var
+- Assumed fallback statuses are returned when Jira is unreachable for the statuses endpoint
+
 ## [2026-03-15] Stage 1 — Data Model & Database Layer
 - Assumed TimestampMixin base class is appropriate for DRY — all models share id, created_at, updated_at
 - Assumed in-memory SQLite is suitable for all tests (fast, isolated, no file cleanup)
