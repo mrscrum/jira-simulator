@@ -15,7 +15,8 @@ from app.models.base import Base
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    engine = create_engine_from_url("sqlite:///./data/simulator.db")
+    db_path = "/data/simulator.db"
+    engine = create_engine_from_url(f"sqlite:///{db_path}")
     Base.metadata.create_all(engine)
     application.state.session_factory = create_session_factory(engine)
     yield

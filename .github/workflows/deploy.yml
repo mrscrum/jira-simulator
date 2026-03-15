@@ -53,7 +53,8 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             cd frontend && npm ci && npm run build && cd ..
-            sudo docker compose up -d --build
+            sudo mkdir -p /data
+            sudo docker compose up -d --build --force-recreate backend
 
       - name: Verify deployment
         if: success()
