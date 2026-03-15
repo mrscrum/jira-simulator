@@ -1,3 +1,21 @@
+## [2026-03-15] Stage 1 — Data Model & Database Layer
+### Changed
+- Implemented Pydantic Settings config module (config.py) loading all env vars
+- Implemented database module (database.py) with SQLAlchemy engine, session factory, get_db dependency
+- SQLite WAL mode and foreign keys enabled via event listener
+- Created 10 SQLAlchemy models: Organization, Team, Member, Workflow, WorkflowStep, TouchTimeConfig, DysfunctionConfig, Sprint, Issue
+- Created TimestampMixin base class for id/created_at/updated_at (DRY)
+- All models have proper relationships, unique constraints, and defaults per spec
+- Issue model has self-referential blocked_by FK and multiple member FKs
+- Set up Alembic with env.py, script.py.mako, and initial migration (001_initial_schema)
+- Created Pydantic v2 schemas for all 9 entities (Base, Create, Read, Update variants)
+- Wired models into FastAPI with lifespan event for table creation fallback
+- Updated /health endpoint stage from "0" to "1"
+- Added pydantic-settings dependency to pyproject.toml
+- Added setuptools package discovery config (include app* only)
+- Created .venv with Python 3.12 for local development
+- 95 tests total, all passing
+
 ## [2026-03-15] Stage 0 — Infrastructure verification and CI/CD fix
 ### Changed
 - Deployed .env to EC2 with all secrets (Jira, OpenAI, app config), chmod 600

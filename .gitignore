@@ -6,6 +6,10 @@ infra/.terraform.lock.hcl
 infra/terraform.tfstate
 infra/terraform.tfstate.backup
 
+# Data
+data/
+backend/data/
+
 # Python
 __pycache__/
 *.py[cod]

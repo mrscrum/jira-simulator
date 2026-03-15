@@ -2,7 +2,7 @@
 
 A multi-team Jira activity simulator that emulates how real engineering teams work, including realistic dysfunctions, handoffs, and cross-team dependencies. Generates authentic Jira data patterns for stress-testing a Sprint Risk Analyzer tool.
 
-**Current stage:** Stage 0 — Infrastructure (skeleton only, no application logic yet)
+**Current stage:** Stage 1 — Data Model (database layer implemented, no API endpoints yet)
 
 ## Prerequisites
 
@@ -85,9 +85,36 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 See `AGENTS.md` for the complete directory layout and domain model.
 
-## Current Limitations (Stage 0)
+## Data Model
 
-- Backend serves only `/health` endpoint
+Stage 1 implements the full SQLAlchemy data model with 10 tables:
+
+- **Organization** → has many Teams
+- **Team** → has Members, Workflow, DysfunctionConfig, Sprints, Issues
+- **Member** → team member with role, capacity, WIP limits
+- **Workflow** → ordered sequence of WorkflowSteps (one per team)
+- **WorkflowStep** → Jira status mapping with role, wait time, WIP contribution
+- **TouchTimeConfig** → per step/issue-type/story-points time distribution
+- **DysfunctionConfig** → per-team dysfunction probabilities (one per team)
+- **Sprint** → sprint with dates, velocity tracking, scope change tracking
+- **Issue** → internal simulation state with Jira mapping, blocking, worker tracking
+
+Database uses SQLite with WAL mode and foreign keys enabled. Alembic manages migrations.
+
+## Running Tests
+
+```bash
+cd backend
+python3.12 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest tests/ -v
+.venv/bin/ruff check app/ tests/
+```
+
+## Current Limitations (Stage 1)
+
+- No API endpoints (only /health)
 - Frontend is a placeholder ("coming soon")
-- No database, no simulation engine, no Jira integration
+- No simulation engine, no Jira integration
 - HTTPS not configured (HTTP only)
+- No CRUD operations — data model only
