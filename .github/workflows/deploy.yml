@@ -64,4 +64,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /app/jira-simulator
+            echo "=== Container status ==="
             sudo docker compose ps
+            echo "=== Backend logs (last 50 lines) ==="
+            sudo docker compose logs --tail=50 backend
+            echo "=== Nginx logs (last 20 lines) ==="
+            sudo docker compose logs --tail=20 nginx
+            echo "=== Health check ==="
+            curl -s http://localhost/health || echo "Health check failed"
+            echo ""
+            echo "=== API test ==="
+            curl -sv http://localhost/api/teams 2>&1 | tail -20
