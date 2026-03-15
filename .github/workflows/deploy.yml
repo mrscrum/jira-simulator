@@ -48,8 +48,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /app/jira-simulator
+            git config --global --add safe.directory /app/jira-simulator
             git pull
-            docker compose up -d --build
+            sudo docker compose up -d --build
 
       - name: Verify deployment
         if: success()
@@ -60,4 +61,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /app/jira-simulator
-            docker compose ps
+            sudo docker compose ps

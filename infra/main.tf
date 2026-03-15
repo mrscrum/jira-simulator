@@ -281,6 +281,11 @@ resource "aws_instance" "jira_simulator" {
     # Add ec2-user to docker group
     usermod -aG docker ec2-user
 
+    # Set ownership so ec2-user can git pull and manage .env
+    chown -R ec2-user:ec2-user /app/jira-simulator
+    chown ec2-user:ec2-user /data
+    git config --global --add safe.directory /app/jira-simulator
+
     # Build frontend
     cd /app/jira-simulator/frontend
     npm ci
