@@ -47,9 +47,11 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /app/jira-simulator
             git config --global --add safe.directory /app/jira-simulator
-            git pull
+            git fetch origin main
+            git reset --hard origin/main
             cd frontend && npm ci && npm run build && cd ..
             sudo docker compose up -d --build
 
