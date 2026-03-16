@@ -173,27 +173,17 @@ class JiraWriteQueue:
                 self._map_sprint_id(session, sprint_db_id, result)
             return result
         elif op == "CREATE_ISSUE":
-            # Extract story points from fields — Jira Cloud simplified projects
-            # may not allow setting custom fields on the create screen.  We set
-            # them via a follow-up update_issue call instead.
+            # Extract custom fields — Jira Cloud simplified projects reject
+            # custom fields on the create/edit screen.  We remove them from
+            # the payload and set story points via the Agile estimation API.
             post_create_fields = self._extract_post_create_fields(payload)
             result = await self._jira_client.create_issue(**payload)
-            if post_create_fields and result:
+            if result:
                 issue_key = result.get("key")
                 if issue_key:
-                    try:
-                        await self._jira_client.update_issue(
-                            issue_key, post_create_fields,
-                        )
-                        logger.info(
-                            "Set post-create fields on %s: %s",
-                            issue_key, list(post_create_fields),
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "Failed to set post-create fields on %s: %s",
-                            issue_key, exc,
-                        )
+                    await self._set_post_create_fields(
+                        issue_key, post_create_fields, payload,
+                    )
             return result
         elif op == "UPDATE_ISSUE":
             await self._jira_client.update_issue(**payload)
@@ -219,7 +209,7 @@ class JiraWriteQueue:
 
         Jira Cloud simplified projects often reject custom fields on the
         create screen.  We remove them from ``payload['fields']`` and
-        return them for a follow-up ``update_issue`` call.
+        return them for a follow-up call.
         """
         fields = payload.get("fields")
         if not fields or not isinstance(fields, dict):
@@ -229,6 +219,58 @@ class JiraWriteQueue:
             if key.startswith("customfield_"):
                 post[key] = fields.pop(key)
         return post
+
+    async def _set_post_create_fields(
+        self,
+        issue_key: str,
+        custom_fields: dict,
+        original_payload: dict,
+    ) -> None:
+        """Set custom fields after issue creation.
+
+        Uses the Agile estimation API for story points (bypasses screen
+        restrictions) and falls back to update_issue for other fields.
+
+        The caller must set ``_board_id`` and ``_sp_field_id`` on the
+        payload so we can route story points to the estimation API
+        without opening additional DB sessions.
+        """
+        sp_field_id = original_payload.pop("_sp_field_id", None)
+        board_id = original_payload.pop("_board_id", None)
+
+        # Set story points via the Agile estimation API.
+        sp_value = custom_fields.pop(sp_field_id, None) if sp_field_id else None
+        if sp_value is not None and board_id:
+            try:
+                await self._jira_client.set_estimation(
+                    issue_key, int(board_id), float(sp_value),
+                )
+                logger.info(
+                    "Set estimation on %s: %s points (board %s)",
+                    issue_key, sp_value, board_id,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to set estimation on %s: %s", issue_key, exc,
+                )
+        elif sp_value is not None:
+            logger.warning(
+                "No board_id available to set estimation on %s", issue_key,
+            )
+
+        # Set remaining custom fields via standard update.
+        if custom_fields:
+            try:
+                await self._jira_client.update_issue(issue_key, custom_fields)
+                logger.info(
+                    "Set post-create fields on %s: %s",
+                    issue_key, list(custom_fields),
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to set post-create fields on %s: %s",
+                    issue_key, exc,
+                )
 
     async def _resolve_and_transition(self, payload: dict) -> None:
         """Resolve a target_status name to a Jira transition ID, then transition."""

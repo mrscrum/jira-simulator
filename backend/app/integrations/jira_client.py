@@ -284,6 +284,21 @@ class JiraClient:
         )
         return response.json()
 
+    async def set_estimation(
+        self, issue_key: str, board_id: int, value: float,
+    ) -> None:
+        """Set story points via the Agile estimation API.
+
+        This bypasses screen restrictions that block setting custom fields
+        through the standard issue create/update endpoints.
+        """
+        await self._request(
+            "PUT",
+            f"/rest/agile/1.0/issue/{issue_key}/estimation",
+            params={"boardId": board_id},
+            json={"value": value},
+        )
+
     async def update_issue(self, issue_key: str, fields: dict) -> None:
         await self._request(
             "PUT",

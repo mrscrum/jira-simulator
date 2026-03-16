@@ -591,6 +591,8 @@ class SimulationEngine:
                             "issue_type": gen_issue["issue_type"],
                             "summary": f"[SIM] {gen_issue['summary']}",
                             "fields": issue_fields,
+                            "_board_id": team.jira_board_id,
+                            "_sp_field_id": story_points_field_id,
                         },
                         issue_id=new_issue.id,
                     ))
@@ -860,6 +862,8 @@ def _get_or_create_epic(
             "issue_type": "Epic",
             "summary": epic.summary,
             "fields": issue_fields,
+            "_board_id": team.jira_board_id,
+            "_sp_field_id": story_points_field_id,
         },
         issue_id=epic.id,
     ))

@@ -300,6 +300,10 @@ async def _sync_issues_to_jira(
     stories = [i for i in issues if i.issue_type != "Epic"]
     enqueued = 0
 
+    # Metadata for the write queue to route story points via the Agile
+    # estimation API (bypasses screen restrictions in simplified projects).
+    board_id = team.jira_board_id
+
     # Phase 1: Enqueue and process epics so they get jira_issue_key.
     for epic in epics:
         fields = _build_issue_fields(
@@ -313,6 +317,8 @@ async def _sync_issues_to_jira(
                 "issue_type": "Epic",
                 "summary": epic.summary,
                 "fields": fields,
+                "_board_id": board_id,
+                "_sp_field_id": sp_field,
             },
             issue_id=epic.id,
             session=session,
@@ -348,6 +354,8 @@ async def _sync_issues_to_jira(
                 "issue_type": story.issue_type,
                 "summary": f"[SIM] {story.summary}",
                 "fields": fields,
+                "_board_id": board_id,
+                "_sp_field_id": sp_field,
             },
             issue_id=story.id,
             session=session,
