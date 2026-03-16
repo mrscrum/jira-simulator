@@ -173,7 +173,28 @@ class JiraWriteQueue:
                 self._map_sprint_id(session, sprint_db_id, result)
             return result
         elif op == "CREATE_ISSUE":
-            return await self._jira_client.create_issue(**payload)
+            # Extract story points from fields — Jira Cloud simplified projects
+            # may not allow setting custom fields on the create screen.  We set
+            # them via a follow-up update_issue call instead.
+            post_create_fields = self._extract_post_create_fields(payload)
+            result = await self._jira_client.create_issue(**payload)
+            if post_create_fields and result:
+                issue_key = result.get("key")
+                if issue_key:
+                    try:
+                        await self._jira_client.update_issue(
+                            issue_key, post_create_fields,
+                        )
+                        logger.info(
+                            "Set post-create fields on %s: %s",
+                            issue_key, list(post_create_fields),
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to set post-create fields on %s: %s",
+                            issue_key, exc,
+                        )
+            return result
         elif op == "UPDATE_ISSUE":
             await self._jira_client.update_issue(**payload)
         elif op == "TRANSITION_ISSUE":
@@ -191,6 +212,23 @@ class JiraWriteQueue:
         else:
             raise ValueError(f"Unknown operation: {op}")
         return None
+
+    @staticmethod
+    def _extract_post_create_fields(payload: dict) -> dict:
+        """Move custom fields out of the CREATE_ISSUE payload.
+
+        Jira Cloud simplified projects often reject custom fields on the
+        create screen.  We remove them from ``payload['fields']`` and
+        return them for a follow-up ``update_issue`` call.
+        """
+        fields = payload.get("fields")
+        if not fields or not isinstance(fields, dict):
+            return {}
+        post: dict = {}
+        for key in list(fields):
+            if key.startswith("customfield_"):
+                post[key] = fields.pop(key)
+        return post
 
     async def _resolve_and_transition(self, payload: dict) -> None:
         """Resolve a target_status name to a Jira transition ID, then transition."""
