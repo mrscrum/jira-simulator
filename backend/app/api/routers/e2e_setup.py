@@ -248,6 +248,7 @@ def _build_issue_fields(
     team: Team,
     sp_field: str | None,
     reporter_field: str | None,
+    assignee_field: str | None = None,
     epic_jira_key: str | None = None,
 ) -> dict:
     """Build the Jira fields dict for a CREATE_ISSUE payload."""
@@ -268,6 +269,8 @@ def _build_issue_fields(
         fields[sp_field] = issue.story_points
     if reporter_field:
         fields[reporter_field] = f"[SIM] {team.name}"
+    if assignee_field:
+        fields[assignee_field] = "[SIM] Unassigned"
     if epic_jira_key:
         fields["parent"] = {"key": epic_jira_key}
     return fields
@@ -280,8 +283,18 @@ async def _sync_issues_to_jira(
     issues: list[Issue],
 ) -> int:
     """Create all issues in Jira: epics first (processed immediately), then children."""
+    # Expire all cached objects so we see field IDs committed by the bootstrapper's
+    # separate session.
+    session.expire_all()
+
     sp_field = _get_field_id(session, "field_id_story_points")
     reporter_field = _get_field_id(session, "field_id_sim_reporter")
+    assignee_field = _get_field_id(session, "field_id_sim_assignee")
+
+    logger.info(
+        "Jira field IDs for %s — sp: %s, reporter: %s, assignee: %s",
+        team.name, sp_field, reporter_field, assignee_field,
+    )
 
     epics = [i for i in issues if i.issue_type == "Epic"]
     stories = [i for i in issues if i.issue_type != "Epic"]
@@ -289,7 +302,9 @@ async def _sync_issues_to_jira(
 
     # Phase 1: Enqueue and process epics so they get jira_issue_key.
     for epic in epics:
-        fields = _build_issue_fields(epic, team, sp_field, reporter_field)
+        fields = _build_issue_fields(
+            epic, team, sp_field, reporter_field, assignee_field,
+        )
         write_queue.enqueue(
             team_id=team.id,
             operation_type="CREATE_ISSUE",
@@ -322,7 +337,8 @@ async def _sync_issues_to_jira(
     for story in stories:
         epic_key = epic_key_map.get(story.epic_id) if story.epic_id else None
         fields = _build_issue_fields(
-            story, team, sp_field, reporter_field, epic_jira_key=epic_key,
+            story, team, sp_field, reporter_field, assignee_field,
+            epic_jira_key=epic_key,
         )
         write_queue.enqueue(
             team_id=team.id,
@@ -425,5 +441,91 @@ async def setup_e2e(request: Request):
         session.rollback()
         logger.exception("E2E setup failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
+@router.get("/diagnostics")
+async def diagnostics(request: Request):
+    """Return diagnostic info about JiraConfig field IDs and sample issue data."""
+    session_factory = getattr(request.app.state, "session_factory", None)
+    if session_factory is None:
+        raise HTTPException(status_code=503, detail="Session factory not available")
+
+    jira_client = getattr(request.app.state, "jira_client", None)
+    session = session_factory()
+
+    try:
+        # All JiraConfig entries.
+        configs = session.query(JiraConfig).all()
+        config_data = {c.key: c.value for c in configs}
+
+        # Sample issues with story points.
+        sample_issues = (
+            session.query(Issue)
+            .filter(Issue.story_points > 0, Issue.jira_issue_key.isnot(None))
+            .limit(3)
+            .all()
+        )
+        issue_data = [
+            {
+                "id": i.id,
+                "jira_key": i.jira_issue_key,
+                "type": i.issue_type,
+                "story_points": i.story_points,
+                "summary": i.summary[:60],
+            }
+            for i in sample_issues
+        ]
+
+        # Check a sample issue in Jira to see actual field values.
+        jira_issue_detail = None
+        if jira_client and sample_issues:
+            try:
+                jira_data = await jira_client.get_issue(
+                    sample_issues[0].jira_issue_key,
+                )
+                jira_fields = jira_data.get("fields", {})
+                # Extract only our custom fields.
+                sp_fid = config_data.get("field_id_story_points")
+                rep_fid = config_data.get("field_id_sim_reporter")
+                asg_fid = config_data.get("field_id_sim_assignee")
+                jira_issue_detail = {
+                    "key": jira_data.get("key"),
+                    "story_points_field": sp_fid,
+                    "story_points_value": (
+                        jira_fields.get(sp_fid) if sp_fid else None
+                    ),
+                    "reporter_field": rep_fid,
+                    "reporter_value": (
+                        jira_fields.get(rep_fid) if rep_fid else None
+                    ),
+                    "assignee_field": asg_fid,
+                    "assignee_value": (
+                        jira_fields.get(asg_fid) if asg_fid else None
+                    ),
+                    "summary": jira_fields.get("summary"),
+                }
+            except Exception as e:
+                jira_issue_detail = {"error": str(e)}
+
+        # Queue stats.
+        from app.models.jira_write_queue_entry import JiraWriteQueueEntry
+
+        queue_stats = {}
+        for status in ("PENDING", "DONE", "FAILED", "IN_FLIGHT"):
+            count = (
+                session.query(JiraWriteQueueEntry)
+                .filter(JiraWriteQueueEntry.status == status)
+                .count()
+            )
+            queue_stats[status] = count
+
+        return {
+            "jira_config": config_data,
+            "sample_local_issues": issue_data,
+            "jira_issue_detail": jira_issue_detail,
+            "queue_stats": queue_stats,
+        }
     finally:
         session.close()

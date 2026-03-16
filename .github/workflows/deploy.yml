@@ -126,6 +126,13 @@ jobs:
             echo ""
             echo "=== Teams after setup ==="
             curl -s http://localhost/api/teams | python3 -m json.tool
+            echo ""
+            echo "=== Diagnostics (field IDs + sample Jira issue) ==="
+            curl -s http://localhost/api/e2e/diagnostics | python3 -m json.tool
+            echo ""
+            echo "=== Backend logs (field ID lines) ==="
+            cd /app/jira-simulator
+            sudo docker compose logs --tail=200 backend 2>&1 | grep -i "field\|story.point\|custom\|sim_" || echo "No field-related logs found"
 
       - name: Start Simulation
         if: success() && github.event.inputs.start_simulation == 'true'
