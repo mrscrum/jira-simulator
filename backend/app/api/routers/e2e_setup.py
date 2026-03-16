@@ -490,6 +490,11 @@ async def diagnostics(request: Request):
                 sp_fid = config_data.get("field_id_story_points")
                 rep_fid = config_data.get("field_id_sim_reporter")
                 asg_fid = config_data.get("field_id_sim_assignee")
+                # Dump ALL customfield_* values to see what Jira has.
+                all_custom = {
+                    k: v for k, v in jira_fields.items()
+                    if k.startswith("customfield_") and v is not None
+                }
                 jira_issue_detail = {
                     "key": jira_data.get("key"),
                     "story_points_field": sp_fid,
@@ -505,9 +510,38 @@ async def diagnostics(request: Request):
                         jira_fields.get(asg_fid) if asg_fid else None
                     ),
                     "summary": jira_fields.get("summary"),
+                    "issue_type": jira_fields.get(
+                        "issuetype", {},
+                    ).get("name"),
+                    "status": jira_fields.get(
+                        "status", {},
+                    ).get("name"),
+                    "all_custom_fields_with_values": all_custom,
                 }
             except Exception as e:
                 jira_issue_detail = {"error": str(e)}
+
+        # Check board configuration for estimation field.
+        board_config = None
+        if jira_client:
+            try:
+                teams = session.query(Team).limit(1).all()
+                if teams and teams[0].jira_board_id:
+                    bid = teams[0].jira_board_id
+                    resp = await jira_client._request(
+                        "GET",
+                        f"/rest/agile/1.0/board/{bid}/configuration",
+                    )
+                    cfg = resp.json()
+                    board_config = {
+                        "board_id": bid,
+                        "estimation_field": cfg.get(
+                            "estimation", {},
+                        ).get("field", {}),
+                        "board_name": cfg.get("name"),
+                    }
+            except Exception as e:
+                board_config = {"error": str(e)}
 
         # Queue stats.
         from app.models.jira_write_queue_entry import JiraWriteQueueEntry
@@ -525,6 +559,7 @@ async def diagnostics(request: Request):
             "jira_config": config_data,
             "sample_local_issues": issue_data,
             "jira_issue_detail": jira_issue_detail,
+            "board_config": board_config,
             "queue_stats": queue_stats,
         }
     finally:
