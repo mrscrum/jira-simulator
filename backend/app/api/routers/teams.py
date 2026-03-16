@@ -40,6 +40,14 @@ def create_team(
         name=body.name,
         jira_project_key=body.jira_project_key,
         jira_board_id=body.jira_board_id,
+        sprint_length_days=body.sprint_length_days,
+        sprint_planning_strategy=body.sprint_planning_strategy,
+        backlog_depth_target=body.backlog_depth_target,
+        pause_before_planning=body.pause_before_planning,
+        working_hours_start=body.working_hours_start,
+        working_hours_end=body.working_hours_end,
+        timezone=body.timezone,
+        holidays=body.holidays,
     )
     session.add(team)
     try:

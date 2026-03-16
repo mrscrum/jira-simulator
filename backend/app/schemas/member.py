@@ -21,6 +21,7 @@ class MemberCreateRequest(BaseModel):
     role: str
     daily_capacity_hours: float = 6.0
     max_concurrent_wip: int = 3
+    timezone: str | None = None
 
 
 class MemberRead(MemberBase):

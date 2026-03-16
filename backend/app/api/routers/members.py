@@ -35,6 +35,7 @@ def create_member(
         role=body.role,
         daily_capacity_hours=body.daily_capacity_hours,
         max_concurrent_wip=body.max_concurrent_wip,
+        timezone=body.timezone,
     )
     session.add(member)
     session.commit()
