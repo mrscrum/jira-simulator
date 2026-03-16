@@ -136,6 +136,15 @@ def retry_failed(write_queue=Depends(get_write_queue)):
     return {"retried": count}
 
 
+@router.post("/queue/process")
+async def process_queue(write_queue=Depends(get_write_queue)):
+    """Process all pending Jira write queue entries."""
+    if write_queue is None:
+        raise HTTPException(status_code=503, detail="Write queue not initialised")
+    await write_queue.process_batch(tick_interval_seconds=10)
+    return {"processed": True}
+
+
 @router.get(
     "/projects/{project_key}/statuses",
     response_model=list[JiraStatus],

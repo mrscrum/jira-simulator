@@ -370,3 +370,77 @@ class TestSprintOperations:
             await client.add_issues_to_sprint(10, ["TEST-1", "TEST-2"])
             call_kwargs = mock_req.call_args
             assert "issues" in call_kwargs.kwargs["json"]
+
+
+class TestSearchIssues:
+    @pytest.mark.asyncio
+    async def test_search_returns_issues(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(
+                json_data={
+                    "issues": [
+                        {"key": "TEST-1"},
+                        {"key": "TEST-2"},
+                    ]
+                }
+            )
+            result = await client.search_issues("project = TEST")
+            assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_search_sends_jql_payload(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(
+                json_data={"issues": []}
+            )
+            await client.search_issues(
+                "project = TEST", fields=["summary", "status"],
+            )
+            call_kwargs = mock_req.call_args
+            params = call_kwargs.kwargs["params"]
+            assert params["jql"] == "project = TEST"
+            assert params["fields"] == "summary,status"
+
+
+class TestDeleteIssue:
+    @pytest.mark.asyncio
+    async def test_sends_delete_request(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(status_code=204)
+            await client.delete_issue("TEST-1")
+            call_args = mock_req.call_args
+            assert call_args.args[0] == "DELETE"
+
+
+class TestMoveIssuesToBacklog:
+    @pytest.mark.asyncio
+    async def test_sends_backlog_request(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(status_code=204)
+            await client.move_issues_to_backlog(["TEST-1", "TEST-2"])
+            call_kwargs = mock_req.call_args
+            payload = call_kwargs.kwargs["json"]
+            assert payload["issues"] == ["TEST-1", "TEST-2"]
+
+
+class TestGetSprintIssues:
+    @pytest.mark.asyncio
+    async def test_returns_sprint_issues(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(
+                json_data={
+                    "issues": [{"key": "TEST-1"}, {"key": "TEST-2"}]
+                }
+            )
+            result = await client.get_sprint_issues(10)
+            assert len(result) == 2

@@ -160,6 +160,7 @@ class TestEnqueueActions:
             operation_type="ADD_COMMENT",
             payload={"issue_key": "TP-1", "body": "hello"},
             issue_id=42,
+            session=None,
         )
 
 

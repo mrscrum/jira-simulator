@@ -187,6 +187,50 @@ class JiraClient:
                 return field["id"]
         return None
 
+    # --- Screens ---
+
+    async def get_screens(self) -> list[dict]:
+        """List all screens."""
+        response = await self._request(
+            "GET", "/rest/api/3/screens", params={"maxResults": 100}
+        )
+        return response.json().get("values", [])
+
+    async def add_field_to_screen(
+        self, screen_id: int, tab_id: int, field_id: str
+    ) -> bool:
+        """Add a field to a screen tab. Returns True if added."""
+        try:
+            await self._request(
+                "POST",
+                f"/rest/api/3/screens/{screen_id}/tabs/{tab_id}/fields",
+                json={"fieldId": field_id},
+            )
+            return True
+        except JiraConnectionError:
+            return False
+
+    async def get_screen_tabs(self, screen_id: int) -> list[dict]:
+        """Get tabs for a screen."""
+        response = await self._request(
+            "GET", f"/rest/api/3/screens/{screen_id}/tabs"
+        )
+        data = response.json()
+        return data if isinstance(data, list) else []
+
+    async def add_field_to_all_screens(self, field_id: str) -> int:
+        """Add a custom field to all screens. Returns count added."""
+        screens = await self.get_screens()
+        added = 0
+        for screen in screens:
+            tabs = await self.get_screen_tabs(screen["id"])
+            if tabs:
+                if await self.add_field_to_screen(
+                    screen["id"], tabs[0]["id"], field_id
+                ):
+                    added += 1
+        return added
+
     # --- Statuses & Transitions ---
 
     async def get_project_statuses(
@@ -297,3 +341,65 @@ class JiraClient:
             "GET", "/rest/api/3/issueLinkType"
         )
         return response.json().get("issueLinkTypes", [])
+
+    # --- Search ---
+
+    async def search_issues(
+        self, jql: str, fields: list[str] | None = None, max_results: int = 50
+    ) -> list[dict]:
+        """Search issues using JQL (v3 search/jql endpoint)."""
+        params: dict = {"jql": jql, "maxResults": max_results}
+        if fields:
+            params["fields"] = ",".join(fields)
+        response = await self._request(
+            "GET", "/rest/api/3/search/jql", params=params,
+        )
+        return response.json().get("issues", [])
+
+    async def delete_issue(self, issue_key: str) -> None:
+        """Delete an issue."""
+        await self._request(
+            "DELETE", f"/rest/api/3/issue/{issue_key}"
+        )
+
+    # --- Sprint management ---
+
+    async def get_sprint(self, sprint_id: int) -> dict:
+        """Get sprint details by ID."""
+        response = await self._request(
+            "GET", f"/rest/agile/1.0/sprint/{sprint_id}"
+        )
+        return response.json()
+
+    async def get_sprint_issues(
+        self, sprint_id: int, max_results: int = 50
+    ) -> list[dict]:
+        """Get issues in a sprint."""
+        response = await self._request(
+            "GET",
+            f"/rest/agile/1.0/sprint/{sprint_id}/issue",
+            params={"maxResults": max_results},
+        )
+        return response.json().get("issues", [])
+
+    async def move_issues_to_backlog(self, issue_keys: list[str]) -> None:
+        """Remove issues from their current sprint (move to backlog)."""
+        await self._request(
+            "POST",
+            "/rest/agile/1.0/backlog/issue",
+            json={"issues": issue_keys},
+        )
+
+    async def get_board_sprints(
+        self, board_id: int, state: str | None = None
+    ) -> list[dict]:
+        """Get sprints for a board, optionally filtered by state."""
+        params = {}
+        if state:
+            params["state"] = state
+        response = await self._request(
+            "GET",
+            f"/rest/agile/1.0/board/{board_id}/sprint",
+            params=params,
+        )
+        return response.json().get("values", [])

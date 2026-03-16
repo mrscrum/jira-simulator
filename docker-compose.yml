@@ -3,11 +3,11 @@ services:
     build: ./backend
     restart: unless-stopped
     volumes:
-      - /data:/data
+      - simulator-data:/data
     env_file:
       - .env
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
 
   nginx:
     image: nginx:alpine
@@ -20,3 +20,7 @@ services:
       - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
+
+volumes:
+  simulator-data:
+    driver: local

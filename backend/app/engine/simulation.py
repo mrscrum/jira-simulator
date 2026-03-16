@@ -93,6 +93,7 @@ class SimulationEngine:
 
     def enqueue_actions(
         self, team_id: int, actions: list[JiraWriteAction],
+        session=None,
     ) -> None:
         """Hand off JiraWriteActions to the write queue."""
         for action in actions:
@@ -101,6 +102,7 @@ class SimulationEngine:
                 operation_type=action.operation_type,
                 payload=action.payload,
                 issue_id=action.issue_id,
+                session=session,
             )
 
     def record_tick_success(self, at: datetime) -> None:
@@ -178,6 +180,7 @@ class SimulationEngine:
         )
         from app.models.daily_capacity_log import DailyCapacityLog
         from app.models.issue import Issue
+        from app.models.jira_config import JiraConfig
         from app.models.member import Member
         from app.models.simulation_event_config import SimulationEventConfig
         from app.models.simulation_event_log import SimulationEventLog
@@ -186,6 +189,16 @@ class SimulationEngine:
         jira_actions: list[JiraWriteAction] = []
         events_fired: list[str] = []
         now = datetime.now(UTC)
+
+        story_points_field_id = _get_config_value(
+            session, "field_id_story_points",
+        )
+        sim_assignee_field_id = _get_config_value(
+            session, "field_id_sim_assignee",
+        )
+        sim_reporter_field_id = _get_config_value(
+            session, "field_id_sim_reporter",
+        )
 
         try:
             holidays = _parse_holidays(team.holidays)
@@ -230,19 +243,31 @@ class SimulationEngine:
 
             if current_sprint is None:
                 current_sprint = _create_initial_sprint(session, team, now)
+                # Create sprint in Jira if board is configured.
+                if team.jira_board_id:
+                    jira_actions.append(JiraWriteAction(
+                        operation_type="CREATE_SPRINT",
+                        payload={
+                            "board_id": team.jira_board_id,
+                            "name": current_sprint.name,
+                            "start_date": now.isoformat(),
+                            "end_date": (now + timedelta(days=team.sprint_length_days)).isoformat(),
+                            "_sprint_db_id": current_sprint.id,
+                        },
+                    ))
 
             issues = session.query(Issue).filter_by(
                 team_id=team.id,
             ).all()
 
-            backlog_issues = [i for i in issues if i.status == "backlog"]
+            backlog_issues = [i for i in issues if i.status in ("backlog", IssueState.BACKLOG.value)]
             sprint_issues = [
                 i for i in issues if i.sprint_id == current_sprint.id
             ]
 
-            sprint_capacity = sum(
-                m.daily_capacity_hours for m in members
-            ) * team.sprint_length_days
+            # Sprint capacity in approximate story points (not hours).
+            # Heuristic: ~1 story point per team member per working day.
+            sprint_capacity = len(members) * team.sprint_length_days
 
             sprint_start = current_sprint.start_date
             if sprint_start.tzinfo is None:
@@ -397,6 +422,17 @@ class SimulationEngine:
                     issue.status = new_state.value
                     jira_actions.extend(actions)
 
+                    # Update sim_assignee in Jira when worker is assigned.
+                    if sim_assignee_field_id and issue.jira_issue_key:
+                        jira_actions.append(JiraWriteAction(
+                            operation_type="UPDATE_ISSUE",
+                            payload={
+                                "issue_key": issue.jira_issue_key,
+                                "fields": {sim_assignee_field_id: worker.name},
+                            },
+                            issue_id=issue.id,
+                        ))
+
             # --- Step 5: Event rolls ---
             event_configs = {
                 ec.event_type: ec
@@ -468,6 +504,13 @@ class SimulationEngine:
                     events_fired.append(event_type)
                     jira_actions.extend(outcome.jira_actions)
 
+                    # Apply issue mutations from the event.
+                    mutations = outcome.issue_mutations
+                    if mutations and "issue_id" in mutations:
+                        _apply_issue_mutations(
+                            session, mutations, jira_actions,
+                        )
+
                     if current_sprint.id:
                         log_entry = SimulationEventLog(
                             team_id=team.id,
@@ -497,11 +540,29 @@ class SimulationEngine:
                         summary=gen_issue["summary"],
                         description=gen_issue["description"],
                         story_points=gen_issue["story_points"],
-                        status="backlog",
+                        status=IssueState.BACKLOG.value,
                         backlog_priority=len(backlog_issues) + 1,
                     )
                     session.add(new_issue)
                     session.flush()
+
+                    issue_fields: dict = {
+                        "description": {
+                            "type": "doc",
+                            "version": 1,
+                            "content": [{
+                                "type": "paragraph",
+                                "content": [{
+                                    "type": "text",
+                                    "text": gen_issue["description"],
+                                }],
+                            }],
+                        },
+                    }
+                    if story_points_field_id and gen_issue["story_points"]:
+                        issue_fields[story_points_field_id] = gen_issue["story_points"]
+                    if sim_reporter_field_id:
+                        issue_fields[sim_reporter_field_id] = f"[SIM] {team.name}"
 
                     jira_actions.append(JiraWriteAction(
                         operation_type="CREATE_ISSUE",
@@ -509,19 +570,7 @@ class SimulationEngine:
                             "project_key": team.jira_project_key,
                             "issue_type": gen_issue["issue_type"],
                             "summary": f"[SIM] {gen_issue['summary']}",
-                            "fields": {
-                                "description": {
-                                    "type": "doc",
-                                    "version": 1,
-                                    "content": [{
-                                        "type": "paragraph",
-                                        "content": [{
-                                            "type": "text",
-                                            "text": gen_issue["description"],
-                                        }],
-                                    }],
-                                },
-                            },
+                            "fields": issue_fields,
                         },
                         issue_id=new_issue.id,
                     ))
@@ -538,7 +587,7 @@ class SimulationEngine:
                     ))
 
             # --- Step 8: Enqueue Jira actions ---
-            self.enqueue_actions(team.id, jira_actions)
+            self.enqueue_actions(team.id, jira_actions, session=session)
 
             return TeamTickResult(
                 team_id=team.id,
@@ -554,6 +603,57 @@ class SimulationEngine:
                 events_fired=events_fired,
                 error=str(e),
             )
+
+
+def _apply_issue_mutations(
+    session, mutations: dict, jira_actions: list[JiraWriteAction],
+) -> None:
+    """Apply event-produced mutations to the Issue model and enqueue Jira links."""
+    from app.models.issue import Issue
+
+    issue = session.get(Issue, mutations["issue_id"])
+    if issue is None:
+        return
+
+    if "new_status" in mutations:
+        issue.status = mutations["new_status"]
+    if mutations.get("is_blocked") is not None:
+        issue.is_blocked = mutations["is_blocked"]
+    if mutations.get("carried_over"):
+        issue.carried_over = True
+    if mutations.get("descoped"):
+        issue.descoped = True
+        issue.sprint_id = None
+    if "priority" in mutations:
+        issue.priority = mutations["priority"]
+
+    # Create Jira link when blocked by a specific issue.
+    blocked_by_id = mutations.get("blocked_by_issue_id")
+    if blocked_by_id:
+        issue.blocked_by_issue_id = blocked_by_id
+        blocker = session.get(Issue, blocked_by_id)
+        if (
+            blocker
+            and blocker.jira_issue_key
+            and issue.jira_issue_key
+        ):
+            jira_actions.append(JiraWriteAction(
+                operation_type="CREATE_LINK",
+                payload={
+                    "link_type": "Blocks",
+                    "inward_key": blocker.jira_issue_key,
+                    "outward_key": issue.jira_issue_key,
+                },
+                issue_id=issue.id,
+            ))
+
+
+def _get_config_value(session, key: str) -> str | None:
+    """Look up a value from the JiraConfig key-value store."""
+    from app.models.jira_config import JiraConfig
+
+    row = session.query(JiraConfig).filter(JiraConfig.key == key).first()
+    return row.value if row else None
 
 
 def _parse_holidays(holidays_json: str) -> list:

@@ -108,6 +108,39 @@ def reset(request: Request):
     return SimulationStatus(status="stopped", tick_count=0)
 
 
+@router.post("/simulation/tick")
+async def manual_tick(request: Request):
+    """Trigger a single simulation tick manually (for testing)."""
+    engine = _get_engine(request)
+    if not engine.should_tick():
+        engine.start()
+    results = await engine.tick()
+
+    # Process the Jira write queue after the tick.
+    write_queue = getattr(request.app.state, "write_queue", None)
+    queue_result = None
+    if write_queue:
+        try:
+            await write_queue.process_batch(tick_interval_seconds=10)
+            queue_result = "processed"
+        except Exception as e:
+            queue_result = f"error: {e}"
+
+    return {
+        "tick_count": engine.tick_count,
+        "queue": queue_result,
+        "teams": [
+            {
+                "team_id": r.team_id,
+                "jira_actions": r.jira_actions_count,
+                "events": r.events_fired,
+                "error": r.error,
+            }
+            for r in results
+        ],
+    }
+
+
 @router.put("/simulation/tick-interval", response_model=TickInterval)
 def update_tick_interval(body: TickInterval, request: Request):
     # Store on engine for scheduler to read
@@ -295,7 +328,7 @@ def get_backlog(team_id: int, db: Session = Depends(get_session)):
     from app.models.issue import Issue
     issues = (
         db.query(Issue)
-        .filter(Issue.team_id == team_id, Issue.status == "BACKLOG")
+        .filter(Issue.team_id == team_id, Issue.status.in_(["BACKLOG", "backlog"]))
         .order_by(Issue.backlog_priority.asc())
         .all()
     )

@@ -150,7 +150,7 @@ class TestTickTeamBacklogGeneration:
         assert result.error is None
         backlog = (
             db_session.query(Issue)
-            .filter_by(team_id=team.id, status="backlog")
+            .filter_by(team_id=team.id, status="BACKLOG")
             .all()
         )
         assert len(backlog) > 0

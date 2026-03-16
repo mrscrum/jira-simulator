@@ -107,7 +107,7 @@ class TestBootstrapNewProject:
     ):
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)
-        assert mock_jira.create_custom_field.await_count == 2
+        assert mock_jira.create_custom_field.await_count == 3
 
     @pytest.mark.asyncio
     async def test_marks_team_bootstrapped(
@@ -149,6 +149,7 @@ class TestCustomFieldIdempotency:
         mock_jira.get_custom_fields.return_value = [
             {"id": "cf_1", "name": "sim_assignee"},
             {"id": "cf_2", "name": "sim_reporter"},
+            {"id": "cf_3", "name": "story_points"},
         ]
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)
@@ -161,6 +162,7 @@ class TestCustomFieldIdempotency:
         mock_jira.get_custom_fields.return_value = [
             {"id": "cf_1", "name": "sim_assignee"},
             {"id": "cf_2", "name": "sim_reporter"},
+            {"id": "cf_3", "name": "story_points"},
         ]
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)
@@ -169,6 +171,23 @@ class TestCustomFieldIdempotency:
         ).first()
         assert config is not None
         assert config.value == "cf_1"
+
+    @pytest.mark.asyncio
+    async def test_stores_story_points_field_id(
+        self, session, bootstrapper, mock_jira
+    ):
+        mock_jira.get_custom_fields.return_value = [
+            {"id": "cf_1", "name": "sim_assignee"},
+            {"id": "cf_2", "name": "sim_reporter"},
+            {"id": "customfield_10100", "name": "story_points"},
+        ]
+        team = _create_team_with_workflow(session)
+        await bootstrapper.bootstrap_team(team.id)
+        config = session.query(JiraConfig).filter(
+            JiraConfig.key == "field_id_story_points"
+        ).first()
+        assert config is not None
+        assert config.value == "customfield_10100"
 
 
 class TestMissingStatuses:
@@ -220,6 +239,7 @@ class TestIdempotentRerun:
         mock_jira.get_custom_fields.return_value = [
             {"id": "cf_1", "name": "sim_assignee"},
             {"id": "cf_2", "name": "sim_reporter"},
+            {"id": "cf_3", "name": "story_points"},
         ]
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)

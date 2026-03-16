@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 REQUIRED_CUSTOM_FIELDS = [
     ("sim_assignee", "com.atlassian.jira.plugin.system.customfieldtypes:textfield"),
     ("sim_reporter", "com.atlassian.jira.plugin.system.customfieldtypes:textfield"),
+    ("story_points", "com.atlassian.jira.plugin.system.customfieldtypes:float"),
 ]
 
 AlertFn = Callable[[AlertEvent, dict], Coroutine[Any, Any, None]]

@@ -4,6 +4,7 @@ import pytest
 
 from app.integrations.exceptions import JiraRateLimitError
 from app.integrations.jira_write_queue import (
+    JIRA_STATUS_MAP,
     OPERATION_PRIORITY,
     JiraWriteQueue,
 )
@@ -37,6 +38,13 @@ def mock_jira_client():
     client.add_comment = AsyncMock(return_value={"id": "1"})
     client.create_issue_link = AsyncMock()
     client.add_issues_to_sprint = AsyncMock()
+    client.start_sprint = AsyncMock()
+    client.complete_sprint = AsyncMock()
+    client.get_issue_transitions = AsyncMock(return_value=[
+        {"id": "11", "name": "To Do", "to": {"name": "To Do"}},
+        {"id": "21", "name": "In Progress", "to": {"name": "In Progress"}},
+        {"id": "31", "name": "Done", "to": {"name": "Done"}},
+    ])
     return client
 
 
@@ -223,6 +231,131 @@ class TestRecoveryCollapse:
     @pytest.mark.asyncio
     async def test_skips_recovery_when_no_pending(self, session, queue):
         await queue.run_recovery()
+
+
+class TestIssueKeyMapping:
+    @pytest.mark.asyncio
+    async def test_create_issue_maps_jira_key_back(
+        self, session, queue, mock_jira_client,
+    ):
+        from app.models.issue import Issue
+
+        team = _create_team(session)
+        issue = Issue(
+            team_id=team.id,
+            issue_type="Story",
+            summary="Test",
+            status="backlog",
+        )
+        session.add(issue)
+        session.flush()
+
+        mock_jira_client.create_issue.return_value = {
+            "key": "ALPHA-42",
+            "id": "99999",
+        }
+        queue.enqueue(
+            team_id=team.id,
+            operation_type="CREATE_ISSUE",
+            payload={
+                "project_key": "ALPHA",
+                "issue_type": "Story",
+                "summary": "Test",
+                "fields": {},
+            },
+            issue_id=issue.id,
+        )
+        entry = session.query(JiraWriteQueueEntry).first()
+        await queue.process_one(entry)
+
+        session.refresh(issue)
+        assert issue.jira_issue_key == "ALPHA-42"
+        assert issue.jira_issue_id == "99999"
+
+    @pytest.mark.asyncio
+    async def test_create_issue_without_issue_id_skips_mapping(
+        self, session, queue, mock_jira_client,
+    ):
+        team = _create_team(session)
+        queue.enqueue(
+            team_id=team.id,
+            operation_type="CREATE_ISSUE",
+            payload={
+                "project_key": "ALPHA",
+                "issue_type": "Story",
+                "summary": "Test",
+                "fields": {},
+            },
+        )
+        entry = session.query(JiraWriteQueueEntry).first()
+        await queue.process_one(entry)
+        session.refresh(entry)
+        assert entry.status == "DONE"
+
+
+class TestTransitionResolution:
+    @pytest.mark.asyncio
+    async def test_resolves_target_status_to_transition_id(
+        self, session, queue, mock_jira_client,
+    ):
+        team = _create_team(session)
+        queue.enqueue(
+            team_id=team.id,
+            operation_type="TRANSITION_ISSUE",
+            payload={"issue_key": "ALPHA-1", "target_status": "Done"},
+        )
+        entry = session.query(JiraWriteQueueEntry).first()
+        await queue.process_one(entry)
+
+        mock_jira_client.get_issue_transitions.assert_awaited_once_with("ALPHA-1")
+        mock_jira_client.transition_issue.assert_awaited_once_with("ALPHA-1", "31")
+
+    @pytest.mark.asyncio
+    async def test_maps_simulator_state_to_jira_status(
+        self, session, queue, mock_jira_client,
+    ):
+        """QUEUED_FOR_ROLE should map to 'To Do' via JIRA_STATUS_MAP."""
+        team = _create_team(session)
+        queue.enqueue(
+            team_id=team.id,
+            operation_type="TRANSITION_ISSUE",
+            payload={"issue_key": "ALPHA-1", "target_status": "QUEUED_FOR_ROLE"},
+        )
+        entry = session.query(JiraWriteQueueEntry).first()
+        await queue.process_one(entry)
+
+        mock_jira_client.transition_issue.assert_awaited_once_with("ALPHA-1", "11")
+
+    @pytest.mark.asyncio
+    async def test_fails_when_no_matching_transition(
+        self, session, queue, mock_jira_client,
+    ):
+        mock_jira_client.get_issue_transitions.return_value = []
+        team = _create_team(session)
+        queue.enqueue(
+            team_id=team.id,
+            operation_type="TRANSITION_ISSUE",
+            payload={"issue_key": "ALPHA-1", "target_status": "Done"},
+        )
+        entry = session.query(JiraWriteQueueEntry).first()
+        await queue.process_one(entry)
+        session.refresh(entry)
+        assert entry.status == "FAILED"
+        assert "No transition" in entry.last_error
+
+
+class TestStatusMap:
+    def test_all_simulator_states_mapped(self):
+        expected = {
+            "SPRINT_COMMITTED", "QUEUED_FOR_ROLE", "IN_PROGRESS",
+            "PENDING_HANDOFF", "EXTERNALLY_BLOCKED", "MOVED_LEFT",
+            "DONE", "DESCOPED",
+        }
+        assert set(JIRA_STATUS_MAP.keys()) == expected
+
+    def test_maps_to_three_jira_statuses(self):
+        values = set(JIRA_STATUS_MAP.values())
+        assert values == {"To Do", "In Progress", "Done"}
 
 
 class TestRetryFailed:
