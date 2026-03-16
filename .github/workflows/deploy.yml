@@ -91,6 +91,9 @@ jobs:
             echo ""
             echo "=== API test ==="
             curl -sv http://localhost/api/teams 2>&1 | tail -20
+            echo ""
+            echo "=== E2E Diagnostics ==="
+            curl -s http://localhost/api/e2e/diagnostics 2>&1 | python3 -m json.tool || echo "Diagnostics not available"
 
       - name: Reset DB before E2E Setup
         if: success() && github.event.inputs.run_e2e_setup == 'true'
