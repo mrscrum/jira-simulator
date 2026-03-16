@@ -265,9 +265,13 @@ class TestTickTeamSkipsOutsideWorkingHours:
         self, db_session, mock_write_queue,
     ):
         team = _create_team(db_session)
-        team.working_hours_start = 9
-        team.working_hours_end = 10
-        team.timezone = "Pacific/Fiji"
+        # Use a 1-minute window far from any reasonable CI run time.
+        # UTC+14 (Line Islands) is the furthest-ahead timezone.
+        # Working hours 3:00-3:01 in UTC+14 means only UTC 13:00-13:01
+        # could trigger the window — extremely unlikely during CI.
+        team.working_hours_start = 3
+        team.working_hours_end = 4
+        team.timezone = "Pacific/Kiritimati"
         _create_member(db_session, team.id)
         db_session.commit()
 
