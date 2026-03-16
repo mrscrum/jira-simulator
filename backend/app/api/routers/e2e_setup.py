@@ -16,6 +16,7 @@ from app.engine.backlog import (
 from app.engine.issue_state_machine import IssueState
 from app.models.dysfunction_config import DysfunctionConfig
 from app.models.issue import Issue
+from app.models.jira_config import JiraConfig
 from app.models.member import Member
 from app.models.organization import Organization
 from app.models.team import Team
@@ -236,6 +237,111 @@ async def _generate_backlog(
     return issues
 
 
+def _get_field_id(session: Session, key: str) -> str | None:
+    """Look up a Jira custom field ID from config."""
+    row = session.query(JiraConfig).filter(JiraConfig.key == key).first()
+    return row.value if row else None
+
+
+def _build_issue_fields(
+    issue: Issue,
+    team: Team,
+    sp_field: str | None,
+    reporter_field: str | None,
+    epic_jira_key: str | None = None,
+) -> dict:
+    """Build the Jira fields dict for a CREATE_ISSUE payload."""
+    fields: dict = {
+        "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [{
+                    "type": "text",
+                    "text": issue.description or issue.summary,
+                }],
+            }],
+        },
+    }
+    if sp_field and issue.story_points:
+        fields[sp_field] = issue.story_points
+    if reporter_field:
+        fields[reporter_field] = f"[SIM] {team.name}"
+    if epic_jira_key:
+        fields["parent"] = {"key": epic_jira_key}
+    return fields
+
+
+async def _sync_issues_to_jira(
+    session: Session,
+    write_queue,
+    team: Team,
+    issues: list[Issue],
+) -> int:
+    """Create all issues in Jira: epics first (processed immediately), then children."""
+    sp_field = _get_field_id(session, "field_id_story_points")
+    reporter_field = _get_field_id(session, "field_id_sim_reporter")
+
+    epics = [i for i in issues if i.issue_type == "Epic"]
+    stories = [i for i in issues if i.issue_type != "Epic"]
+    enqueued = 0
+
+    # Phase 1: Enqueue and process epics so they get jira_issue_key.
+    for epic in epics:
+        fields = _build_issue_fields(epic, team, sp_field, reporter_field)
+        write_queue.enqueue(
+            team_id=team.id,
+            operation_type="CREATE_ISSUE",
+            payload={
+                "project_key": team.jira_project_key,
+                "issue_type": "Epic",
+                "summary": epic.summary,
+                "fields": fields,
+            },
+            issue_id=epic.id,
+            session=session,
+        )
+        enqueued += 1
+    session.commit()
+
+    # Process epics immediately so jira_issue_key is populated.
+    if epics:
+        logger.info("Creating %d epics in Jira for %s...", len(epics), team.name)
+        await write_queue.process_batch(tick_interval_seconds=60)
+        # Refresh epic objects to get the mapped jira_issue_key.
+        for epic in epics:
+            session.refresh(epic)
+
+    # Phase 2: Enqueue child issues with epic parent links.
+    # Build epic_id -> jira_key map for parent linking.
+    epic_key_map: dict[int, str | None] = {
+        e.id: e.jira_issue_key for e in epics
+    }
+
+    for story in stories:
+        epic_key = epic_key_map.get(story.epic_id) if story.epic_id else None
+        fields = _build_issue_fields(
+            story, team, sp_field, reporter_field, epic_jira_key=epic_key,
+        )
+        write_queue.enqueue(
+            team_id=team.id,
+            operation_type="CREATE_ISSUE",
+            payload={
+                "project_key": team.jira_project_key,
+                "issue_type": story.issue_type,
+                "summary": f"[SIM] {story.summary}",
+                "fields": fields,
+            },
+            issue_id=story.id,
+            session=session,
+        )
+        enqueued += 1
+    session.commit()
+
+    return enqueued
+
+
 @router.post("/setup")
 async def setup_e2e(request: Request):
     """Create 3 demo teams with full data and trigger Jira bootstrap."""
@@ -244,6 +350,7 @@ async def setup_e2e(request: Request):
         raise HTTPException(status_code=503, detail="Session factory not available")
 
     bootstrapper = getattr(request.app.state, "bootstrapper", None)
+    write_queue = getattr(request.app.state, "write_queue", None)
     session = session_factory()
 
     try:
@@ -267,6 +374,19 @@ async def setup_e2e(request: Request):
                         "Bootstrap failed for team %s: %s", team.name, e,
                     )
 
+            # Create all issues in Jira (epics first, then stories).
+            jira_issues_enqueued = 0
+            if write_queue and bootstrap_status == "success":
+                # Re-read team to get fresh bootstrap data.
+                session.expire(team)
+                jira_issues_enqueued = await _sync_issues_to_jira(
+                    session, write_queue, team, issues,
+                )
+                logger.info(
+                    "Enqueued %d issues for Jira creation (team %s)",
+                    jira_issues_enqueued, team.name,
+                )
+
             results.append({
                 "team_id": team.id,
                 "name": team.name,
@@ -275,7 +395,30 @@ async def setup_e2e(request: Request):
                 "workflow_steps": len(defn["workflow_steps"]),
                 "backlog_issues": len(issues),
                 "bootstrap": bootstrap_status,
+                "jira_issues_enqueued": jira_issues_enqueued,
             })
+
+        # Process the Jira write queue to create issues in Jira.
+        # We run multiple batches to handle all queued items (78+ issues).
+        if write_queue:
+            try:
+                logger.info("Processing Jira write queue after E2E setup...")
+                for batch_num in range(20):  # Up to 20 batches
+                    pending = write_queue.get_pending_batch()
+                    if not pending:
+                        logger.info(
+                            "Queue empty after %d batches", batch_num,
+                        )
+                        break
+                    logger.info(
+                        "Processing batch %d (%d entries)...",
+                        batch_num + 1, len(pending),
+                    )
+                    await write_queue.process_batch(
+                        tick_interval_seconds=120,
+                    )
+            except Exception as e:
+                logger.exception("Queue processing error: %s", e)
 
         return {"teams": results}
     except Exception as e:

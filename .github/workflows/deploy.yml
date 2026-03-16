@@ -99,7 +99,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 120s
+          command_timeout: 600s
           script: |
             echo "=== Running E2E Setup ==="
             curl -s -X POST http://localhost/api/e2e/setup | python3 -m json.tool
