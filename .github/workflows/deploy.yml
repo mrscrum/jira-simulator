@@ -92,6 +92,26 @@ jobs:
             echo "=== API test ==="
             curl -sv http://localhost/api/teams 2>&1 | tail -20
 
+      - name: Reset DB before E2E Setup
+        if: success() && github.event.inputs.run_e2e_setup == 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=== Stopping simulation ==="
+            curl -s -X POST http://localhost/api/simulation/reset || true
+            echo ""
+            echo "=== Removing old database ==="
+            sudo docker compose -f /app/jira-simulator/docker-compose.yml exec -T backend rm -f /data/simulator.db || true
+            echo "=== Restarting backend ==="
+            cd /app/jira-simulator
+            sudo docker compose restart backend
+            sleep 5
+            echo "=== Health check ==="
+            curl -s http://localhost/health
+
       - name: Run E2E Setup
         if: success() && github.event.inputs.run_e2e_setup == 'true'
         uses: appleboy/ssh-action@v1
@@ -102,7 +122,7 @@ jobs:
           command_timeout: 600s
           script: |
             echo "=== Running E2E Setup ==="
-            curl -s -X POST http://localhost/api/e2e/setup | python3 -m json.tool
+            curl -s -X POST http://localhost/api/e2e/setup 2>&1
             echo ""
             echo "=== Teams after setup ==="
             curl -s http://localhost/api/teams | python3 -m json.tool
