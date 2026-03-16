@@ -336,10 +336,15 @@ async def generate_backlog(
 @router.get("/simulation/{team_id}/capacity")
 def get_capacity(team_id: int, db: Session = Depends(get_session)):
     from app.models.daily_capacity_log import DailyCapacityLog
+    from app.models.member import Member
+    member_ids = [
+        m.id for m in db.query(Member.id).filter(Member.team_id == team_id).all()
+    ]
+    if not member_ids:
+        return []
     logs = (
         db.query(DailyCapacityLog)
-        .join(DailyCapacityLog.member)
-        .filter(DailyCapacityLog.member.has(team_id=team_id))
+        .filter(DailyCapacityLog.member_id.in_(member_ids))
         .order_by(DailyCapacityLog.date.desc())
         .limit(50)
         .all()
