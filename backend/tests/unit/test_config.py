@@ -10,7 +10,7 @@ class TestSettings:
 
         from app.config import Settings
 
-        settings = Settings()
+        settings = Settings(_env_file=None)
         assert settings.database_url == "sqlite:///./data/simulator.db"
 
     def test_loads_default_environment(self, monkeypatch):
@@ -55,7 +55,7 @@ class TestSettings:
         from app.config import Settings
 
         with pytest.raises(Exception):
-            Settings()
+            Settings(_env_file=None)
 
     def test_requires_openai_api_key(self, monkeypatch):
         monkeypatch.setenv("JIRA_BASE_URL", "https://test.atlassian.net")
@@ -66,7 +66,7 @@ class TestSettings:
         from app.config import Settings
 
         with pytest.raises(Exception):
-            Settings()
+            Settings(_env_file=None)
 
     def test_overrides_from_environment(self, monkeypatch):
         monkeypatch.setenv("JIRA_BASE_URL", "https://custom.atlassian.net")
