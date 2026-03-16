@@ -3,6 +3,20 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_e2e_setup:
+        description: 'Run E2E setup after deploy'
+        type: boolean
+        default: false
+      start_simulation:
+        description: 'Start simulation after E2E setup'
+        type: boolean
+        default: false
+      clock_speed:
+        description: 'Simulation clock speed (1=realtime, 60=accelerated)'
+        type: number
+        default: 1
 
 jobs:
   test-and-deploy:
@@ -77,3 +91,38 @@ jobs:
             echo ""
             echo "=== API test ==="
             curl -sv http://localhost/api/teams 2>&1 | tail -20
+
+      - name: Run E2E Setup
+        if: success() && github.event.inputs.run_e2e_setup == 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 120s
+          script: |
+            echo "=== Running E2E Setup ==="
+            curl -s -X POST http://localhost/api/e2e/setup | python3 -m json.tool
+            echo ""
+            echo "=== Teams after setup ==="
+            curl -s http://localhost/api/teams | python3 -m json.tool
+
+      - name: Start Simulation
+        if: success() && github.event.inputs.start_simulation == 'true'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            SPEED=${{ github.event.inputs.clock_speed || '1' }}
+            echo "=== Setting clock speed to ${SPEED}x ==="
+            curl -s -X PUT http://localhost/api/simulation/clock \
+              -H "Content-Type: application/json" \
+              -d "{\"speed\": ${SPEED}}" | python3 -m json.tool
+            echo ""
+            echo "=== Starting simulation ==="
+            curl -s -X POST http://localhost/api/simulation/start | python3 -m json.tool
+            echo ""
+            echo "=== Simulation status ==="
+            curl -s http://localhost/api/simulation/status | python3 -m json.tool
