@@ -146,6 +146,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             SPEED=${{ github.event.inputs.clock_speed || '1' }}
+            echo "=== Preparing simulation (2-day sprints) ==="
+            curl -s -X POST http://localhost/api/e2e/prepare-simulation | python3 -m json.tool
+            echo ""
             echo "=== Setting clock speed to ${SPEED}x ==="
             curl -s -X PUT http://localhost/api/simulation/clock \
               -H "Content-Type: application/json" \
