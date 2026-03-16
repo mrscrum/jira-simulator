@@ -50,7 +50,7 @@ class JiraBootstrapper:
 
         await self._ensure_project(team)
         await self._ensure_board(team)
-        await self._ensure_custom_fields(session)
+        await self._ensure_custom_fields(session, team)
         status_warnings = await self._match_statuses(team, session)
         warnings.extend(status_warnings)
 
@@ -90,28 +90,57 @@ class JiraBootstrapper:
                 team.jira_project_key,
             )
 
-    async def _ensure_custom_fields(self, session: Session) -> None:
+    async def _ensure_custom_fields(
+        self, session: Session, team: Team,
+    ) -> None:
         existing_fields = await self._jira.get_custom_fields()
         existing_names = {f["name"]: f["id"] for f in existing_fields}
 
-        # --- Detect Jira's built-in story points field ---
+        # --- Detect story points field from board configuration ---
+        # The board's estimation field is the authoritative source for which
+        # custom field Jira displays as "Story Points" on the board.
         sp_field_id = None
-        for sp_name in BUILTIN_SP_NAMES:
-            if sp_name in existing_names:
-                sp_field_id = existing_names[sp_name]
-                logger.info("Using built-in story points field: %s (%s)", sp_name, sp_field_id)
-                break
+        if team.jira_board_id:
+            try:
+                resp = await self._jira._request(
+                    "GET",
+                    f"/rest/agile/1.0/board/{team.jira_board_id}/configuration",
+                )
+                board_cfg = resp.json()
+                est = board_cfg.get("estimation", {}).get("field", {})
+                board_sp_id = est.get("fieldId")
+                board_sp_name = est.get("displayName", "")
+                if board_sp_id:
+                    sp_field_id = board_sp_id
+                    logger.info(
+                        "Using board estimation field: %s (%s)",
+                        board_sp_name, sp_field_id,
+                    )
+            except Exception as exc:
+                logger.warning("Could not read board config: %s", exc)
+
+        # Fallback: scan custom fields for known story points names.
         if sp_field_id is None:
-            # Fallback: look for any field whose name contains "story point"
+            for sp_name in BUILTIN_SP_NAMES:
+                if sp_name in existing_names:
+                    sp_field_id = existing_names[sp_name]
+                    logger.info(
+                        "Using built-in story points field: %s (%s)",
+                        sp_name, sp_field_id,
+                    )
+                    break
+        if sp_field_id is None:
             for name, fid in existing_names.items():
                 if "story point" in name.lower():
                     sp_field_id = fid
-                    logger.info("Using story points field: %s (%s)", name, sp_field_id)
+                    logger.info(
+                        "Using story points field: %s (%s)", name, sp_field_id,
+                    )
                     break
         if sp_field_id:
             self._upsert_config(session, "field_id_story_points", sp_field_id)
         else:
-            logger.warning("No built-in story points field found in Jira")
+            logger.warning("No story points field found in Jira")
 
         # --- Custom fields (sim_assignee, sim_reporter) ---
         for field_name, field_type in REQUIRED_CUSTOM_FIELDS:
