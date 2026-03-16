@@ -20,8 +20,12 @@ REQUIRED_CUSTOM_FIELDS = [
     ("sim_reporter", "com.atlassian.jira.plugin.system.customfieldtypes:textfield"),
 ]
 
-# Known names for Jira's built-in story points field.
-BUILTIN_SP_NAMES = ("Story point estimate", "Story Points", "story_points")
+# Preferred story-points field ID (Jira native "Story Points" field).
+# Detected from the live instance via /rest/api/3/field.
+PREFERRED_SP_FIELD_ID = "customfield_10034"
+
+# Fallback names if the preferred field doesn't exist.
+BUILTIN_SP_NAMES = ("Story Points", "Story point estimate", "story_points")
 
 AlertFn = Callable[[AlertEvent, dict], Coroutine[Any, Any, None]]
 
@@ -94,13 +98,23 @@ class JiraBootstrapper:
         self, session: Session, team: Team,
     ) -> None:
         existing_fields = await self._jira.get_custom_fields()
+        existing_by_id = {f["id"]: f for f in existing_fields}
         existing_names = {f["name"]: f["id"] for f in existing_fields}
 
-        # --- Detect story points field from board configuration ---
-        # The board's estimation field is the authoritative source for which
-        # custom field Jira displays as "Story Points" on the board.
+        # --- Detect story points field ---
+        # 1. Preferred: use the known native field ID directly.
+        # 2. Fallback: read the board's estimation configuration.
+        # 3. Last resort: scan field names for common SP names.
         sp_field_id = None
-        if team.jira_board_id:
+
+        if PREFERRED_SP_FIELD_ID in existing_by_id:
+            sp_field_id = PREFERRED_SP_FIELD_ID
+            logger.info(
+                "Using preferred story points field: %s (%s)",
+                existing_by_id[sp_field_id]["name"], sp_field_id,
+            )
+
+        if sp_field_id is None and team.jira_board_id:
             try:
                 resp = await self._jira._request(
                     "GET",
@@ -109,17 +123,15 @@ class JiraBootstrapper:
                 board_cfg = resp.json()
                 est = board_cfg.get("estimation", {}).get("field", {})
                 board_sp_id = est.get("fieldId")
-                board_sp_name = est.get("displayName", "")
                 if board_sp_id:
                     sp_field_id = board_sp_id
                     logger.info(
                         "Using board estimation field: %s (%s)",
-                        board_sp_name, sp_field_id,
+                        est.get("displayName", ""), sp_field_id,
                     )
             except Exception as exc:
                 logger.warning("Could not read board config: %s", exc)
 
-        # Fallback: scan custom fields for known story points names.
         if sp_field_id is None:
             for sp_name in BUILTIN_SP_NAMES:
                 if sp_name in existing_names:
@@ -129,20 +141,17 @@ class JiraBootstrapper:
                         sp_name, sp_field_id,
                     )
                     break
-        if sp_field_id is None:
-            for name, fid in existing_names.items():
-                if "story point" in name.lower():
-                    sp_field_id = fid
-                    logger.info(
-                        "Using story points field: %s (%s)", name, sp_field_id,
-                    )
-                    break
+
         if sp_field_id:
             self._upsert_config(session, "field_id_story_points", sp_field_id)
         else:
             logger.warning("No story points field found in Jira")
 
         # --- Custom fields (sim_assignee, sim_reporter) ---
+        all_field_ids: list[str] = []
+        if sp_field_id:
+            all_field_ids.append(sp_field_id)
+
         for field_name, field_type in REQUIRED_CUSTOM_FIELDS:
             config_key = f"field_id_{field_name}"
             if field_name in existing_names:
@@ -155,6 +164,16 @@ class JiraBootstrapper:
                 logger.info("Created custom field: %s", field_name)
 
             self._upsert_config(session, config_key, field_id)
+            all_field_ids.append(field_id)
+
+        # --- Add all fields to Jira screens so they are settable ---
+        for fid in all_field_ids:
+            try:
+                count = await self._jira.add_field_to_all_screens(fid)
+                logger.info("Added field %s to %d screen(s)", fid, count)
+            except Exception as exc:
+                logger.warning("Could not add field %s to screens: %s", fid, exc)
+
         session.flush()
 
     @staticmethod
