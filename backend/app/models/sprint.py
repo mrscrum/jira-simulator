@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -24,6 +24,19 @@ class Sprint(TimestampMixin, Base):
     planned_velocity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     actual_velocity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     scope_change_points: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    phase: Mapped[str] = mapped_column(
+        String, default="BACKLOG_PREP", nullable=False
+    )
+    sprint_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    committed_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completed_points: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    carried_over_points: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    velocity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    goal_at_risk: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
     team: Mapped["Team"] = relationship(back_populates="sprints")
     issues: Mapped[list["Issue"]] = relationship(back_populates="sprint")

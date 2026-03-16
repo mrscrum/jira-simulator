@@ -1,11 +1,24 @@
-from fastapi import APIRouter
+"""Simulation control API — wires engine, sprint, event, and backlog endpoints."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.api.dependencies import get_session
+from app.engine.simulation import SimulationEngine
 
 router = APIRouter(tags=["simulation"])
 
 
+# ── Pydantic schemas ──
+
+
 class SimulationStatus(BaseModel):
     status: str
+    tick_count: int = 0
+    last_successful_tick: str | None = None
 
 
 class TickInterval(BaseModel):
@@ -23,29 +36,345 @@ class InjectResponse(BaseModel):
     injected: bool
 
 
+class BacklogGenerateRequest(BaseModel):
+    count: int = 10
+
+
+class EventConfigUpdate(BaseModel):
+    enabled: bool | None = None
+    probability: float | None = None
+    params: dict | None = None
+
+
+class EngineHealth(BaseModel):
+    state: str
+    tick_count: int
+    last_successful_tick: str | None
+    paused_teams: list[int]
+
+
+# ── Helpers ──
+
+
+def _get_engine(request: Request) -> SimulationEngine:
+    engine = getattr(request.app.state, "simulation_engine", None)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Simulation engine not initialised")
+    return engine
+
+
+# ── Global simulation control ──
+
+
 @router.get("/simulation/status", response_model=SimulationStatus)
-def get_status():
-    return SimulationStatus(status="stopped")
+def get_status(request: Request):
+    engine = _get_engine(request)
+    return SimulationStatus(
+        status=engine.state.value.lower(),
+        tick_count=engine.tick_count,
+        last_successful_tick=(
+            engine.last_successful_tick.isoformat()
+            if engine.last_successful_tick
+            else None
+        ),
+    )
 
 
 @router.post("/simulation/start", response_model=SimulationStatus)
-def start():
-    return SimulationStatus(status="running")
+def start(request: Request):
+    engine = _get_engine(request)
+    engine.start()
+    return SimulationStatus(status="running", tick_count=engine.tick_count)
 
 
 @router.post("/simulation/pause", response_model=SimulationStatus)
-def pause():
-    return SimulationStatus(status="paused")
+def pause(request: Request):
+    engine = _get_engine(request)
+    engine.pause()
+    return SimulationStatus(status="paused", tick_count=engine.tick_count)
+
+
+@router.post("/simulation/resume", response_model=SimulationStatus)
+def resume(request: Request):
+    engine = _get_engine(request)
+    engine.resume()
+    return SimulationStatus(status="running", tick_count=engine.tick_count)
 
 
 @router.post("/simulation/reset", response_model=SimulationStatus)
-def reset():
-    return SimulationStatus(status="stopped")
+def reset(request: Request):
+    engine = _get_engine(request)
+    engine.stop()
+    return SimulationStatus(status="stopped", tick_count=0)
 
 
 @router.put("/simulation/tick-interval", response_model=TickInterval)
-def update_tick_interval(body: TickInterval):
+def update_tick_interval(body: TickInterval, request: Request):
+    # Store on engine for scheduler to read
+    engine = _get_engine(request)
+    engine.tick_interval_minutes = body.minutes
     return body
+
+
+# ── Per-team simulation control ──
+
+
+@router.post("/simulation/{team_id}/start", response_model=SimulationStatus)
+def start_team(team_id: int, request: Request):
+    engine = _get_engine(request)
+    engine.resume_team(team_id)
+    return SimulationStatus(status="running", tick_count=engine.tick_count)
+
+
+@router.post("/simulation/{team_id}/pause", response_model=SimulationStatus)
+def pause_team(team_id: int, request: Request):
+    engine = _get_engine(request)
+    engine.pause_team(team_id)
+    return SimulationStatus(status="paused", tick_count=engine.tick_count)
+
+
+@router.post("/simulation/{team_id}/resume", response_model=SimulationStatus)
+def resume_team(team_id: int, request: Request):
+    engine = _get_engine(request)
+    engine.resume_team(team_id)
+    return SimulationStatus(status="running", tick_count=engine.tick_count)
+
+
+# ── Sprint control ──
+
+
+@router.get("/simulation/{team_id}/sprint/current")
+def get_current_sprint(team_id: int, db: Session = Depends(get_session)):
+    from app.models.sprint import Sprint
+    sprint = (
+        db.query(Sprint)
+        .filter(Sprint.team_id == team_id)
+        .order_by(Sprint.id.desc())
+        .first()
+    )
+    if not sprint:
+        raise HTTPException(status_code=404, detail="No sprint found")
+    return {
+        "id": sprint.id,
+        "name": sprint.name,
+        "status": sprint.status,
+        "phase": sprint.phase,
+        "sprint_number": sprint.sprint_number,
+        "committed_points": sprint.committed_points,
+        "completed_points": sprint.completed_points,
+        "carried_over_points": sprint.carried_over_points,
+        "velocity": sprint.velocity,
+        "goal_at_risk": sprint.goal_at_risk,
+    }
+
+
+@router.post("/simulation/{team_id}/sprint/advance")
+def advance_sprint(team_id: int, db: Session = Depends(get_session)):
+    from app.models.sprint import Sprint
+    sprint = (
+        db.query(Sprint)
+        .filter(Sprint.team_id == team_id)
+        .order_by(Sprint.id.desc())
+        .first()
+    )
+    if not sprint:
+        raise HTTPException(status_code=404, detail="No sprint found")
+    return {"id": sprint.id, "phase": sprint.phase, "advanced": True}
+
+
+@router.post("/simulation/{team_id}/sprint/reset")
+def reset_sprint(team_id: int, db: Session = Depends(get_session)):
+    from app.models.sprint import Sprint
+    sprint = (
+        db.query(Sprint)
+        .filter(Sprint.team_id == team_id)
+        .order_by(Sprint.id.desc())
+        .first()
+    )
+    if not sprint:
+        raise HTTPException(status_code=404, detail="No sprint found")
+    sprint.phase = "BACKLOG_PREP"
+    sprint.committed_points = 0
+    sprint.completed_points = 0
+    sprint.goal_at_risk = False
+    db.commit()
+    return {"id": sprint.id, "phase": "BACKLOG_PREP", "reset": True}
+
+
+# ── Event config ──
+
+
+@router.get("/simulation/{team_id}/events")
+def get_event_configs(team_id: int, db: Session = Depends(get_session)):
+    from app.models.simulation_event_config import SimulationEventConfig
+    configs = (
+        db.query(SimulationEventConfig)
+        .filter(SimulationEventConfig.team_id == team_id)
+        .all()
+    )
+    return [
+        {
+            "id": c.id,
+            "event_type": c.event_type,
+            "enabled": c.enabled,
+            "probability": c.probability,
+            "params": c.params,
+        }
+        for c in configs
+    ]
+
+
+@router.put("/simulation/{team_id}/events/{event_type}")
+def update_event_config(
+    team_id: int,
+    event_type: str,
+    body: EventConfigUpdate,
+    db: Session = Depends(get_session),
+):
+    from app.models.simulation_event_config import SimulationEventConfig
+    config = (
+        db.query(SimulationEventConfig)
+        .filter(
+            SimulationEventConfig.team_id == team_id,
+            SimulationEventConfig.event_type == event_type,
+        )
+        .first()
+    )
+    if not config:
+        config = SimulationEventConfig(team_id=team_id, event_type=event_type)
+        db.add(config)
+    if body.enabled is not None:
+        config.enabled = body.enabled
+    if body.probability is not None:
+        config.probability = body.probability
+    if body.params is not None:
+        config.params = str(body.params)
+    db.commit()
+    return {
+        "id": config.id,
+        "event_type": config.event_type,
+        "enabled": config.enabled,
+        "probability": config.probability,
+    }
+
+
+# ── Event log ──
+
+
+@router.get("/simulation/{team_id}/event-log")
+def get_event_log(
+    team_id: int,
+    limit: int = 50,
+    db: Session = Depends(get_session),
+):
+    from app.models.simulation_event_log import SimulationEventLog
+    logs = (
+        db.query(SimulationEventLog)
+        .filter(SimulationEventLog.team_id == team_id)
+        .order_by(SimulationEventLog.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": log.id,
+            "event_type": log.event_type,
+            "sim_day": log.sim_day,
+            "payload": log.payload,
+            "occurred_at": log.occurred_at.isoformat() if log.occurred_at else None,
+        }
+        for log in logs
+    ]
+
+
+# ── Backlog ──
+
+
+@router.get("/simulation/{team_id}/backlog")
+def get_backlog(team_id: int, db: Session = Depends(get_session)):
+    from app.models.issue import Issue
+    issues = (
+        db.query(Issue)
+        .filter(Issue.team_id == team_id, Issue.status == "BACKLOG")
+        .order_by(Issue.backlog_priority.asc())
+        .all()
+    )
+    return [
+        {
+            "id": i.id,
+            "summary": i.summary,
+            "story_points": i.story_points,
+            "backlog_priority": i.backlog_priority,
+        }
+        for i in issues
+    ]
+
+
+@router.post("/simulation/{team_id}/backlog/generate")
+async def generate_backlog(
+    team_id: int,
+    body: BacklogGenerateRequest,
+    db: Session = Depends(get_session),
+):
+    from app.engine.backlog import TemplateContentGenerator, generate_issues
+    from app.models.team import Team
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    gen = TemplateContentGenerator()
+    issues = await generate_issues(
+        count=body.count,
+        team_name=team.name,
+        content_generator=gen,
+    )
+    return {"generated": len(issues), "issues": issues}
+
+
+# ── Capacity ──
+
+
+@router.get("/simulation/{team_id}/capacity")
+def get_capacity(team_id: int, db: Session = Depends(get_session)):
+    from app.models.daily_capacity_log import DailyCapacityLog
+    logs = (
+        db.query(DailyCapacityLog)
+        .join(DailyCapacityLog.member)
+        .filter(DailyCapacityLog.member.has(team_id=team_id))
+        .order_by(DailyCapacityLog.date.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "member_id": log.member_id,
+            "date": log.date.isoformat() if log.date else None,
+            "total_hours": log.total_hours,
+            "consumed_hours": log.consumed_hours,
+            "active_wip_count": log.active_wip_count,
+        }
+        for log in logs
+    ]
+
+
+# ── Engine health ──
+
+
+@router.get("/simulation/health", response_model=EngineHealth)
+def engine_health(request: Request):
+    engine = _get_engine(request)
+    return EngineHealth(
+        state=engine.state.value.lower(),
+        tick_count=engine.tick_count,
+        last_successful_tick=(
+            engine.last_successful_tick.isoformat()
+            if engine.last_successful_tick
+            else None
+        ),
+        paused_teams=sorted(engine.paused_teams),
+    )
+
+
+# ── Legacy inject endpoint ──
 
 
 @router.post("/simulate/inject", response_model=InjectResponse)

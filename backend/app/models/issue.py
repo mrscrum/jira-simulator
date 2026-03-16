@@ -51,6 +51,16 @@ class Issue(TimestampMixin, Base):
     dysfunction_flags: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String, default="backlog", nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    backlog_priority: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    carried_over: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    descoped: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    split_from_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("issues.id"), nullable=True
+    )
 
     team: Mapped["Team"] = relationship(back_populates="issues")
     current_workflow_step: Mapped["WorkflowStep | None"] = relationship(

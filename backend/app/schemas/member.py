@@ -9,6 +9,7 @@ class MemberBase(BaseModel):
     daily_capacity_hours: float = 6.0
     max_concurrent_wip: int = 3
     is_active: bool = True
+    timezone: str | None = None
 
 
 class MemberCreate(MemberBase):
@@ -37,3 +38,4 @@ class MemberUpdate(BaseModel):
     daily_capacity_hours: float | None = None
     max_concurrent_wip: int | None = None
     is_active: bool | None = None
+    timezone: str | None = None

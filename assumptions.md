@@ -1,3 +1,17 @@
+## [2026-03-16] Stage 4 — Simulation Engine
+- Assumed SprintPhase is kept as a backup field on Sprint model but not actively used for routing logic yet (per user decision: "keep status, treat phase as backup")
+- Assumed split_from_id FK on issues is enforced at ORM level only (SQLite does not support ALTER ADD CONSTRAINT for self-referential FKs)
+- Assumed SimulationEventConfig.params column defaults to "{}" (empty JSON string) rather than being nullable
+- Assumed all event handlers use dependency-injected `rng` parameter for deterministic testing (no global random state)
+- Assumed TemplateContentGenerator is sufficient for initial backlog generation; OpenAIContentGenerator falls back to templates on any error
+- Assumed core 4 events (carry_over, velocity_drift, sprint_goal_risk, stale_issue) are detection-based; remaining 12 use probability rolls with configurable thresholds
+- Assumed calendar module uses zoneinfo.ZoneInfo (Python 3.9+ stdlib) rather than pytz
+- Assumed MAX_LOOKAHEAD_DAYS=30 is sufficient for next_working_moment calculation
+- Assumed tick orchestrator skeleton with placeholder _tick_team is acceptable; full tick wiring will be completed when integration-tested with real team data
+- Assumed OpenAI GPT is the LLM provider for AI content generation (per user decision)
+- Assumed default story point distribution: {1: 0.15, 2: 0.20, 3: 0.25, 5: 0.20, 8: 0.15, 13: 0.05}
+- Assumed simulation engine tick_interval_minutes defaults to 5 and is configurable via API
+
 ## [2026-03-15] Stage 3 — Jira Integration Layer
 - Assumed JiraClient should use httpx.AsyncClient (confirmed by Pavel)
 - Assumed boto3 + AWS SES for alerting (confirmed by Pavel)

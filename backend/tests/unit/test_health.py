@@ -9,4 +9,4 @@ def test_health_returns_200_with_status_ok():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["stage"] == "3"
+    assert body["stage"] == "4"

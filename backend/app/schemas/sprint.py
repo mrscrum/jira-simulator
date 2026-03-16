@@ -12,6 +12,13 @@ class SprintBase(BaseModel):
     planned_velocity: int | None = None
     actual_velocity: int | None = None
     scope_change_points: int = 0
+    phase: str = "BACKLOG_PREP"
+    sprint_number: int | None = None
+    committed_points: int | None = None
+    completed_points: int | None = None
+    carried_over_points: int = 0
+    velocity: float | None = None
+    goal_at_risk: bool = False
 
 
 class SprintCreate(SprintBase):
@@ -38,3 +45,10 @@ class SprintUpdate(BaseModel):
     planned_velocity: int | None = None
     actual_velocity: int | None = None
     scope_change_points: int | None = None
+    phase: str | None = None
+    sprint_number: int | None = None
+    committed_points: int | None = None
+    completed_points: int | None = None
+    carried_over_points: int | None = None
+    velocity: float | None = None
+    goal_at_risk: bool | None = None

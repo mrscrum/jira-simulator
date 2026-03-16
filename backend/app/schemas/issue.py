@@ -42,6 +42,10 @@ class IssueRead(IssueBase):
     dysfunction_flags: str | None = None
     status: str = "backlog"
     completed_at: datetime | None = None
+    backlog_priority: int | None = None
+    carried_over: bool = False
+    descoped: bool = False
+    split_from_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -62,3 +66,7 @@ class IssueUpdate(BaseModel):
     dysfunction_flags: str | None = None
     status: str | None = None
     completed_at: datetime | None = None
+    backlog_priority: int | None = None
+    carried_over: bool | None = None
+    descoped: bool | None = None
+    split_from_id: int | None = None

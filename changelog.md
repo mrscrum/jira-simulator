@@ -1,3 +1,27 @@
+## [2026-03-16] Stage 4 — Simulation Engine
+
+### Added
+- Created `engine/calendar.py` — pure functions for timezone-aware business day/working hours calculations (ZoneInfo, holidays, cross-timezone handoff lag)
+- Created `engine/capacity.py` — DailyCapacityState frozen dataclass, WIP tracking, touch-time advancement, available worker selection
+- Created `engine/issue_state_machine.py` — IssueState StrEnum (9 states), JiraWriteAction dataclass, transition_issue() with valid transition map
+- Created `engine/sprint_lifecycle.py` — SprintPhase StrEnum, phase advancement logic, capacity-fitted/priority-ordered issue selection, carry-over detection, velocity calculation
+- Created `engine/events/base.py` — TickContext, EventOutcome dataclasses, BaseEvent ABC
+- Created `engine/events/registry.py` — event handler registry with 16 events registered
+- Created 16 event handlers: carry_over, velocity_drift, sprint_goal_risk, stale_issue, move_left, descope, unplanned_absence, priority_change, split_story, external_block, uneven_load, review_bottleneck, onboarding_tax, late_planning, skipped_retro, scope_commitment_miss
+- Created `engine/backlog.py` — depth check, story point distribution, TemplateContentGenerator, OpenAIContentGenerator (fallback to templates), async batch generation
+- Created `engine/simulation.py` — SimulationEngine tick orchestrator with state machine (STOPPED/RUNNING/PAUSED), per-team pause, write queue integration, tick counting
+- Added 4 new DB models: SimulationEventConfig, SimulationEventLog, MoveLeftConfig (with MoveLeftTarget + MoveLeftSameStepStatus), DailyCapacityLog
+- Added 8 columns to Team model (sprint_length_days, sprint_planning_strategy, backlog_depth_target, etc.)
+- Added timezone column to Member model
+- Added 7 columns to Sprint model (phase, sprint_number, committed_points, completed_points, etc.)
+- Added 4 columns to Issue model (backlog_priority, carried_over, descoped, split_from_id)
+- Created Alembic migration 008_stage4_schema
+- Updated Pydantic schemas for Team, Member, Sprint, Issue with all new fields
+- Rewired simulation API router: 20+ endpoints for engine control, per-team control, sprint management, event config, event log, backlog, capacity, engine health
+- Created SimulationEngine in FastAPI lifespan and stored on app.state
+- Updated health endpoint stage to "4"
+- 518 tests passing (229 new), ruff clean
+
 ## [2026-03-15] Stage 3 — Jira Integration Layer
 ### Changed
 - Created JiraClient async httpx wrapper (all Jira REST API v3 methods)

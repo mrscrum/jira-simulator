@@ -12,6 +12,7 @@ from app.api.routers.teams import router as teams_router
 from app.api.routers.workflow import router as workflow_router
 from app.config import get_settings
 from app.database import create_engine_from_url, create_session_factory
+from app.engine.simulation import SimulationEngine
 from app.integrations.alerting import AlertingService
 from app.integrations.jira_bootstrapper import JiraBootstrapper
 from app.integrations.jira_client import JiraClient
@@ -55,6 +56,12 @@ async def lifespan(application: FastAPI):
     write_queue = JiraWriteQueue(session_factory, jira_client, health_monitor)
     application.state.write_queue = write_queue
 
+    simulation_engine = SimulationEngine(
+        session_factory=session_factory,
+        write_queue=write_queue,
+    )
+    application.state.simulation_engine = simulation_engine
+
     bootstrapper = JiraBootstrapper(
         jira_client, session_factory, alerting.send_alert
     )
@@ -95,4 +102,4 @@ app.include_router(jira_router)
 
 @app.get("/health")
 def health_check() -> dict:
-    return {"status": "ok", "stage": "3"}
+    return {"status": "ok", "stage": "4"}

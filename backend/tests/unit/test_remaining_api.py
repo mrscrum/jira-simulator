@@ -66,6 +66,13 @@ def client(test_db):
     test_app.dependency_overrides[get_health_monitor] = lambda: mock_health
     test_app.dependency_overrides[get_bootstrapper] = lambda: AsyncMock()
     test_app.dependency_overrides[get_write_queue] = lambda: MagicMock()
+
+    from app.engine.simulation import SimulationEngine
+    test_app.state.simulation_engine = SimulationEngine(
+        session_factory=test_db,
+        write_queue=MagicMock(),
+    )
+
     with TestClient(test_app, raise_server_exceptions=False) as c:
         yield c
     test_app.dependency_overrides.clear()

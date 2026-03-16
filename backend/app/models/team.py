@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -33,6 +33,30 @@ class Team(TimestampMixin, Base):
     )
     jira_bootstrapped_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
+    )
+    sprint_length_days: Mapped[int] = mapped_column(
+        Integer, default=10, nullable=False
+    )
+    sprint_planning_strategy: Mapped[str] = mapped_column(
+        String, default="capacity_fitted", nullable=False
+    )
+    backlog_depth_target: Mapped[int] = mapped_column(
+        Integer, default=40, nullable=False
+    )
+    pause_before_planning: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    working_hours_start: Mapped[int] = mapped_column(
+        Integer, default=9, nullable=False
+    )
+    working_hours_end: Mapped[int] = mapped_column(
+        Integer, default=17, nullable=False
+    )
+    timezone: Mapped[str] = mapped_column(
+        String, default="UTC", nullable=False
+    )
+    holidays: Mapped[str] = mapped_column(
+        Text, default="[]", nullable=False
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="teams")
