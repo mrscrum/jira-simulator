@@ -9,10 +9,9 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.engine.backlog import (
-    TemplateContentGenerator,
     _EPIC_THEMES,
+    TemplateContentGenerator,
     generate_issues,
-    select_story_points,
 )
 from app.engine.issue_state_machine import IssueState
 from app.models.dysfunction_config import DysfunctionConfig

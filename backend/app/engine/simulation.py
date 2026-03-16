@@ -187,7 +187,6 @@ class SimulationEngine:
         )
         from app.models.daily_capacity_log import DailyCapacityLog
         from app.models.issue import Issue
-        from app.models.jira_config import JiraConfig
         from app.models.member import Member
         from app.models.simulation_event_config import SimulationEventConfig
         from app.models.simulation_event_log import SimulationEventLog
@@ -267,7 +266,8 @@ class SimulationEngine:
                 team_id=team.id,
             ).all()
 
-            backlog_issues = [i for i in issues if i.status in ("backlog", IssueState.BACKLOG.value)]
+            backlog_statuses = ("backlog", IssueState.BACKLOG.value)
+            backlog_issues = [i for i in issues if i.status in backlog_statuses]
             sprint_issues = [
                 i for i in issues if i.sprint_id == current_sprint.id
             ]
