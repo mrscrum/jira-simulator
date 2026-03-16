@@ -180,13 +180,14 @@ class JiraWriteQueue:
             # Pop metadata before sending to Jira.
             sp_field_id = payload.pop("_sp_field_id", None)
             board_id = payload.pop("_board_id", None)
+            issue_type = payload.get("issue_type", "")
             result = await self._jira_client.create_issue(**payload)
             if result:
                 issue_key = result.get("key")
                 if issue_key:
                     await self._set_estimation_and_fields(
                         issue_key, post_create_fields,
-                        sp_field_id, board_id,
+                        sp_field_id, board_id, issue_type,
                     )
             return result
         elif op == "UPDATE_ISSUE":
@@ -230,15 +231,19 @@ class JiraWriteQueue:
         custom_fields: dict,
         sp_field_id: str | None,
         board_id: int | None,
+        issue_type: str = "",
     ) -> None:
         """Set story points and custom fields after issue creation.
 
         Uses the Agile estimation API for story points (bypasses screen
         restrictions) and falls back to update_issue for other fields.
+        Only Story issue types support board estimation in simplified projects.
         """
         # Set story points via the Agile estimation API.
+        # Only Stories support estimation; Epics, Bugs, Tasks are skipped.
         sp_value = custom_fields.pop(sp_field_id, None) if sp_field_id else None
-        if sp_value is not None and board_id:
+        estimable = issue_type.lower() in ("story",)
+        if sp_value is not None and board_id and estimable:
             try:
                 await self._jira_client.set_estimation(
                     issue_key, int(board_id), float(sp_value),
@@ -251,7 +256,7 @@ class JiraWriteQueue:
                 logger.warning(
                     "Failed to set estimation on %s: %s", issue_key, exc,
                 )
-        elif sp_value is not None:
+        elif sp_value is not None and not board_id:
             logger.warning(
                 "No board_id available to set estimation on %s", issue_key,
             )

@@ -195,6 +195,7 @@ async def _generate_backlog(
         count=count,
         team_name=team.name,
         content_generator=gen,
+        issue_types=["Story"],  # Only Stories support SP estimation
         rng=rng,
     )
 
