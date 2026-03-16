@@ -145,14 +145,19 @@ class TestCreateProject:
         with patch.object(
             client._http, "request", new_callable=AsyncMock
         ) as mock_req:
-            mock_req.return_value = _mock_response(
+            myself_resp = _mock_response(
+                json_data={"accountId": "abc123", "displayName": "Test"},
+            )
+            create_resp = _mock_response(
                 status_code=201,
                 json_data={"key": "NEW", "id": "10001"},
             )
+            mock_req.side_effect = [myself_resp, create_resp]
             result = await client.create_project("NEW", "New Project", "scrum")
             assert result["key"] == "NEW"
-            call_kwargs = mock_req.call_args
-            assert call_kwargs.kwargs["json"]["key"] == "NEW"
+            create_call = mock_req.call_args_list[1]
+            assert create_call.kwargs["json"]["key"] == "NEW"
+            assert create_call.kwargs["json"]["leadAccountId"] == "abc123"
 
 
 class TestCreateIssue:

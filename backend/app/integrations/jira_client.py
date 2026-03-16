@@ -77,14 +77,20 @@ class JiraClient:
         except JiraNotFoundError:
             return None
 
+    async def get_myself(self) -> dict:
+        response = await self._request("GET", "/rest/api/3/myself")
+        return response.json()
+
     async def create_project(
         self, key: str, name: str, board_type: str
     ) -> dict:
+        myself = await self.get_myself()
         payload = {
             "key": key,
             "name": name,
             "projectTypeKey": "software",
             "projectTemplateKey": self._template_key(board_type),
+            "leadAccountId": myself["accountId"],
         }
         response = await self._request(
             "POST", "/rest/api/3/project", json=payload
