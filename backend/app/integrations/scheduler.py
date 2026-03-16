@@ -11,11 +11,15 @@ HEALTH_CHECK_INTERVAL_SECONDS = 60
 DAILY_DIGEST_HOUR = 8
 DAILY_DIGEST_MINUTE = 0
 
+TICK_INTERVAL_SECONDS = 10
+QUEUE_INTERVAL_SECONDS = 5
+
 
 def create_scheduler(
     health_monitor: Any,
     alerting_service: Any,
     write_queue: Any,
+    simulation_engine: Any | None = None,
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
 
@@ -48,5 +52,38 @@ def create_scheduler(
         id="daily_digest",
         replace_existing=True,
     )
+
+    # -- Simulation tick + Jira queue processing (start paused) --
+    if simulation_engine is not None:
+        async def simulation_tick_job():
+            try:
+                if simulation_engine.should_tick():
+                    await simulation_engine.tick()
+            except Exception:
+                logger.exception("Simulation tick failed")
+
+        async def queue_process_job():
+            try:
+                await write_queue.process_batch(
+                    tick_interval_seconds=QUEUE_INTERVAL_SECONDS * 2,
+                )
+            except Exception:
+                logger.exception("Queue processing failed")
+
+        scheduler.add_job(
+            simulation_tick_job,
+            trigger=IntervalTrigger(seconds=TICK_INTERVAL_SECONDS),
+            id="simulation_tick",
+            replace_existing=True,
+            next_run_time=None,  # starts paused
+        )
+
+        scheduler.add_job(
+            queue_process_job,
+            trigger=IntervalTrigger(seconds=QUEUE_INTERVAL_SECONDS),
+            id="queue_process",
+            replace_existing=True,
+            next_run_time=None,  # starts paused
+        )
 
     return scheduler

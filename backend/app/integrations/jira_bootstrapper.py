@@ -13,11 +13,15 @@ from app.models.workflow import Workflow
 
 logger = logging.getLogger(__name__)
 
+# Only sim_assignee and sim_reporter are custom-created.
+# Story points uses Jira's built-in "Story point estimate" field.
 REQUIRED_CUSTOM_FIELDS = [
     ("sim_assignee", "com.atlassian.jira.plugin.system.customfieldtypes:textfield"),
     ("sim_reporter", "com.atlassian.jira.plugin.system.customfieldtypes:textfield"),
-    ("story_points", "com.atlassian.jira.plugin.system.customfieldtypes:float"),
 ]
+
+# Known names for Jira's built-in story points field.
+BUILTIN_SP_NAMES = ("Story point estimate", "Story Points", "story_points")
 
 AlertFn = Callable[[AlertEvent, dict], Coroutine[Any, Any, None]]
 
@@ -73,15 +77,43 @@ class JiraBootstrapper:
         if board:
             team.jira_board_id = board["id"]
             return
-        new_board = await self._jira.create_board(
-            team.jira_project_key, "scrum"
-        )
-        team.jira_board_id = new_board["id"]
+        # Jira Cloud auto-creates a board when a simplified project is created.
+        # Retry once; if still missing, log warning but continue.
+        import asyncio
+        await asyncio.sleep(2)
+        board = await self._jira.get_board(team.jira_project_key)
+        if board:
+            team.jira_board_id = board["id"]
+        else:
+            logger.warning(
+                "Board not found for project %s after creation",
+                team.jira_project_key,
+            )
 
     async def _ensure_custom_fields(self, session: Session) -> None:
         existing_fields = await self._jira.get_custom_fields()
         existing_names = {f["name"]: f["id"] for f in existing_fields}
 
+        # --- Detect Jira's built-in story points field ---
+        sp_field_id = None
+        for sp_name in BUILTIN_SP_NAMES:
+            if sp_name in existing_names:
+                sp_field_id = existing_names[sp_name]
+                logger.info("Using built-in story points field: %s (%s)", sp_name, sp_field_id)
+                break
+        if sp_field_id is None:
+            # Fallback: look for any field whose name contains "story point"
+            for name, fid in existing_names.items():
+                if "story point" in name.lower():
+                    sp_field_id = fid
+                    logger.info("Using story points field: %s (%s)", name, sp_field_id)
+                    break
+        if sp_field_id:
+            self._upsert_config(session, "field_id_story_points", sp_field_id)
+        else:
+            logger.warning("No built-in story points field found in Jira")
+
+        # --- Custom fields (sim_assignee, sim_reporter) ---
         for field_name, field_type in REQUIRED_CUSTOM_FIELDS:
             config_key = f"field_id_{field_name}"
             if field_name in existing_names:
@@ -93,16 +125,20 @@ class JiraBootstrapper:
                 field_id = result["id"]
                 logger.info("Created custom field: %s", field_name)
 
-            existing_config = (
-                session.query(JiraConfig)
-                .filter(JiraConfig.key == config_key)
-                .first()
-            )
-            if existing_config:
-                existing_config.value = field_id
-            else:
-                session.add(JiraConfig(key=config_key, value=field_id))
+            self._upsert_config(session, config_key, field_id)
         session.flush()
+
+    @staticmethod
+    def _upsert_config(session: Session, key: str, value: str) -> None:
+        existing = (
+            session.query(JiraConfig)
+            .filter(JiraConfig.key == key)
+            .first()
+        )
+        if existing:
+            existing.value = value
+        else:
+            session.add(JiraConfig(key=key, value=value))
 
     async def _match_statuses(
         self, team: Team, session: Session

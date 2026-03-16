@@ -61,6 +61,9 @@ class Issue(TimestampMixin, Base):
     split_from_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("issues.id"), nullable=True
     )
+    epic_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("issues.id"), nullable=True
+    )
 
     team: Mapped["Team"] = relationship(back_populates="issues")
     current_workflow_step: Mapped["WorkflowStep | None"] = relationship(
@@ -78,4 +81,7 @@ class Issue(TimestampMixin, Base):
     sprint: Mapped["Sprint | None"] = relationship(back_populates="issues")
     blocked_by: Mapped["Issue | None"] = relationship(
         remote_side="Issue.id", foreign_keys=[blocked_by_issue_id]
+    )
+    epic: Mapped["Issue | None"] = relationship(
+        remote_side="Issue.id", foreign_keys=[epic_id]
     )

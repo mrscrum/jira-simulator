@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 from app.engine.issue_state_machine import IssueState, JiraWriteAction, transition_issue
+from app.engine.sim_clock import SimClock
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +39,21 @@ class SimulationEngine:
         self,
         session_factory,
         write_queue,
+        sim_clock: SimClock | None = None,
     ):
         self._session_factory = session_factory
         self._write_queue = write_queue
+        self._clock = sim_clock or SimClock(speed_multiplier=1.0)
         self._state = SimulationState.STOPPED
         self._paused_teams: set[int] = set()
         self._last_successful_tick: datetime | None = None
         self._tick_count: int = 0
         self.tick_interval_minutes: int = 5
         self._rng = random.Random()
+
+    @property
+    def clock(self) -> SimClock:
+        return self._clock
 
     @property
     def state(self) -> SimulationState:
@@ -138,7 +145,7 @@ class SimulationEngine:
                 results.append(result)
 
             session.commit()
-            self.record_tick_success(datetime.now(UTC))
+            self.record_tick_success(self._clock.now())
         except Exception as e:
             session.rollback()
             logger.exception("Tick failed: %s", e)
@@ -188,7 +195,7 @@ class SimulationEngine:
 
         jira_actions: list[JiraWriteAction] = []
         events_fired: list[str] = []
-        now = datetime.now(UTC)
+        now = self._clock.now()
 
         story_points_field_id = _get_config_value(
             session, "field_id_story_points",
@@ -533,6 +540,15 @@ class SimulationEngine:
                     content_generator=TemplateContentGenerator(rng=self._rng),
                     rng=self._rng,
                 )
+
+                # Find or create an open epic for this batch.
+                from app.engine.backlog import _EPIC_THEMES
+                current_epic = _get_or_create_epic(
+                    session, team, backlog_issues, _EPIC_THEMES,
+                    jira_actions, story_points_field_id, sim_reporter_field_id,
+                    self._rng,
+                )
+
                 for gen_issue in generated:
                     new_issue = Issue(
                         team_id=team.id,
@@ -542,6 +558,7 @@ class SimulationEngine:
                         story_points=gen_issue["story_points"],
                         status=IssueState.BACKLOG.value,
                         backlog_priority=len(backlog_issues) + 1,
+                        epic_id=current_epic.id if current_epic else None,
                     )
                     session.add(new_issue)
                     session.flush()
@@ -563,6 +580,9 @@ class SimulationEngine:
                         issue_fields[story_points_field_id] = gen_issue["story_points"]
                     if sim_reporter_field_id:
                         issue_fields[sim_reporter_field_id] = f"[SIM] {team.name}"
+                    # Link to epic in Jira via parent field.
+                    if current_epic and current_epic.jira_issue_key:
+                        issue_fields["parent"] = {"key": current_epic.jira_issue_key}
 
                     jira_actions.append(JiraWriteAction(
                         operation_type="CREATE_ISSUE",
@@ -767,3 +787,81 @@ def _find_available_worker(members, capacity_states, issue):
         if can_accept_work(cap, member.max_concurrent_wip):
             return member
     return None
+
+
+EPIC_STORIES_THRESHOLD = 5  # create a new epic every N stories
+
+
+def _get_or_create_epic(
+    session, team, backlog_issues, epic_themes,
+    jira_actions, story_points_field_id, sim_reporter_field_id, rng,
+):
+    """Return an existing open epic or create a new one.
+
+    A new epic is created when there's no epic or the current one has
+    accumulated EPIC_STORIES_THRESHOLD child stories.
+    """
+    from app.models.issue import Issue
+
+    # Find the latest epic for this team.
+    latest_epic = (
+        session.query(Issue)
+        .filter(
+            Issue.team_id == team.id,
+            Issue.issue_type == "Epic",
+        )
+        .order_by(Issue.id.desc())
+        .first()
+    )
+
+    if latest_epic:
+        child_count = (
+            session.query(Issue)
+            .filter(Issue.epic_id == latest_epic.id)
+            .count()
+        )
+        if child_count < EPIC_STORIES_THRESHOLD:
+            return latest_epic
+
+    # Create new epic.
+    theme = rng.choice(epic_themes)
+    epic = Issue(
+        team_id=team.id,
+        issue_type="Epic",
+        summary=f"[SIM] Epic: {theme}",
+        description=f"Auto-generated epic for {team.name} — {theme}",
+        story_points=0,
+        status=IssueState.BACKLOG.value,
+        backlog_priority=0,
+    )
+    session.add(epic)
+    session.flush()
+
+    issue_fields: dict = {
+        "description": {
+            "type": "doc",
+            "version": 1,
+            "content": [{
+                "type": "paragraph",
+                "content": [{
+                    "type": "text",
+                    "text": epic.description,
+                }],
+            }],
+        },
+    }
+    if sim_reporter_field_id:
+        issue_fields[sim_reporter_field_id] = f"[SIM] {team.name}"
+
+    jira_actions.append(JiraWriteAction(
+        operation_type="CREATE_ISSUE",
+        payload={
+            "project_key": team.jira_project_key,
+            "issue_type": "Epic",
+            "summary": epic.summary,
+            "fields": issue_fields,
+        },
+        issue_id=epic.id,
+    ))
+    logger.info("Created epic %d: %s for team %d", epic.id, theme, team.id)
+    return epic

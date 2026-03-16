@@ -47,10 +47,8 @@ def mock_jira():
     client.create_project = AsyncMock(
         return_value={"key": "ALPHA", "id": "10001"}
     )
-    client.get_board = AsyncMock(return_value=None)
-    client.create_board = AsyncMock(
-        return_value={"id": 42, "name": "ALPHA board"}
-    )
+    # First call returns None (board not found), retry returns the board.
+    client.get_board = AsyncMock(side_effect=[None, {"id": 42, "name": "ALPHA board"}])
     client.get_custom_fields = AsyncMock(return_value=[])
     client.create_custom_field = AsyncMock(
         return_value={"id": "customfield_10001"}
@@ -93,13 +91,14 @@ class TestBootstrapNewProject:
         mock_jira.create_project.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_creates_board_when_not_found(
+    async def test_finds_board_on_retry_after_creation(
         self, session, bootstrapper, mock_jira
     ):
         team = _create_team_with_workflow(session)
-        mock_jira.get_board.return_value = None
+        # First call: board not found. Second call (retry): board created by Jira.
+        mock_jira.get_board.side_effect = [None, {"id": 42, "name": "ALPHA board"}]
         await bootstrapper.bootstrap_team(team.id)
-        assert team.jira_board_id is not None
+        assert team.jira_board_id == 42
 
     @pytest.mark.asyncio
     async def test_creates_custom_fields_when_missing(
@@ -107,7 +106,8 @@ class TestBootstrapNewProject:
     ):
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)
-        assert mock_jira.create_custom_field.await_count == 3
+        # Only sim_assignee and sim_reporter are custom-created (story_points uses built-in).
+        assert mock_jira.create_custom_field.await_count == 2
 
     @pytest.mark.asyncio
     async def test_marks_team_bootstrapped(
@@ -135,6 +135,7 @@ class TestBootstrapExistingProject:
         self, session, bootstrapper, mock_jira
     ):
         mock_jira.get_project.return_value = {"key": "ALPHA"}
+        mock_jira.get_board.side_effect = None
         mock_jira.get_board.return_value = {"id": 99}
         team = _create_team_with_workflow(session)
         await bootstrapper.bootstrap_team(team.id)
@@ -235,6 +236,7 @@ class TestIdempotentRerun:
     @pytest.mark.asyncio
     async def test_rerun_is_safe(self, session, bootstrapper, mock_jira):
         mock_jira.get_project.return_value = {"key": "ALPHA"}
+        mock_jira.get_board.side_effect = None
         mock_jira.get_board.return_value = {"id": 42}
         mock_jira.get_custom_fields.return_value = [
             {"id": "cf_1", "name": "sim_assignee"},

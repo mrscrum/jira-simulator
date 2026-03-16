@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api.routers.dependencies import router as deps_router
 from app.api.routers.dysfunctions import router as dysf_router
+from app.api.routers.e2e_setup import router as e2e_router
 from app.api.routers.jira_integration import router as jira_router
 from app.api.routers.members import router as members_router
 from app.api.routers.simulation import router as sim_router
@@ -12,6 +13,7 @@ from app.api.routers.teams import router as teams_router
 from app.api.routers.workflow import router as workflow_router
 from app.config import get_settings
 from app.database import create_engine_from_url, create_session_factory
+from app.engine.sim_clock import SimClock
 from app.engine.simulation import SimulationEngine
 from app.integrations.alerting import AlertingService
 from app.integrations.jira_bootstrapper import JiraBootstrapper
@@ -56,9 +58,13 @@ async def lifespan(application: FastAPI):
     write_queue = JiraWriteQueue(session_factory, jira_client, health_monitor)
     application.state.write_queue = write_queue
 
+    sim_clock = SimClock(speed_multiplier=1.0)
+    application.state.sim_clock = sim_clock
+
     simulation_engine = SimulationEngine(
         session_factory=session_factory,
         write_queue=write_queue,
+        sim_clock=sim_clock,
     )
     application.state.simulation_engine = simulation_engine
 
@@ -67,8 +73,11 @@ async def lifespan(application: FastAPI):
     )
     application.state.bootstrapper = bootstrapper
 
-    scheduler = create_scheduler(health_monitor, alerting, write_queue)
+    scheduler = create_scheduler(
+        health_monitor, alerting, write_queue, simulation_engine,
+    )
     scheduler.start()
+    application.state.scheduler = scheduler
     logger.info("Scheduler started with health check and daily digest jobs")
 
     yield
@@ -98,6 +107,7 @@ app.include_router(dysf_router)
 app.include_router(deps_router)
 app.include_router(sim_router)
 app.include_router(jira_router)
+app.include_router(e2e_router)
 
 
 @app.get("/health")

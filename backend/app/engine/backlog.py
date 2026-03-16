@@ -40,6 +40,21 @@ _AREAS = [
     "scheduler", "email", "webhook", "config", "session",
 ]
 
+_EPIC_THEMES = [
+    "User Onboarding Overhaul",
+    "Performance Optimization Sprint",
+    "Payment Gateway Integration",
+    "Mobile App Redesign",
+    "Analytics Dashboard v2",
+    "Security & Compliance",
+    "API v3 Migration",
+    "Notification System Upgrade",
+    "Search Infrastructure",
+    "Developer Experience Tooling",
+    "CI/CD Pipeline Modernization",
+    "Data Pipeline Refactor",
+]
+
 
 def check_backlog_depth(current_depth: int, target_depth: int) -> int:
     """Return the number of issues needed to reach target depth."""

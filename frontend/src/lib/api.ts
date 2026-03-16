@@ -148,6 +148,21 @@ export const injectDysfunction = (data: InjectRequest) =>
     body: JSON.stringify(data),
   });
 
+// Clock speed
+export const fetchClockSpeed = () =>
+  request<{ speed: number }>("/simulation/clock");
+export const setClockSpeed = (speed: number) =>
+  request<{ speed: number }>("/simulation/clock", {
+    method: "PUT",
+    body: JSON.stringify({ speed }),
+  });
+
+// E2E setup
+export const setupE2E = () =>
+  request<{ teams: Array<Record<string, unknown>> }>("/e2e/setup", {
+    method: "POST",
+  });
+
 // Jira Proxy
 export const fetchJiraStatuses = (projectKey: string) =>
   request<JiraStatus[]>(`/jira/projects/${projectKey}/statuses`);

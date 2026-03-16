@@ -186,6 +186,8 @@ export interface CrossTeamDependencyCreate {
 
 export interface SimulationStatus {
   status: string;
+  tick_count?: number;
+  last_successful_tick?: string | null;
 }
 
 export interface TickInterval {

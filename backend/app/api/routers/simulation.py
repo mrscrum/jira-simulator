@@ -46,6 +46,10 @@ class EventConfigUpdate(BaseModel):
     params: dict | None = None
 
 
+class ClockSpeed(BaseModel):
+    speed: float
+
+
 class EngineHealth(BaseModel):
     state: str
     tick_count: int
@@ -61,6 +65,33 @@ def _get_engine(request: Request) -> SimulationEngine:
     if engine is None:
         raise HTTPException(status_code=503, detail="Simulation engine not initialised")
     return engine
+
+
+def _resume_scheduler_jobs(request: Request) -> None:
+    """Resume the simulation tick + queue scheduler jobs."""
+    from datetime import UTC, datetime
+
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler is None:
+        return
+    for job_id in ("simulation_tick", "queue_process"):
+        job = scheduler.get_job(job_id)
+        if job:
+            job.resume()
+            # Ensure next_run_time is set so the job actually fires.
+            if job.next_run_time is None:
+                job.modify(next_run_time=datetime.now(UTC))
+
+
+def _pause_scheduler_jobs(request: Request) -> None:
+    """Pause the simulation tick + queue scheduler jobs."""
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if scheduler is None:
+        return
+    for job_id in ("simulation_tick", "queue_process"):
+        job = scheduler.get_job(job_id)
+        if job:
+            job.pause()
 
 
 # ── Global simulation control ──
@@ -84,6 +115,7 @@ def get_status(request: Request):
 def start(request: Request):
     engine = _get_engine(request)
     engine.start()
+    _resume_scheduler_jobs(request)
     return SimulationStatus(status="running", tick_count=engine.tick_count)
 
 
@@ -91,6 +123,7 @@ def start(request: Request):
 def pause(request: Request):
     engine = _get_engine(request)
     engine.pause()
+    _pause_scheduler_jobs(request)
     return SimulationStatus(status="paused", tick_count=engine.tick_count)
 
 
@@ -98,6 +131,7 @@ def pause(request: Request):
 def resume(request: Request):
     engine = _get_engine(request)
     engine.resume()
+    _resume_scheduler_jobs(request)
     return SimulationStatus(status="running", tick_count=engine.tick_count)
 
 
@@ -105,6 +139,7 @@ def resume(request: Request):
 def reset(request: Request):
     engine = _get_engine(request)
     engine.stop()
+    _pause_scheduler_jobs(request)
     return SimulationStatus(status="stopped", tick_count=0)
 
 
@@ -147,6 +182,20 @@ def update_tick_interval(body: TickInterval, request: Request):
     engine = _get_engine(request)
     engine.tick_interval_minutes = body.minutes
     return body
+
+
+@router.get("/simulation/clock", response_model=ClockSpeed)
+def get_clock(request: Request):
+    engine = _get_engine(request)
+    return ClockSpeed(speed=engine.clock.speed)
+
+
+@router.put("/simulation/clock", response_model=ClockSpeed)
+def set_clock(body: ClockSpeed, request: Request):
+    """Set simulation clock speed. 1.0 = real time, 60.0 = 1 min real = 1 hr sim."""
+    engine = _get_engine(request)
+    engine.clock.speed = body.speed
+    return ClockSpeed(speed=engine.clock.speed)
 
 
 # ── Per-team simulation control ──
