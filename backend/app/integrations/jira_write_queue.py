@@ -177,12 +177,16 @@ class JiraWriteQueue:
             # custom fields on the create/edit screen.  We remove them from
             # the payload and set story points via the Agile estimation API.
             post_create_fields = self._extract_post_create_fields(payload)
+            # Pop metadata before sending to Jira.
+            sp_field_id = payload.pop("_sp_field_id", None)
+            board_id = payload.pop("_board_id", None)
             result = await self._jira_client.create_issue(**payload)
             if result:
                 issue_key = result.get("key")
                 if issue_key:
-                    await self._set_post_create_fields(
-                        issue_key, post_create_fields, payload,
+                    await self._set_estimation_and_fields(
+                        issue_key, post_create_fields,
+                        sp_field_id, board_id,
                     )
             return result
         elif op == "UPDATE_ISSUE":
@@ -220,24 +224,18 @@ class JiraWriteQueue:
                 post[key] = fields.pop(key)
         return post
 
-    async def _set_post_create_fields(
+    async def _set_estimation_and_fields(
         self,
         issue_key: str,
         custom_fields: dict,
-        original_payload: dict,
+        sp_field_id: str | None,
+        board_id: int | None,
     ) -> None:
-        """Set custom fields after issue creation.
+        """Set story points and custom fields after issue creation.
 
         Uses the Agile estimation API for story points (bypasses screen
         restrictions) and falls back to update_issue for other fields.
-
-        The caller must set ``_board_id`` and ``_sp_field_id`` on the
-        payload so we can route story points to the estimation API
-        without opening additional DB sessions.
         """
-        sp_field_id = original_payload.pop("_sp_field_id", None)
-        board_id = original_payload.pop("_board_id", None)
-
         # Set story points via the Agile estimation API.
         sp_value = custom_fields.pop(sp_field_id, None) if sp_field_id else None
         if sp_value is not None and board_id:
