@@ -24,7 +24,7 @@ def check_phase_advance(
     sprint_capacity: int,
     planning_hours_elapsed: float,
     planning_duration_hours: float,
-    sprint_days_elapsed: int,
+    sprint_days_elapsed: float | int,
     sprint_length_days: int,
     pause_before_planning: bool,
 ) -> SprintPhase | None:
@@ -72,7 +72,7 @@ def _check_planning(
 
 
 def _check_active(
-    days_elapsed: int,
+    days_elapsed: float | int,
     length_days: int,
 ) -> SprintPhase | None:
     if days_elapsed >= length_days:

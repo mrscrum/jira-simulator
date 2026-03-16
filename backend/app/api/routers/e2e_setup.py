@@ -454,6 +454,86 @@ async def setup_e2e(request: Request):
         session.close()
 
 
+@router.post("/prepare-simulation")
+async def prepare_simulation(request: Request):
+    """Configure teams for sprint simulation testing.
+
+    Sets shorter sprint lengths and returns readiness info.
+    Call this before POST /simulation/start.
+    """
+    session_factory = getattr(request.app.state, "session_factory", None)
+    if session_factory is None:
+        raise HTTPException(status_code=503, detail="Session factory not available")
+
+    session = session_factory()
+    try:
+        teams = session.query(Team).filter(Team.is_active.is_(True)).all()
+        if not teams:
+            raise HTTPException(
+                status_code=404,
+                detail="No teams found. Run POST /e2e/setup first.",
+            )
+
+        team_info = []
+        for team in teams:
+            # Set sprint length to 2 days for accelerated testing.
+            team.sprint_length_days = 2
+            # Ensure no pause before planning.
+            team.pause_before_planning = False
+
+            # Count backlog issues.
+            backlog_count = (
+                session.query(Issue)
+                .filter(
+                    Issue.team_id == team.id,
+                    Issue.status.in_(["BACKLOG", "backlog"]),
+                )
+                .count()
+            )
+            members_count = (
+                session.query(Member)
+                .filter(Member.team_id == team.id, Member.is_active.is_(True))
+                .count()
+            )
+            sprint_capacity = members_count * team.sprint_length_days
+            backlog_threshold = int(sprint_capacity * 1.5)
+
+            team_info.append({
+                "team_id": team.id,
+                "name": team.name,
+                "sprint_length_days": team.sprint_length_days,
+                "backlog_issues": backlog_count,
+                "members": members_count,
+                "sprint_capacity": sprint_capacity,
+                "backlog_threshold_for_planning": backlog_threshold,
+                "ready_for_planning": backlog_count >= backlog_threshold,
+                "jira_board_id": team.jira_board_id,
+                "jira_project_key": team.jira_project_key,
+            })
+
+        session.commit()
+
+        return {
+            "message": "Simulation prepared. Sprint length set to 2 days for all teams.",
+            "instructions": [
+                "1. Set clock speed: PUT /simulation/clock {\"speed\": 60}",
+                "2. Start simulation: POST /simulation/start",
+                "3. Monitor: GET /simulation/status",
+                "4. At 60x speed, each sprint takes ~50 real minutes (2 sim days).",
+                "5. 4 sprints ≈ 3.5 hours. Use speed=360 for ~35 min total.",
+            ],
+            "teams": team_info,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        logger.exception("Prepare simulation failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        session.close()
+
+
 @router.get("/diagnostics")
 async def diagnostics(request: Request):
     """Return diagnostic info about JiraConfig field IDs and sample issue data."""

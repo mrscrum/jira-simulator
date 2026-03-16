@@ -97,18 +97,58 @@ def _pause_scheduler_jobs(request: Request) -> None:
 # ── Global simulation control ──
 
 
-@router.get("/simulation/status", response_model=SimulationStatus)
+@router.get("/simulation/status")
 def get_status(request: Request):
     engine = _get_engine(request)
-    return SimulationStatus(
-        status=engine.state.value.lower(),
-        tick_count=engine.tick_count,
-        last_successful_tick=(
+    session_factory = getattr(request.app.state, "session_factory", None)
+
+    team_sprints = []
+    if session_factory:
+        from app.models.sprint import Sprint
+        from app.models.team import Team
+
+        session = session_factory()
+        try:
+            teams = session.query(Team).filter(Team.is_active.is_(True)).all()
+            for team in teams:
+                sprints = (
+                    session.query(Sprint)
+                    .filter(Sprint.team_id == team.id)
+                    .order_by(Sprint.sprint_number.desc())
+                    .limit(2)
+                    .all()
+                )
+                current = sprints[0] if sprints else None
+                team_sprints.append({
+                    "team_id": team.id,
+                    "team_name": team.name,
+                    "sprint_number": current.sprint_number if current else 0,
+                    "sprint_name": current.name if current else None,
+                    "phase": current.phase if current else None,
+                    "status": current.status if current else None,
+                    "committed_points": current.committed_points if current else 0,
+                    "completed_points": current.completed_points if current else 0,
+                    "total_sprints": (
+                        session.query(Sprint)
+                        .filter(Sprint.team_id == team.id)
+                        .count()
+                    ),
+                })
+        finally:
+            session.close()
+
+    return {
+        "status": engine.state.value.lower(),
+        "tick_count": engine.tick_count,
+        "clock_speed": engine.clock.speed,
+        "sim_time": engine.clock.now().isoformat(),
+        "last_successful_tick": (
             engine.last_successful_tick.isoformat()
             if engine.last_successful_tick
             else None
         ),
-    )
+        "teams": team_sprints,
+    }
 
 
 @router.post("/simulation/start", response_model=SimulationStatus)

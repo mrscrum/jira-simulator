@@ -210,7 +210,9 @@ class SimulationEngine:
             holidays = _parse_holidays(team.holidays)
 
             # --- Step 1: Calendar check ---
-            if not is_working_time(
+            # Skip working hours check when running accelerated simulation
+            # (speed > 1 means we're in testing/demo mode).
+            if self._clock.speed <= 1.0 and not is_working_time(
                 team.timezone, team.working_hours_start,
                 team.working_hours_end, holidays,
                 [0, 1, 2, 3, 4], now,
@@ -279,15 +281,20 @@ class SimulationEngine:
             sprint_start = current_sprint.start_date
             if sprint_start.tzinfo is None:
                 sprint_start = sprint_start.replace(tzinfo=UTC)
-            sim_day = (now - sprint_start).days
+            elapsed_seconds = (now - sprint_start).total_seconds()
+            sim_day = int(elapsed_seconds / 86400)  # integer days for display
+            # Use fractional hours/days for phase transitions so
+            # accelerated simulation progresses smoothly.
+            elapsed_hours = elapsed_seconds / 3600.0
+            elapsed_days_frac = elapsed_seconds / 86400.0
 
             next_phase = check_phase_advance(
                 phase=SprintPhase(current_sprint.phase),
                 backlog_depth=len(backlog_issues),
                 sprint_capacity=int(sprint_capacity),
-                planning_hours_elapsed=sim_day * 8.0,
+                planning_hours_elapsed=elapsed_hours,
                 planning_duration_hours=PLANNING_DURATION_HOURS,
-                sprint_days_elapsed=sim_day,
+                sprint_days_elapsed=elapsed_days_frac,
                 sprint_length_days=team.sprint_length_days,
                 pause_before_planning=team.pause_before_planning,
             )
@@ -369,9 +376,48 @@ class SimulationEngine:
                     current_sprint = _create_next_sprint(
                         session, team, current_sprint, now,
                     )
+                    # Create the new sprint in Jira.
+                    if team.jira_board_id:
+                        jira_actions.append(JiraWriteAction(
+                            operation_type="CREATE_SPRINT",
+                            payload={
+                                "board_id": team.jira_board_id,
+                                "name": current_sprint.name,
+                                "start_date": now.isoformat(),
+                                "end_date": (
+                                    now + timedelta(days=team.sprint_length_days)
+                                ).isoformat(),
+                                "_sprint_db_id": current_sprint.id,
+                            },
+                        ))
 
             # --- Step 4: Issue advancement ---
             if current_sprint.phase == SprintPhase.ACTIVE.value:
+                # 4a: Move SPRINT_COMMITTED issues to QUEUED_FOR_ROLE
+                committed_issues = [
+                    i for i in sprint_issues
+                    if i.status == IssueState.SPRINT_COMMITTED.value
+                ]
+                for issue in committed_issues:
+                    new_state, actions = transition_issue(
+                        IssueState(issue.status),
+                        "queue_for_role",
+                        {"issue_key": issue.jira_issue_key or ""},
+                    )
+                    issue.status = new_state.value
+                    jira_actions.extend(actions)
+                    # Transition in Jira to "To Do" (sprint board column)
+                    if issue.jira_issue_key:
+                        jira_actions.append(JiraWriteAction(
+                            operation_type="TRANSITION_ISSUE",
+                            payload={
+                                "issue_key": issue.jira_issue_key,
+                                "target_status": "To Do",
+                            },
+                            issue_id=issue.id,
+                        ))
+
+                # 4b: Advance IN_PROGRESS issues (burn touch time)
                 for issue in sprint_issues:
                     if issue.status != IssueState.IN_PROGRESS.value:
                         continue
@@ -401,7 +447,7 @@ class SimulationEngine:
                             issue.completed_at = now
                         jira_actions.extend(actions)
 
-                # Assign unassigned queued issues to available workers
+                # 4c: Assign unassigned queued issues to available workers
                 queued_issues = [
                     i for i in sprint_issues
                     if i.status == IssueState.QUEUED_FOR_ROLE.value
@@ -427,7 +473,24 @@ class SimulationEngine:
                         },
                     )
                     issue.status = new_state.value
+                    # Set touch time based on story points so issues
+                    # take a few ticks to complete (not instant).
+                    if issue.touch_time_remaining_hours <= 0:
+                        issue.touch_time_remaining_hours = float(
+                            (issue.story_points or 1) * 2,
+                        )
                     jira_actions.extend(actions)
+
+                    # Transition in Jira to "In Progress"
+                    if issue.jira_issue_key:
+                        jira_actions.append(JiraWriteAction(
+                            operation_type="TRANSITION_ISSUE",
+                            payload={
+                                "issue_key": issue.jira_issue_key,
+                                "target_status": "In Progress",
+                            },
+                            issue_id=issue.id,
+                        ))
 
                     # Update sim_assignee in Jira when worker is assigned.
                     if sim_assignee_field_id and issue.jira_issue_key:
