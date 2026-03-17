@@ -1,0 +1,29 @@
+name: Check Simulation Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Simulation Status
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=== Simulation Status ==="
+            curl -s http://localhost/api/simulation/status | python3 -m json.tool
+            echo ""
+            echo "=== Backend Logs (last 100 lines, tick + sprint related) ==="
+            cd /app/jira-simulator
+            sudo docker compose logs --tail=200 backend 2>&1 | grep -iE "(tick|sprint|phase|PLANNING|ACTIVE|REVIEW|RETRO|BACKLOG_PREP|transition|queue|error)" | tail -80
+            echo ""
+            echo "=== Queue Stats ==="
+            curl -s http://localhost/api/e2e/diagnostics | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+print('Queue:', json.dumps(d.get('queue_stats', {}), indent=2))
+" 2>&1 || echo "Could not fetch diagnostics"
