@@ -8,6 +8,9 @@ class TouchTimeConfigBase(BaseModel):
     story_points: int
     min_hours: float
     max_hours: float
+    full_time_p25: float | None = None
+    full_time_p50: float | None = None
+    full_time_p99: float | None = None
 
 
 class TouchTimeConfigCreate(TouchTimeConfigBase):

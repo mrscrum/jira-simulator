@@ -9,6 +9,7 @@ class WorkflowStepBase(BaseModel):
     order: int
     max_wait_hours: float = 24.0
     wip_contribution: float = 1.0
+    roles_json: str | None = None
 
 
 class WorkflowStepCreate(WorkflowStepBase):
@@ -31,6 +32,7 @@ class WorkflowStepUpdate(BaseModel):
     order: int | None = None
     max_wait_hours: float | None = None
     wip_contribution: float | None = None
+    roles_json: str | None = None
 
 
 class WorkflowStepCreateRequest(BaseModel):
@@ -46,6 +48,9 @@ class TouchTimeConfigInput(BaseModel):
     story_points: int
     min_hours: float
     max_hours: float
+    full_time_p25: float | None = None
+    full_time_p50: float | None = None
+    full_time_p99: float | None = None
 
 
 class WorkflowStepInput(BaseModel):
@@ -54,6 +59,7 @@ class WorkflowStepInput(BaseModel):
     order: int
     max_wait_hours: float = 24.0
     wip_contribution: float = 1.0
+    roles_json: str | None = None
     touch_time_configs: list[TouchTimeConfigInput] = []
 
 

@@ -4,8 +4,8 @@ import random as _random
 from abc import ABC, abstractmethod
 
 DEFAULT_POINT_DISTRIBUTION = {1: 0.15, 2: 0.20, 3: 0.25, 5: 0.20, 8: 0.15, 13: 0.05}
-DEFAULT_ISSUE_TYPES = ["Story", "Bug", "Task"]
-ISSUE_TYPE_WEIGHTS = [0.50, 0.30, 0.20]
+DEFAULT_ISSUE_TYPES = ["Story", "Bug", "Task", "Spike", "Enabler"]
+ISSUE_TYPE_WEIGHTS = [0.35, 0.20, 0.15, 0.15, 0.15]
 
 _STORY_TEMPLATES = [
     "Implement {feature} for {team} platform",
@@ -27,6 +27,20 @@ _TASK_TEMPLATES = [
     "Migrate {area} to latest library version",
     "Refactor {area} for improved maintainability",
     "Add monitoring for {area} service",
+]
+
+_SPIKE_TEMPLATES = [
+    "Investigate {feature} feasibility for {team}",
+    "Spike: evaluate {feature} integration options",
+    "Research {area} performance bottleneck root cause",
+    "Prototype {feature} approach for {team}",
+]
+
+_ENABLER_TEMPLATES = [
+    "Enable {feature} infrastructure for {team}",
+    "Set up {area} toolchain for {team} platform",
+    "Provision {area} environment for {feature}",
+    "Create shared {feature} library for {team}",
 ]
 
 _FEATURES = [
@@ -105,6 +119,10 @@ class TemplateContentGenerator(ContentGenerator):
             templates = _BUG_TEMPLATES
         elif issue_type == "Task":
             templates = _TASK_TEMPLATES
+        elif issue_type == "Spike":
+            templates = _SPIKE_TEMPLATES
+        elif issue_type == "Enabler":
+            templates = _ENABLER_TEMPLATES
         else:
             templates = _STORY_TEMPLATES
 

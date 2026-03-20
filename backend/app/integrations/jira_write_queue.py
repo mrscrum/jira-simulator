@@ -10,18 +10,6 @@ from app.models.jira_write_queue_entry import JiraWriteQueueEntry
 
 logger = logging.getLogger(__name__)
 
-# Map simulator states to Jira simplified board statuses (To Do / In Progress / Done).
-JIRA_STATUS_MAP: dict[str, str] = {
-    "SPRINT_COMMITTED": "To Do",
-    "QUEUED_FOR_ROLE": "To Do",
-    "IN_PROGRESS": "In Progress",
-    "PENDING_HANDOFF": "In Progress",
-    "EXTERNALLY_BLOCKED": "In Progress",
-    "MOVED_LEFT": "In Progress",
-    "DONE": "Done",
-    "DESCOPED": "Done",
-}
-
 OPERATION_PRIORITY = {
     "CREATE_SPRINT": 0,
     "CREATE_ISSUE": 1,
@@ -280,8 +268,8 @@ class JiraWriteQueue:
         issue_key = payload["issue_key"]
         target_status = payload.get("target_status", "")
 
-        # Map simulator state name to Jira status if needed.
-        jira_status = JIRA_STATUS_MAP.get(target_status, target_status)
+        # Status names now come directly from workflow_step.jira_status.
+        jira_status = target_status
 
         transitions = await self._jira_client.get_issue_transitions(issue_key)
         transition_id = None

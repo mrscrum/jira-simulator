@@ -5,7 +5,7 @@ import { Topbar } from "./Topbar";
 export type Section =
   | "workflow"
   | "members"
-  | "dysfunctions"
+  | "settings"
   | "dependencies"
   | "simulation";
 

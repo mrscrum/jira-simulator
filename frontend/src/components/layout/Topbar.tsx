@@ -4,15 +4,15 @@ import type { Section } from "./Shell";
 const SECTION_LABELS: Record<Section, string> = {
   workflow: "Workflow",
   members: "Members",
-  dysfunctions: "Dysfunctions",
+  settings: "Settings",
   dependencies: "Dependencies",
   simulation: "Simulation",
 };
 
 const SECTION_HINTS: Record<Section, string> = {
-  workflow: "Drag to reorder steps \u00b7 Drag members onto role slots",
+  workflow: "Drag to reorder steps · Configure touch times and move-left",
   members: "Manage team members and their capacities",
-  dysfunctions: "Configure dysfunction probabilities and parameters",
+  settings: "Sprint capacity, working hours, and simulation parameters",
   dependencies: "Define cross-team dependency links",
   simulation: "Control the simulation engine",
 };

@@ -25,8 +25,20 @@ class WorkflowStep(TimestampMixin, Base):
     order: Mapped[int] = mapped_column(Integer, nullable=False)
     max_wait_hours: Mapped[float] = mapped_column(Float, default=24.0, nullable=False)
     wip_contribution: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    roles_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
     workflow: Mapped["Workflow"] = relationship(back_populates="steps")
     touch_time_configs: Mapped[list["TouchTimeConfig"]] = relationship(
         back_populates="workflow_step"
     )
+
+    @property
+    def roles(self) -> list[str]:
+        """Return list of roles for this status.
+
+        Parses roles_json if set, otherwise falls back to [role_required].
+        """
+        if self.roles_json:
+            import json
+            return json.loads(self.roles_json)
+        return [self.role_required]

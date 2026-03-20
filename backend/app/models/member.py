@@ -16,7 +16,7 @@ class Member(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
     daily_capacity_hours: Mapped[float] = mapped_column(Float, default=6.0, nullable=False)
-    max_concurrent_wip: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
+    max_concurrent_wip: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     timezone: Mapped[str | None] = mapped_column(String, nullable=True)
 

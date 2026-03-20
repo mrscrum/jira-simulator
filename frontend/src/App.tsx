@@ -4,8 +4,8 @@ import { AddTeamModal } from "@/components/layout/AddTeamModal";
 import { Shell } from "@/components/layout/Shell";
 import type { Section } from "@/components/layout/Shell";
 import { DependencyConfig } from "@/components/dependencies/DependencyConfig";
-import { DysfunctionList } from "@/components/dysfunctions/DysfunctionList";
 import { MemberTable } from "@/components/members/MemberTable";
+import { TeamSettings } from "@/components/settings/TeamSettings";
 import { SimulationDashboard } from "@/components/simulation/SimulationDashboard";
 import { WorkflowDesigner } from "@/components/workflow/WorkflowDesigner";
 import { useCreateTeam, useTeams } from "@/hooks/useTeams";
@@ -86,8 +86,8 @@ function SectionContent({
       return <WorkflowDesigner teamId={teamId} projectKey={projectKey} />;
     case "members":
       return <MemberTable teamId={teamId} />;
-    case "dysfunctions":
-      return <DysfunctionList teamId={teamId} />;
+    case "settings":
+      return <TeamSettings teamId={teamId} />;
     case "dependencies":
       return <DependencyConfig />;
     case "simulation":

@@ -5,6 +5,14 @@ export interface Team {
   jira_board_id: number | null;
   organization_id: number;
   is_active: boolean;
+  sprint_length_days: number;
+  working_hours_start: number;
+  working_hours_end: number;
+  timezone: string;
+  sprint_capacity_min: number;
+  sprint_capacity_max: number;
+  priority_randomization: boolean;
+  tick_duration_hours: number;
   created_at: string;
   updated_at: string;
 }
@@ -13,12 +21,28 @@ export interface TeamCreate {
   name: string;
   jira_project_key: string;
   jira_board_id?: number | null;
+  sprint_length_days?: number;
+  sprint_capacity_min?: number;
+  sprint_capacity_max?: number;
+  priority_randomization?: boolean;
+  tick_duration_hours?: number;
+  working_hours_start?: number;
+  working_hours_end?: number;
+  timezone?: string;
 }
 
 export interface TeamUpdate {
   name?: string;
   jira_project_key?: string;
   jira_board_id?: number | null;
+  sprint_length_days?: number;
+  sprint_capacity_min?: number;
+  sprint_capacity_max?: number;
+  priority_randomization?: boolean;
+  tick_duration_hours?: number;
+  working_hours_start?: number;
+  working_hours_end?: number;
+  timezone?: string;
 }
 
 export interface Member {
@@ -53,6 +77,9 @@ export interface TouchTimeConfig {
   story_points: number;
   min_hours: number;
   max_hours: number;
+  full_time_p25: number | null;
+  full_time_p50: number | null;
+  full_time_p99: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +89,9 @@ export interface TouchTimeConfigInput {
   story_points: number;
   min_hours: number;
   max_hours: number;
+  full_time_p25?: number | null;
+  full_time_p50?: number | null;
+  full_time_p99?: number | null;
 }
 
 export interface WorkflowStep {
@@ -69,6 +99,7 @@ export interface WorkflowStep {
   workflow_id: number;
   jira_status: string;
   role_required: string;
+  roles_json: string | null;
   order: number;
   max_wait_hours: number;
   wip_contribution: number;
@@ -80,6 +111,7 @@ export interface WorkflowStep {
 export interface WorkflowStepInput {
   jira_status: string;
   role_required: string;
+  roles_json?: string | null;
   order: number;
   max_wait_hours?: number;
   wip_contribution?: number;
@@ -89,6 +121,7 @@ export interface WorkflowStepInput {
 export interface WorkflowStepUpdate {
   jira_status?: string;
   role_required?: string;
+  roles_json?: string | null;
   order?: number;
   max_wait_hours?: number;
   wip_contribution?: number;
@@ -103,71 +136,6 @@ export interface Workflow {
   created_at: string;
   updated_at: string;
 }
-
-export interface DysfunctionConfig {
-  id: number;
-  team_id: number;
-  low_quality_probability: number;
-  scope_creep_probability: number;
-  blocking_dep_probability: number;
-  dark_teammate_probability: number;
-  re_estimation_probability: number;
-  bug_injection_probability: number;
-  cross_team_block_probability: number;
-  cross_team_handoff_lag_probability: number;
-  cross_team_bug_probability: number;
-  // Low quality detail fields
-  low_quality_ba_po_touch_min: number;
-  low_quality_ba_po_touch_max: number;
-  low_quality_qa_touch_min: number;
-  low_quality_qa_touch_max: number;
-  low_quality_dev_rework_min: number;
-  low_quality_dev_rework_max: number;
-  low_quality_cycle_back_probability: number;
-  low_quality_sp_bloat_min: number;
-  low_quality_sp_bloat_max: number;
-  low_quality_severity_weight: number;
-  // Scope creep detail fields
-  scope_creep_sp_increase_min: number;
-  scope_creep_sp_increase_max: number;
-  scope_creep_new_subtask_probability: number;
-  scope_creep_subtask_sp_min: number;
-  scope_creep_subtask_sp_max: number;
-  scope_creep_mid_sprint_only: number;
-  // Blocking dependency detail fields
-  blocking_dep_wait_hours_min: number;
-  blocking_dep_escalation_wait_hours: number;
-  // Dark teammate detail fields
-  dark_teammate_capacity_reduction_min: number;
-  dark_teammate_capacity_reduction_max: number;
-  dark_teammate_absence_days_max: number;
-  // Re-estimation detail fields
-  re_estimation_sp_change_min: number;
-  re_estimation_sp_change_max: number;
-  re_estimation_trigger_threshold_pct: number;
-  // Bug injection detail fields
-  bug_injection_sp_weight_1: number;
-  bug_injection_sp_weight_2: number;
-  bug_injection_sp_weight_3: number;
-  bug_injection_severity_distribution: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export type DysfunctionConfigUpdate = Partial<
-  Omit<DysfunctionConfig, "id" | "team_id" | "created_at" | "updated_at">
->;
-
-export type DysfunctionType =
-  | "low_quality"
-  | "scope_creep"
-  | "blocking_dependency"
-  | "dark_teammate"
-  | "re_estimation"
-  | "bug_injection"
-  | "cross_team_block"
-  | "cross_team_handoff_lag"
-  | "cross_team_bug";
 
 export interface CrossTeamDependency {
   id: number;
@@ -184,21 +152,59 @@ export interface CrossTeamDependencyCreate {
   dependency_type: string;
 }
 
+// Move-left configuration
+export interface MoveLeftTarget {
+  id: number;
+  move_left_config_id: number;
+  to_step_id: number;
+  weight: number;
+}
+
+export interface MoveLeftConfig {
+  id: number;
+  team_id: number;
+  from_step_id: number;
+  base_probability: number;
+  issue_type: string | null;
+  targets: MoveLeftTarget[];
+}
+
+export interface MoveLeftTargetInput {
+  to_step_id: number;
+  weight: number;
+}
+
+export interface MoveLeftConfigInput {
+  from_step_id: number;
+  base_probability: number;
+  issue_type?: string | null;
+  targets: MoveLeftTargetInput[];
+}
+
+// Simulation
 export interface SimulationStatus {
   status: string;
-  tick_count?: number;
-  last_successful_tick?: string | null;
+  tick_count: number;
+  clock_speed: number;
+  sim_time: string;
+  last_successful_tick: string | null;
+  teams: TeamSprintStatus[];
+}
+
+export interface TeamSprintStatus {
+  team_id: number;
+  team_name: string;
+  sprint_number: number;
+  sprint_name: string | null;
+  phase: string | null;
+  status: string | null;
+  committed_points: number;
+  completed_points: number;
+  total_sprints: number;
 }
 
 export interface TickInterval {
   minutes: number;
-}
-
-export interface InjectRequest {
-  team_id: number;
-  dysfunction_type: string;
-  target_issue_id?: number;
-  target_member_id?: number;
 }
 
 export interface JiraStatus {

@@ -4,7 +4,6 @@ import pytest
 
 from app.integrations.exceptions import JiraRateLimitError
 from app.integrations.jira_write_queue import (
-    JIRA_STATUS_MAP,
     OPERATION_PRIORITY,
     JiraWriteQueue,
 )
@@ -311,20 +310,25 @@ class TestTransitionResolution:
         mock_jira_client.transition_issue.assert_awaited_once_with("ALPHA-1", "31")
 
     @pytest.mark.asyncio
-    async def test_maps_simulator_state_to_jira_status(
+    async def test_passes_status_name_directly_to_jira(
         self, session, queue, mock_jira_client,
     ):
-        """QUEUED_FOR_ROLE should map to 'To Do' via JIRA_STATUS_MAP."""
+        """Status names from workflow_step.jira_status are used as-is."""
+        mock_jira_client.get_issue_transitions.return_value = [
+            {"id": "11", "name": "To Do", "to": {"name": "To Do"}},
+            {"id": "21", "name": "In Development", "to": {"name": "In Development"}},
+            {"id": "31", "name": "Done", "to": {"name": "Done"}},
+        ]
         team = _create_team(session)
         queue.enqueue(
             team_id=team.id,
             operation_type="TRANSITION_ISSUE",
-            payload={"issue_key": "ALPHA-1", "target_status": "QUEUED_FOR_ROLE"},
+            payload={"issue_key": "ALPHA-1", "target_status": "In Development"},
         )
         entry = session.query(JiraWriteQueueEntry).first()
         await queue.process_one(entry)
 
-        mock_jira_client.transition_issue.assert_awaited_once_with("ALPHA-1", "11")
+        mock_jira_client.transition_issue.assert_awaited_once_with("ALPHA-1", "21")
 
     @pytest.mark.asyncio
     async def test_fails_when_no_matching_transition(
@@ -342,20 +346,6 @@ class TestTransitionResolution:
         session.refresh(entry)
         assert entry.status == "FAILED"
         assert "No transition" in entry.last_error
-
-
-class TestStatusMap:
-    def test_all_simulator_states_mapped(self):
-        expected = {
-            "SPRINT_COMMITTED", "QUEUED_FOR_ROLE", "IN_PROGRESS",
-            "PENDING_HANDOFF", "EXTERNALLY_BLOCKED", "MOVED_LEFT",
-            "DONE", "DESCOPED",
-        }
-        assert set(JIRA_STATUS_MAP.keys()) == expected
-
-    def test_maps_to_three_jira_statuses(self):
-        values = set(JIRA_STATUS_MAP.values())
-        assert values == {"To Do", "In Progress", "Done"}
 
 
 class TestRetryFailed:

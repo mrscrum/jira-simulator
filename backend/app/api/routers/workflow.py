@@ -56,6 +56,7 @@ def replace_workflow(
             order=step_input.order,
             max_wait_hours=step_input.max_wait_hours,
             wip_contribution=step_input.wip_contribution,
+            roles_json=step_input.roles_json,
         )
         session.add(step)
         session.flush()
@@ -67,6 +68,9 @@ def replace_workflow(
                 story_points=ttc_input.story_points,
                 min_hours=ttc_input.min_hours,
                 max_hours=ttc_input.max_hours,
+                full_time_p25=ttc_input.full_time_p25,
+                full_time_p50=ttc_input.full_time_p50,
+                full_time_p99=ttc_input.full_time_p99,
             ))
 
     session.commit()

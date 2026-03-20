@@ -48,6 +48,10 @@ def create_team(
         working_hours_end=body.working_hours_end,
         timezone=body.timezone,
         holidays=body.holidays,
+        sprint_capacity_min=body.sprint_capacity_min,
+        sprint_capacity_max=body.sprint_capacity_max,
+        priority_randomization=body.priority_randomization,
+        tick_duration_hours=body.tick_duration_hours,
     )
     session.add(team)
     try:

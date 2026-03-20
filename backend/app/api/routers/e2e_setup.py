@@ -13,8 +13,6 @@ from app.engine.backlog import (
     TemplateContentGenerator,
     generate_issues,
 )
-from app.engine.issue_state_machine import IssueState
-from app.models.dysfunction_config import DysfunctionConfig
 from app.models.issue import Issue
 from app.models.jira_config import JiraConfig
 from app.models.member import Member
@@ -175,12 +173,6 @@ def _create_team(
             order=order,
         ))
 
-    # Dysfunction config
-    dysf = DysfunctionConfig(team_id=team.id)
-    for key, value in defn.get("dysfunctions", {}).items():
-        setattr(dysf, key, value)
-    session.add(dysf)
-
     session.flush()
     return team
 
@@ -213,7 +205,7 @@ async def _generate_backlog(
                 summary=f"[SIM] Epic: {theme}",
                 description=f"Auto-generated epic for {team.name} — {theme}",
                 story_points=0,
-                status=IssueState.BACKLOG.value,
+                status="backlog",
                 backlog_priority=0,
             )
             session.add(current_epic)
@@ -226,7 +218,7 @@ async def _generate_backlog(
             summary=g["summary"],
             description=g["description"],
             story_points=g["story_points"],
-            status=IssueState.BACKLOG.value,
+            status="backlog",
             backlog_priority=idx + 1,
             epic_id=current_epic.id if current_epic else None,
         )

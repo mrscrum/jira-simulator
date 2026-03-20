@@ -18,6 +18,7 @@ import { useJiraStatuses } from "@/hooks/useJiraStatuses";
 import { useReplaceWorkflow, useWorkflow } from "@/hooks/useWorkflow";
 import type { TouchTimeConfigInput, WorkflowStep, WorkflowStepInput } from "@/lib/types";
 import { AddStepModal } from "./AddStepModal";
+import { MoveLeftGrid } from "./MoveLeftGrid";
 import { StepRow } from "./StepRow";
 
 interface WorkflowDesignerProps {
@@ -48,6 +49,9 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
           story_points: c.story_points,
           min_hours: c.min_hours,
           max_hours: c.max_hours,
+          full_time_p25: c.full_time_p25,
+          full_time_p50: c.full_time_p50,
+          full_time_p99: c.full_time_p99,
         }));
       }
       setLocalTouchTimes(ttMap);
@@ -82,6 +86,7 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
     const steps: WorkflowStepInput[] = localSteps.map((s) => ({
       jira_status: s.jira_status,
       role_required: s.role_required,
+      roles_json: s.roles_json,
       order: s.order,
       max_wait_hours: s.max_wait_hours,
       wip_contribution: s.wip_contribution,
@@ -171,6 +176,7 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
             workflow_id: workflow?.id ?? 0,
             jira_status: data.jira_status,
             role_required: data.role_required,
+            roles_json: data.roles_json ?? null,
             order: data.order,
             max_wait_hours: data.max_wait_hours ?? 24,
             wip_contribution: data.wip_contribution ?? 1,
@@ -184,6 +190,13 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
         projectKey={projectKey}
         nextOrder={localSteps.length}
       />
+
+      {/* Move-left configuration — only show when steps are saved */}
+      {workflow?.steps && workflow.steps.length >= 2 && (
+        <div className="mt-6 border-t pt-6">
+          <MoveLeftGrid teamId={teamId} steps={workflow.steps} />
+        </div>
+      )}
     </div>
   );
 }

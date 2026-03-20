@@ -55,13 +55,28 @@ export function StepRow({
             {!statusKnown && jiraStatuses.length > 0 && <BrokenStepBadge />}
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Badge
-              variant="outline"
-              className={`${roleColor.bg} ${roleColor.text} border ${roleColor.border}`}
-            >
-              {step.role_required}
-            </Badge>
-            <span>\u00b7 max wait {step.max_wait_hours}h</span>
+            {step.roles_json ? (
+              JSON.parse(step.roles_json).map((r: string) => {
+                const rc = getRoleColor(r);
+                return (
+                  <Badge
+                    key={r}
+                    variant="outline"
+                    className={`${rc.bg} ${rc.text} border ${rc.border}`}
+                  >
+                    {r}
+                  </Badge>
+                );
+              })
+            ) : (
+              <Badge
+                variant="outline"
+                className={`${roleColor.bg} ${roleColor.text} border ${roleColor.border}`}
+              >
+                {step.role_required}
+              </Badge>
+            )}
+            <span>· max wait {step.max_wait_hours}h</span>
           </div>
         </div>
         <Button

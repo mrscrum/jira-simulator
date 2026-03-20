@@ -19,6 +19,7 @@ class MoveLeftConfig(TimestampMixin, Base):
         Integer, ForeignKey("workflow_steps.id"), nullable=False
     )
     base_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    issue_type: Mapped[str | None] = mapped_column(String, nullable=True)
 
     targets: Mapped[list["MoveLeftTarget"]] = relationship(
         back_populates="config",

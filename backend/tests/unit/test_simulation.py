@@ -126,7 +126,7 @@ class TestEnqueueActions:
             session_factory=MagicMock(),
             write_queue=write_queue,
         )
-        from app.engine.issue_state_machine import JiraWriteAction
+        from app.engine.types import JiraWriteAction
         actions = [
             JiraWriteAction(
                 operation_type="ADD_COMMENT",
@@ -148,7 +148,7 @@ class TestEnqueueActions:
             session_factory=MagicMock(),
             write_queue=write_queue,
         )
-        from app.engine.issue_state_machine import JiraWriteAction
+        from app.engine.types import JiraWriteAction
         action = JiraWriteAction(
             operation_type="ADD_COMMENT",
             payload={"issue_key": "TP-1", "body": "hello"},

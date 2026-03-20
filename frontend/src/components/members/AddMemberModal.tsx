@@ -28,9 +28,9 @@ interface AddMemberModalProps {
 export function AddMemberModal({ teamId, open, onClose }: AddMemberModalProps) {
   const createMember = useCreateMember(teamId);
   const [name, setName] = useState("");
-  const [role, setRole] = useState<string>("Dev");
-  const [capacity, setCapacity] = useState("7");
-  const [maxWip, setMaxWip] = useState("3");
+  const [role, setRole] = useState<string>("DEV");
+  const [capacity, setCapacity] = useState("6");
+  const [maxWip, setMaxWip] = useState("1");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +45,9 @@ export function AddMemberModal({ teamId, open, onClose }: AddMemberModalProps) {
       {
         onSuccess: () => {
           setName("");
-          setRole("Dev");
-          setCapacity("7");
-          setMaxWip("3");
+          setRole("DEV");
+          setCapacity("6");
+          setMaxWip("1");
           onClose();
         },
       },

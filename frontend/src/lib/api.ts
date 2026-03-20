@@ -1,14 +1,12 @@
 import type {
   CrossTeamDependency,
   CrossTeamDependencyCreate,
-  DysfunctionConfig,
-  DysfunctionConfigUpdate,
-  DysfunctionType,
-  InjectRequest,
   JiraStatus,
   Member,
   MemberCreate,
   MemberUpdate,
+  MoveLeftConfig,
+  MoveLeftConfigInput,
   SimulationStatus,
   Team,
   TeamCreate,
@@ -102,17 +100,16 @@ export const deleteWorkflowStep = (teamId: number, stepId: number) =>
     method: "DELETE",
   });
 
-// Dysfunctions
-export const fetchDysfunctions = (teamId: number) =>
-  request<DysfunctionConfig>(`/teams/${teamId}/dysfunctions`);
-export const updateDysfunction = (
+// Move-left configs
+export const fetchMoveLeftConfigs = (teamId: number) =>
+  request<MoveLeftConfig[]>(`/teams/${teamId}/move-left`);
+export const replaceMoveLeftConfigs = (
   teamId: number,
-  type: DysfunctionType,
-  data: DysfunctionConfigUpdate,
+  configs: MoveLeftConfigInput[],
 ) =>
-  request<DysfunctionConfig>(`/teams/${teamId}/dysfunctions/${type}`, {
+  request<MoveLeftConfig[]>(`/teams/${teamId}/move-left`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ configs }),
   });
 
 // Dependencies
@@ -142,11 +139,8 @@ export const updateTickInterval = (minutes: number) =>
     method: "PUT",
     body: JSON.stringify({ minutes }),
   });
-export const injectDysfunction = (data: InjectRequest) =>
-  request<{ injected: boolean }>("/simulate/inject", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export const triggerManualTick = () =>
+  request<Record<string, unknown>>("/simulation/tick", { method: "POST" });
 
 // Clock speed
 export const fetchClockSpeed = () =>

@@ -25,5 +25,8 @@ class TouchTimeConfig(TimestampMixin, Base):
     story_points: Mapped[int] = mapped_column(Integer, nullable=False)
     min_hours: Mapped[float] = mapped_column(Float, nullable=False)
     max_hours: Mapped[float] = mapped_column(Float, nullable=False)
+    full_time_p25: Mapped[float | None] = mapped_column(Float, nullable=True)
+    full_time_p50: Mapped[float | None] = mapped_column(Float, nullable=True)
+    full_time_p99: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     workflow_step: Mapped["WorkflowStep"] = relationship(back_populates="touch_time_configs")

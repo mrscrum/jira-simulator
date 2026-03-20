@@ -143,7 +143,7 @@ class TestMember:
         session.commit()
         assert member.daily_capacity_hours == 6.0
 
-    def test_max_concurrent_wip_defaults_to_three(self, session):
+    def test_max_concurrent_wip_defaults_to_one(self, session):
         org = Organization(name="Org")
         session.add(org)
         session.commit()
@@ -153,7 +153,7 @@ class TestMember:
         member = Member(team_id=team.id, name="Carol", role="PO")
         session.add(member)
         session.commit()
-        assert member.max_concurrent_wip == 3
+        assert member.max_concurrent_wip == 1
 
     def test_is_active_defaults_to_true(self, session):
         org = Organization(name="Org")

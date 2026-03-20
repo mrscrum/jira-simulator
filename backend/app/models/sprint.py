@@ -37,6 +37,7 @@ class Sprint(TimestampMixin, Base):
     goal_at_risk: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
     )
+    capacity_target: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     team: Mapped["Team"] = relationship(back_populates="sprints")
     issues: Mapped[list["Issue"]] = relationship(back_populates="sprint")

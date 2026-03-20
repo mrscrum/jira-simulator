@@ -64,6 +64,21 @@ class Issue(TimestampMixin, Base):
     epic_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("issues.id"), nullable=True
     )
+    sampled_full_time: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
+    sampled_work_time: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
+    elapsed_full_time: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
+    elapsed_work_time: Mapped[float] = mapped_column(
+        Float, default=0.0, nullable=False
+    )
+    work_started: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
 
     team: Mapped["Team"] = relationship(back_populates="issues")
     current_workflow_step: Mapped["WorkflowStep | None"] = relationship(

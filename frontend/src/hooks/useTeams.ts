@@ -9,6 +9,14 @@ export function useTeams() {
   });
 }
 
+export function useTeam(teamId: number) {
+  return useQuery({
+    queryKey: ["teams", teamId],
+    queryFn: () => api.fetchTeam(teamId),
+    enabled: teamId > 0,
+  });
+}
+
 export function useCreateTeam() {
   const queryClient = useQueryClient();
   return useMutation({

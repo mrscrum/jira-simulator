@@ -16,6 +16,10 @@ class TeamBase(BaseModel):
     working_hours_end: int = 17
     timezone: str = "UTC"
     holidays: str = "[]"
+    sprint_capacity_min: int = 20
+    sprint_capacity_max: int = 40
+    priority_randomization: bool = False
+    tick_duration_hours: float = 1.0
 
 
 class TeamCreate(TeamBase):
@@ -34,6 +38,10 @@ class TeamCreateRequest(BaseModel):
     working_hours_end: int = 17
     timezone: str = "UTC"
     holidays: str = "[]"
+    sprint_capacity_min: int = 20
+    sprint_capacity_max: int = 40
+    priority_randomization: bool = False
+    tick_duration_hours: float = 1.0
 
 
 class TeamRead(TeamBase):
@@ -58,3 +66,7 @@ class TeamUpdate(BaseModel):
     working_hours_end: int | None = None
     timezone: str | None = None
     holidays: str | None = None
+    sprint_capacity_min: int | None = None
+    sprint_capacity_max: int | None = None
+    priority_randomization: bool | None = None
+    tick_duration_hours: float | None = None

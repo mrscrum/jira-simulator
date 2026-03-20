@@ -118,32 +118,6 @@ class TestEngineHealth:
         assert data["paused_teams"] == []
 
 
-class TestEventConfig:
-    def test_get_events_empty(self, client):
-        client.post("/teams", json={"name": "Alpha", "jira_project_key": "A"})
-        resp = client.get("/simulation/1/events")
-        assert resp.status_code == 200
-        assert resp.json() == []
-
-    def test_put_event_creates_config(self, client):
-        client.post("/teams", json={"name": "Alpha", "jira_project_key": "A"})
-        resp = client.put(
-            "/simulation/1/events/carry_over",
-            json={"enabled": False, "probability": 0.5},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["enabled"] is False
-        assert resp.json()["probability"] == 0.5
-
-
-class TestEventLog:
-    def test_get_event_log_empty(self, client):
-        client.post("/teams", json={"name": "Alpha", "jira_project_key": "A"})
-        resp = client.get("/simulation/1/event-log")
-        assert resp.status_code == 200
-        assert resp.json() == []
-
-
 class TestBacklogAPI:
     def test_get_backlog_empty(self, client):
         client.post("/teams", json={"name": "Alpha", "jira_project_key": "A"})

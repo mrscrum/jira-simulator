@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -57,6 +57,21 @@ class Team(TimestampMixin, Base):
     )
     holidays: Mapped[str] = mapped_column(
         Text, default="[]", nullable=False
+    )
+    sprint_capacity_min: Mapped[int] = mapped_column(
+        Integer, default=20, nullable=False
+    )
+    sprint_capacity_max: Mapped[int] = mapped_column(
+        Integer, default=40, nullable=False
+    )
+    priority_randomization: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    first_sprint_start_date: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
+    tick_duration_hours: Mapped[float] = mapped_column(
+        Float, default=1.0, nullable=False
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="teams")

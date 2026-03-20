@@ -25,25 +25,8 @@ class TickInterval(BaseModel):
     minutes: int
 
 
-class InjectRequest(BaseModel):
-    team_id: int
-    dysfunction_type: str
-    target_issue_id: int | None = None
-    target_member_id: int | None = None
-
-
-class InjectResponse(BaseModel):
-    injected: bool
-
-
 class BacklogGenerateRequest(BaseModel):
     count: int = 10
-
-
-class EventConfigUpdate(BaseModel):
-    enabled: bool | None = None
-    probability: float | None = None
-    params: dict | None = None
 
 
 class ClockSpeed(BaseModel):
@@ -315,98 +298,12 @@ def reset_sprint(team_id: int, db: Session = Depends(get_session)):
     )
     if not sprint:
         raise HTTPException(status_code=404, detail="No sprint found")
-    sprint.phase = "BACKLOG_PREP"
+    sprint.phase = "PLANNING"
     sprint.committed_points = 0
     sprint.completed_points = 0
     sprint.goal_at_risk = False
     db.commit()
-    return {"id": sprint.id, "phase": "BACKLOG_PREP", "reset": True}
-
-
-# ── Event config ──
-
-
-@router.get("/simulation/{team_id}/events")
-def get_event_configs(team_id: int, db: Session = Depends(get_session)):
-    from app.models.simulation_event_config import SimulationEventConfig
-    configs = (
-        db.query(SimulationEventConfig)
-        .filter(SimulationEventConfig.team_id == team_id)
-        .all()
-    )
-    return [
-        {
-            "id": c.id,
-            "event_type": c.event_type,
-            "enabled": c.enabled,
-            "probability": c.probability,
-            "params": c.params,
-        }
-        for c in configs
-    ]
-
-
-@router.put("/simulation/{team_id}/events/{event_type}")
-def update_event_config(
-    team_id: int,
-    event_type: str,
-    body: EventConfigUpdate,
-    db: Session = Depends(get_session),
-):
-    from app.models.simulation_event_config import SimulationEventConfig
-    config = (
-        db.query(SimulationEventConfig)
-        .filter(
-            SimulationEventConfig.team_id == team_id,
-            SimulationEventConfig.event_type == event_type,
-        )
-        .first()
-    )
-    if not config:
-        config = SimulationEventConfig(team_id=team_id, event_type=event_type)
-        db.add(config)
-    if body.enabled is not None:
-        config.enabled = body.enabled
-    if body.probability is not None:
-        config.probability = body.probability
-    if body.params is not None:
-        config.params = str(body.params)
-    db.commit()
-    return {
-        "id": config.id,
-        "event_type": config.event_type,
-        "enabled": config.enabled,
-        "probability": config.probability,
-    }
-
-
-# ── Event log ──
-
-
-@router.get("/simulation/{team_id}/event-log")
-def get_event_log(
-    team_id: int,
-    limit: int = 50,
-    db: Session = Depends(get_session),
-):
-    from app.models.simulation_event_log import SimulationEventLog
-    logs = (
-        db.query(SimulationEventLog)
-        .filter(SimulationEventLog.team_id == team_id)
-        .order_by(SimulationEventLog.id.desc())
-        .limit(limit)
-        .all()
-    )
-    return [
-        {
-            "id": log.id,
-            "event_type": log.event_type,
-            "sim_day": log.sim_day,
-            "payload": log.payload,
-            "occurred_at": log.occurred_at.isoformat() if log.occurred_at else None,
-        }
-        for log in logs
-    ]
+    return {"id": sprint.id, "phase": "PLANNING", "reset": True}
 
 
 # ── Backlog ──
@@ -499,11 +396,3 @@ def engine_health(request: Request):
         ),
         paused_teams=sorted(engine.paused_teams),
     )
-
-
-# ── Legacy inject endpoint ──
-
-
-@router.post("/simulate/inject", response_model=InjectResponse)
-def inject(body: InjectRequest):
-    return InjectResponse(injected=True)
