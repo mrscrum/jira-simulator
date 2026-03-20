@@ -1,16 +1,19 @@
 #!/bin/sh
 set -e
 
-# Skip Alembic migrations if not configured — let create_all handle schema.
 if [ -d "alembic" ]; then
     echo "Running database migrations..."
-    alembic upgrade head 2>/dev/null || {
-        echo "Migration failed — stamping base and retrying..."
-        alembic stamp head 2>/dev/null || true
-        alembic upgrade head 2>/dev/null || echo "Migration still failing, continuing..."
-    }
+    # Try normal upgrade first
+    if ! alembic upgrade head 2>&1; then
+        echo "Normal upgrade failed. Stamping at 008 and retrying..."
+        # DB likely has columns through 008 but alembic_version is out of sync
+        alembic stamp 008 2>/dev/null || true
+        if ! alembic upgrade head 2>&1; then
+            echo "Migration still failing, continuing with create_all..."
+        fi
+    fi
 else
-    echo "No alembic directory, skipping migrations. Schema managed by create_all."
+    echo "No alembic directory, skipping migrations."
 fi
 
 echo "Starting application..."
