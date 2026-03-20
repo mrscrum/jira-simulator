@@ -383,7 +383,7 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
                       {!sizeCollapsed && activeStepIds.length > 0 && (
                         <div className="mb-2 mr-3">
                           {/* Header */}
-                          <div className="grid grid-cols-[1fr_60px_60px_60px_60px_60px_20px] gap-1 px-2 pb-1 text-[10px] text-muted-foreground">
+                          <div className="grid grid-cols-[minmax(70px,1fr)_50px_50px_50px_50px_50px_16px] gap-1 px-2 pb-1 text-[10px] text-muted-foreground">
                             <span>Status</span>
                             <span className="text-center">Work min</span>
                             <span className="text-center">Work max</span>
@@ -406,7 +406,7 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
                             return (
                               <div
                                 key={stepId}
-                                className="grid grid-cols-[1fr_60px_60px_60px_60px_60px_20px] items-center gap-1 px-2 py-0.5"
+                                className="grid grid-cols-[minmax(70px,1fr)_50px_50px_50px_50px_50px_16px] items-center gap-1 px-2 py-0.5"
                               >
                                 <span className="truncate text-xs">
                                   {step.jira_status}
