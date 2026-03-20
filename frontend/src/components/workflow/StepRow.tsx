@@ -4,22 +4,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BrokenStepBadge } from "@/components/shared/BrokenStepBadge";
 import { getRoleColor } from "@/lib/roles";
-import type { JiraStatus, TouchTimeConfigInput, WorkflowStep } from "@/lib/types";
-import { TouchTimeGrid } from "./TouchTimeGrid";
+import type { JiraStatus, WorkflowStep } from "@/lib/types";
 
 interface StepRowProps {
   step: WorkflowStep;
   jiraStatuses: JiraStatus[];
-  touchTimeConfigs: TouchTimeConfigInput[];
-  onTouchTimeChange: (configs: TouchTimeConfigInput[]) => void;
   onDelete: () => void;
 }
 
 export function StepRow({
   step,
   jiraStatuses,
-  touchTimeConfigs,
-  onTouchTimeChange,
   onDelete,
 }: StepRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -88,7 +83,6 @@ export function StepRow({
           Delete
         </Button>
       </div>
-      <TouchTimeGrid configs={touchTimeConfigs} onChange={onTouchTimeChange} />
     </div>
   );
 }

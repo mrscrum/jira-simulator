@@ -20,6 +20,7 @@ import type { TouchTimeConfigInput, WorkflowStep, WorkflowStepInput } from "@/li
 import { AddStepModal } from "./AddStepModal";
 import { MoveLeftGrid } from "./MoveLeftGrid";
 import { StepRow } from "./StepRow";
+import { TouchTimeTree } from "./TouchTimeTree";
 
 interface WorkflowDesignerProps {
   teamId: number;
@@ -106,6 +107,11 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
     setDirty(true);
   };
 
+  const handleTouchTimesChangeAll = (newTouchTimes: Record<number, TouchTimeConfigInput[]>) => {
+    setLocalTouchTimes(newTouchTimes);
+    setDirty(true);
+  };
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -154,10 +160,6 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
                   key={step.id}
                   step={step}
                   jiraStatuses={jiraStatuses}
-                  touchTimeConfigs={localTouchTimes[step.id] ?? []}
-                  onTouchTimeChange={(configs) =>
-                    handleTouchTimeChange(step.id, configs)
-                  }
                   onDelete={() => handleDeleteStep(step.id)}
                 />
               ))}
@@ -190,6 +192,18 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
         projectKey={projectKey}
         nextOrder={localSteps.length}
       />
+
+      {/* Touch time configuration — hierarchical by issue type */}
+      {localSteps.length > 0 && (
+        <div className="mt-6 border-t pt-6">
+          <h2 className="mb-3 text-lg font-semibold">Timing Configuration</h2>
+          <TouchTimeTree
+            steps={localSteps}
+            touchTimes={localTouchTimes}
+            onChange={handleTouchTimesChangeAll}
+          />
+        </div>
+      )}
 
       {/* Move-left configuration — only show when steps are saved */}
       {workflow?.steps && workflow.steps.length >= 2 && (
