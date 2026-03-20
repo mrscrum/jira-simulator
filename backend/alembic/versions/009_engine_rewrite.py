@@ -142,15 +142,10 @@ def upgrade() -> None:
         sa.Column("roles_json", sa.String(), nullable=True),
     )
 
-    # --- Issues: epic support ---
+    # --- Issues: epic support (no FK constraint for SQLite compat) ---
     _add_column_safe(
         "issues",
-        sa.Column(
-            "epic_id",
-            sa.Integer(),
-            sa.ForeignKey("issues.id"),
-            nullable=True,
-        ),
+        sa.Column("epic_id", sa.Integer(), nullable=True),
     )
 
     # --- MoveLeftConfig: per-item-type ---
