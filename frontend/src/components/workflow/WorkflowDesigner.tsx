@@ -102,11 +102,6 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
     setDirty(true);
   };
 
-  const handleTouchTimeChange = (stepId: number, configs: TouchTimeConfigInput[]) => {
-    setLocalTouchTimes((prev) => ({ ...prev, [stepId]: configs }));
-    setDirty(true);
-  };
-
   const handleTouchTimesChangeAll = (newTouchTimes: Record<number, TouchTimeConfigInput[]>) => {
     setLocalTouchTimes(newTouchTimes);
     setDirty(true);

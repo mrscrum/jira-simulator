@@ -362,7 +362,6 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
                           {activeStepIds.length < steps.length && (
                             <AddStatusDropdown
                               availableSteps={availableSteps}
-                              stepById={stepById}
                               onAdd={(stepId) =>
                                 addStatusToTypeSize(type, sp, stepId)
                               }
@@ -610,12 +609,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
 /** Dropdown to add a status (workflow step) to an issue type + size. */
 function AddStatusDropdown({
   availableSteps,
-  stepById,
   onAdd,
   onAddAll,
 }: {
   availableSteps: WorkflowStep[];
-  stepById: Map<number, WorkflowStep>;
   onAdd: (stepId: number) => void;
   onAddAll: () => void;
 }) {
