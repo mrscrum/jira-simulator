@@ -116,6 +116,24 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
     setDirty(true);
   };
 
+  const handleChartValueChange = useCallback(
+    (stepId: number, issueType: string, sp: number, newP50: number) => {
+      setLocalTouchTimes((prev) => {
+        const stepConfigs = prev[stepId] ?? [];
+        return {
+          ...prev,
+          [stepId]: stepConfigs.map((c) =>
+            c.issue_type === issueType && c.story_points === sp
+              ? { ...c, full_time_p50: newP50 }
+              : c,
+          ),
+        };
+      });
+      setDirty(true);
+    },
+    [],
+  );
+
   // Build PreviewConfigItem[] for the status distribution chart
   const statusDistributionConfigs = useMemo<PreviewConfigItem[]>(() => {
     const configs: PreviewConfigItem[] = [];
@@ -246,7 +264,7 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
       {/* Status distribution chart — shows expected time in status */}
       {statusDistributionConfigs.length > 0 && (
         <div className="mt-6 border-t pt-6">
-          <StatusDistributionChart configs={statusDistributionConfigs} />
+          <StatusDistributionChart configs={statusDistributionConfigs} onValueChange={handleChartValueChange} />
         </div>
       )}
 

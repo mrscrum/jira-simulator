@@ -107,10 +107,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
     const newConfig: TouchTimeConfigInput = {
       issue_type: type,
       story_points: 0,
-      min_hours: 0,
-      max_hours: 0,
+      min_hours: 1,
+      max_hours: 2,
       full_time_p25: null,
-      full_time_p50: null,
+      full_time_p50: 1.5,
       full_time_p99: null,
     };
     onChange({ ...touchTimes, [firstStepId]: [...stepConfigs, newConfig] });
@@ -141,10 +141,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
           {
             issue_type: type,
             story_points: sp,
-            min_hours: 0,
-            max_hours: 0,
+            min_hours: 1,
+            max_hours: 2,
             full_time_p25: null,
-            full_time_p50: null,
+            full_time_p50: 1.5,
             full_time_p99: null,
           },
         ];
@@ -175,10 +175,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
         {
           issue_type: type,
           story_points: sp,
-          min_hours: 0,
-          max_hours: 0,
+          min_hours: 1,
+          max_hours: 2,
           full_time_p25: null,
-          full_time_p50: null,
+          full_time_p50: 1.5,
           full_time_p99: null,
         },
       ],
@@ -206,10 +206,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
           {
             issue_type: type,
             story_points: sp,
-            min_hours: 0,
-            max_hours: 0,
+            min_hours: 1,
+            max_hours: 2,
             full_time_p25: null,
-            full_time_p50: null,
+            full_time_p50: 1.5,
             full_time_p99: null,
           },
         ];
@@ -575,10 +575,10 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
                       toAdd.push({
                         issue_type: type,
                         story_points: sp,
-                        min_hours: 0,
-                        max_hours: 0,
+                        min_hours: 1,
+                        max_hours: 2,
                         full_time_p25: null,
-                        full_time_p50: null,
+                        full_time_p50: 1.5,
                         full_time_p99: null,
                       });
                     }

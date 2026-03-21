@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTemplate, useUpdateTemplate } from "@/hooks/useTemplates";
+import { CycleTimeBoxPlot } from "./CycleTimeBoxPlot";
 import type { TimingTemplateEntryInput } from "@/lib/types";
 
 const COMMON_TYPES = ["Story", "Bug", "Task"];
@@ -78,11 +79,18 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
     [],
   );
 
+  const handleBoxPlotChange = useCallback(
+    (issueType: string, sp: number, field: keyof TimingTemplateEntryInput, value: number) => {
+      updateEntry(issueType, sp, field, String(value));
+    },
+    [updateEntry],
+  );
+
   const addEntry = (type: string, sp: number) => {
     if (entries.some((e) => e.issue_type === type && e.story_points === sp)) return;
     setEntries((prev) => [
       ...prev,
-      { issue_type: type, story_points: sp, ct_min: 0, ct_q1: 0, ct_median: 0, ct_q3: 0, ct_max: 0 },
+      { issue_type: type, story_points: sp, ct_min: 1, ct_q1: 2, ct_median: 3, ct_q3: 4, ct_max: 5 },
     ]);
     setDirty(true);
   };
@@ -108,7 +116,7 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
     for (const type of COMMON_TYPES) {
       for (const sp of COMMON_SIZES) {
         if (!entries.some((e) => e.issue_type === type && e.story_points === sp)) {
-          toAdd.push({ issue_type: type, story_points: sp, ct_min: 0, ct_q1: 0, ct_median: 0, ct_q3: 0, ct_max: 0 });
+          toAdd.push({ issue_type: type, story_points: sp, ct_min: 1, ct_q1: 2, ct_median: 3, ct_q3: 4, ct_max: 5 });
         }
       }
     }
@@ -276,6 +284,9 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
           )}
         </div>
       </div>
+
+      {/* Cycle Time Box Plot — interactive */}
+      <CycleTimeBoxPlot entries={entries} onEntryChange={handleBoxPlotChange} />
     </div>
   );
 }
