@@ -11,6 +11,7 @@ class MoveLeftConfigInput(BaseModel):
     from_step_id: int
     base_probability: float
     issue_type: str | None = None
+    story_points: int | None = None
     targets: list[MoveLeftTargetInput] = []
 
 
@@ -35,4 +36,5 @@ class MoveLeftConfigRead(BaseModel):
     from_step_id: int
     base_probability: float
     issue_type: str | None
+    story_points: int | None
     targets: list[MoveLeftTargetRead] = []

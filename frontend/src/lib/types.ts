@@ -166,6 +166,7 @@ export interface MoveLeftConfig {
   from_step_id: number;
   base_probability: number;
   issue_type: string | null;
+  story_points: number | null;
   targets: MoveLeftTarget[];
 }
 
@@ -178,6 +179,7 @@ export interface MoveLeftConfigInput {
   from_step_id: number;
   base_probability: number;
   issue_type?: string | null;
+  story_points?: number | null;
   targets: MoveLeftTargetInput[];
 }
 

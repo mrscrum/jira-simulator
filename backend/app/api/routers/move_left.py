@@ -54,6 +54,7 @@ def replace_move_left_configs(
             from_step_id=cfg_input.from_step_id,
             base_probability=cfg_input.base_probability,
             issue_type=cfg_input.issue_type,
+            story_points=cfg_input.story_points,
         )
         session.add(config)
         session.flush()
