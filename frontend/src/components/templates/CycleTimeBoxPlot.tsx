@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import Plot from "./PlotlyChart";
 import { usePlotlyDrag } from "./usePlotlyDrag";
@@ -24,7 +24,6 @@ interface DragInfo {
   field: BoxField;
   fieldIdx: number;
   circle: SVGCircleElement;
-  startY: number;
 }
 
 export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotProps) {
@@ -33,7 +32,6 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragInfo | null>(null);
-  const [plotReady, setPlotReady] = useState(false);
 
   const validEntries = useMemo(
     () => entries.filter((e) => e.ct_median > 0),
@@ -58,6 +56,10 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     [filtered],
   );
 
+  // Keep sorted in a ref so positionHandles can read current data without being re-created
+  const sortedRef = useRef(sorted);
+  sortedRef.current = sorted;
+
   const data = useMemo(
     () =>
       sorted.map((e) => {
@@ -77,28 +79,24 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     [sorted],
   );
 
-  const handlePlotUpdate = useCallback(
-    (figure: unknown, graphDiv: HTMLElement) => {
-      drag.handlePlotUpdate(figure, graphDiv);
-      setPlotReady(true);
-    },
-    [drag],
-  );
-
-  // Position SVG handles after every render when plot is ready
-  useEffect(() => {
-    if (!plotReady || !onEntryChange) return;
+  // Position SVG handles — called directly from Plotly callback, never from useEffect
+  const positionHandles = useCallback(() => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || !onEntryChange) return;
 
     const bounds = drag.getBounds();
     const cats = drag.getXCategories();
     if (!bounds || !cats) return;
 
+    // Don't clear if we're mid-drag (the user is holding a handle)
+    if (dragRef.current) return;
+
     // Clear old handles
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-    for (const entry of sorted) {
+    const currentSorted = sortedRef.current;
+
+    for (const entry of currentSorted) {
       const label = entry.story_points === 0 ? "Default" : `${entry.story_points} SP`;
       const catIdx = cats.indexOf(label);
       if (catIdx === -1) continue;
@@ -112,7 +110,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         circle.setAttribute("cx", String(cx));
         circle.setAttribute("cy", String(cy));
-        circle.setAttribute("r", "5");
+        circle.setAttribute("r", "6");
         circle.setAttribute("fill", "rgba(59,130,246,0.4)");
         circle.setAttribute("stroke", "rgb(59,130,246)");
         circle.setAttribute("stroke-width", "1.5");
@@ -126,9 +124,19 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         svg.appendChild(circle);
       }
     }
-  }, [plotReady, sorted, onEntryChange, drag]);
+  }, [onEntryChange, drag]);
 
-  // Pointer event handlers on the container — use refs, no React state during drag
+  // Called by Plotly on both onInitialized and onUpdate
+  const handlePlotReady = useCallback(
+    (figure: unknown, graphDiv: HTMLElement) => {
+      drag.handlePlotUpdate(figure, graphDiv);
+      // Position handles directly — no React state change, no re-render loop
+      requestAnimationFrame(positionHandles);
+    },
+    [drag, positionHandles],
+  );
+
+  // Pointer event handlers on the container
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!onEntryChange) return;
@@ -136,7 +144,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       if (target.tagName !== "circle" || !target.dataset.field) return;
 
       target.setPointerCapture(e.pointerId);
-      target.setAttribute("r", "7");
+      target.setAttribute("r", "8");
       target.setAttribute("fill", "rgba(59,130,246,0.8)");
 
       dragRef.current = {
@@ -145,7 +153,6 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         field: target.dataset.field as BoxField,
         fieldIdx: Number(target.dataset.fieldIdx),
         circle: target,
-        startY: e.clientY,
       };
       e.preventDefault();
     },
@@ -158,7 +165,6 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       if (!d) return;
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
-      // Move the circle directly in the DOM — no React re-render
       const py = e.clientY - rect.top;
       d.circle.setAttribute("cy", String(py));
     },
@@ -171,8 +177,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       if (!d || !onEntryChange) return;
       dragRef.current = null;
 
-      // Reset visual
-      d.circle.setAttribute("r", "5");
+      d.circle.setAttribute("r", "6");
       d.circle.setAttribute("fill", "rgba(59,130,246,0.4)");
 
       const rect = containerRef.current?.getBoundingClientRect();
@@ -180,13 +185,13 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       const py = e.clientY - rect.top;
       const dataVal = Math.max(0, Math.round(drag.yPixelToData(py) * 10) / 10);
 
-      // Enforce constraints
       const entry = entries.find(
         (en) => en.issue_type === d.issueType && en.story_points === d.sp,
       );
       if (entry) {
         const vals = FIELDS.map((f) => entry[f]);
         vals[d.fieldIdx] = dataVal;
+        // Enforce ordering constraints
         for (let i = d.fieldIdx - 1; i >= 0; i--) {
           if (vals[i] > vals[i + 1]) vals[i] = vals[i + 1];
         }
@@ -254,10 +259,9 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
           }}
           config={{ displayModeBar: false, responsive: true }}
           style={{ width: "100%" }}
-          onInitialized={handlePlotUpdate}
-          onUpdate={handlePlotUpdate}
+          onInitialized={handlePlotReady}
+          onUpdate={handlePlotReady}
         />
-        {/* SVG overlay — handles are created imperatively via useEffect */}
         {onEntryChange && (
           <svg
             ref={svgRef}

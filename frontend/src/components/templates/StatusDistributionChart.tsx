@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Plot from "./PlotlyChart";
 import { Button } from "@/components/ui/button";
 import { usePlotlyDrag } from "./usePlotlyDrag";
@@ -47,7 +47,6 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragInfo | null>(null);
   const segmentsRef = useRef<SegmentInfo[]>([]);
-  const [plotReady, setPlotReady] = useState(false);
 
   const issueTypes = useMemo(
     () => [...new Set(configs.map((c) => c.issue_type))].sort(),
@@ -97,7 +96,6 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
     [filtered, makeLabel],
   );
 
-  // Build segment lookup
   const segmentLookup = useMemo(() => {
     const lookup = new Map<string, PreviewConfigItem[]>();
     for (const c of filtered) {
@@ -164,35 +162,32 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
     return result;
   }, [yLabels, statuses, traces, segmentLookup]);
 
-  // Keep segments ref current for pointer handlers
-  useEffect(() => {
-    segmentsRef.current = segments;
-  }, [segments]);
+  // Keep segments in a ref for stable positioning callback
+  segmentsRef.current = segments;
 
-  const handlePlotUpdate = useCallback(
-    (figure: unknown, graphDiv: HTMLElement) => {
-      drag.handlePlotUpdate(figure, graphDiv);
-      setPlotReady(true);
-    },
-    [drag],
-  );
+  const yLabelsLenRef = useRef(yLabels.length);
+  yLabelsLenRef.current = yLabels.length;
 
-  // Position SVG handles imperatively after plot renders
-  useEffect(() => {
-    if (!plotReady || !onValueChange) return;
+  // Position SVG handles — called directly from Plotly callback
+  const positionHandles = useCallback(() => {
     const svg = svgRef.current;
-    if (!svg) return;
+    if (!svg || !onValueChange) return;
 
     const bounds = drag.getBounds();
     const cats = drag.getYCategories();
     if (!bounds || !cats) return;
 
+    // Don't reposition during active drag
+    if (dragRef.current) return;
+
     while (svg.firstChild) svg.removeChild(svg.firstChild);
 
-    const barHalfHeight = (bounds.height / yLabels.length / 2) * 0.7;
+    const numLabels = yLabelsLenRef.current;
+    const barHalfHeight = (bounds.height / Math.max(numLabels, 1) / 2) * 0.7;
+    const currentSegments = segmentsRef.current;
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
+    for (let i = 0; i < currentSegments.length; i++) {
+      const seg = currentSegments[i];
       const rightEdgeX = drag.xDataToPixel(seg.xStart + seg.width);
       const catIdx = cats.indexOf(seg.yLabel);
       if (catIdx === -1) continue;
@@ -202,14 +197,14 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
 
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute("x", String(rightEdgeX - 3));
+      rect.setAttribute("x", String(rightEdgeX - 4));
       rect.setAttribute("y", String(centerY - barHalfHeight));
-      rect.setAttribute("width", "6");
+      rect.setAttribute("width", "8");
       rect.setAttribute("height", String(barHalfHeight * 2));
-      rect.setAttribute("fill", "rgba(0,0,0,0.2)");
+      rect.setAttribute("fill", "rgba(0,0,0,0.25)");
       rect.setAttribute("stroke", color);
-      rect.setAttribute("stroke-width", "1");
-      rect.setAttribute("rx", "2");
+      rect.setAttribute("stroke-width", "1.5");
+      rect.setAttribute("rx", "3");
       rect.setAttribute("cursor", "ew-resize");
       rect.style.pointerEvents = "auto";
       rect.dataset.segIdx = String(i);
@@ -225,9 +220,18 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
       g.appendChild(dot);
       svg.appendChild(g);
     }
-  }, [plotReady, segments, yLabels.length, onValueChange, drag]);
+  }, [onValueChange, drag]);
 
-  // Pointer handlers — use refs, no React state during drag
+  // Called by Plotly on both onInitialized and onUpdate
+  const handlePlotReady = useCallback(
+    (figure: unknown, graphDiv: HTMLElement) => {
+      drag.handlePlotUpdate(figure, graphDiv);
+      requestAnimationFrame(positionHandles);
+    },
+    [drag, positionHandles],
+  );
+
+  // Pointer handlers
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!onValueChange) return;
@@ -238,7 +242,7 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
       const seg = segmentsRef.current[segIdx];
       if (!seg) return;
 
-      (target as SVGRectElement).setPointerCapture(e.pointerId);
+      target.setPointerCapture(e.pointerId);
       target.setAttribute("fill", "rgba(0,0,0,0.5)");
 
       dragRef.current = { segment: seg, handle: target };
@@ -254,9 +258,7 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const px = e.clientX - rect.left;
-      // Move the handle rect directly in the DOM
-      d.handle.setAttribute("x", String(px - 3));
-      // Move the grip dot too
+      d.handle.setAttribute("x", String(px - 4));
       const dot = d.handle.nextElementSibling as SVGCircleElement | null;
       if (dot) dot.setAttribute("cx", String(px));
     },
@@ -269,7 +271,7 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
       if (!d || !onValueChange) return;
       dragRef.current = null;
 
-      d.handle.setAttribute("fill", "rgba(0,0,0,0.2)");
+      d.handle.setAttribute("fill", "rgba(0,0,0,0.25)");
 
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -383,8 +385,8 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
           }}
           config={{ displayModeBar: false, responsive: true }}
           style={{ width: "100%" }}
-          onInitialized={handlePlotUpdate}
-          onUpdate={handlePlotUpdate}
+          onInitialized={handlePlotReady}
+          onUpdate={handlePlotReady}
         />
         {onValueChange && (
           <svg
