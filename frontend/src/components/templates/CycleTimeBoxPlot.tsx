@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import Plot from "./PlotlyChart";
 import type { TimingTemplateEntryInput } from "@/lib/types";
 
@@ -6,10 +8,23 @@ interface CycleTimeBoxPlotProps {
 }
 
 export function CycleTimeBoxPlot({ entries }: CycleTimeBoxPlotProps) {
-  if (entries.length === 0) return null;
+  const [selectedType, setSelectedType] = useState<string | null>(null);
 
-  // Filter out entries with no data
-  const validEntries = entries.filter((e) => e.ct_median > 0);
+  const validEntries = useMemo(
+    () => entries.filter((e) => e.ct_median > 0),
+    [entries],
+  );
+
+  const issueTypes = useMemo(
+    () => [...new Set(validEntries.map((e) => e.issue_type))].sort(),
+    [validEntries],
+  );
+
+  // Auto-select first type when types change
+  const activeType = selectedType && issueTypes.includes(selectedType)
+    ? selectedType
+    : issueTypes[0] ?? null;
+
   if (validEntries.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
@@ -18,10 +33,13 @@ export function CycleTimeBoxPlot({ entries }: CycleTimeBoxPlotProps) {
     );
   }
 
-  // Each entry becomes a box using the statistical values
-  const data = validEntries.map((e) => ({
+  const filtered = activeType
+    ? validEntries.filter((e) => e.issue_type === activeType)
+    : validEntries;
+
+  const data = filtered.map((e) => ({
     type: "box" as const,
-    name: `${e.issue_type} ${e.story_points === 0 ? "Def" : e.story_points + "SP"}`,
+    name: e.story_points === 0 ? "Default" : `${e.story_points} SP`,
     lowerfence: [e.ct_min],
     q1: [e.ct_q1],
     median: [e.ct_median],
@@ -32,7 +50,22 @@ export function CycleTimeBoxPlot({ entries }: CycleTimeBoxPlotProps) {
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <h3 className="mb-2 text-sm font-semibold">Cycle Time Distribution</h3>
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold">Cycle Time Distribution</h3>
+        <div className="ml-auto flex items-center gap-1">
+          {issueTypes.map((type) => (
+            <Button
+              key={type}
+              variant={activeType === type ? "default" : "outline"}
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => setSelectedType(type)}
+            >
+              {type}
+            </Button>
+          ))}
+        </div>
+      </div>
       <Plot
         data={data}
         layout={{
