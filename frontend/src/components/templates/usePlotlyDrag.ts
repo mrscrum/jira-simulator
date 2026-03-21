@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 /** Pixel bounds of the Plotly plot area relative to the container element. */
 export interface PlotAreaBounds {
@@ -23,8 +23,8 @@ interface PlotlyLayout {
 export interface PlotlyDragContext {
   /** Ref callback for <Plot onInitialized / onUpdate> — call with (figure, graphDiv) */
   handlePlotUpdate: (figure: unknown, graphDiv: HTMLElement) => void;
-  /** Current plot-area bounds (container-relative pixels). null before first render. */
-  bounds: PlotAreaBounds | null;
+  /** Get current plot-area bounds (container-relative pixels). null before first render. */
+  getBounds: () => PlotAreaBounds | null;
   /** Convert a data-space x value to a container-relative pixel x. */
   xDataToPixel: (val: number) => number;
   /** Convert a container-relative pixel x to data-space x value. */
@@ -34,38 +34,39 @@ export interface PlotlyDragContext {
   /** Convert a container-relative pixel y to data-space y value. */
   yPixelToData: (px: number) => number;
   /** Category labels for x axis (if category axis), undefined otherwise. */
-  xCategories: string[] | undefined;
+  getXCategories: () => string[] | undefined;
   /** Category labels for y axis (if category axis), undefined otherwise. */
-  yCategories: string[] | undefined;
+  getYCategories: () => string[] | undefined;
 }
 
 /**
  * Hook that captures Plotly's internal axis coordinate system and exposes
  * data↔pixel conversion functions for positioning SVG overlays.
  *
+ * IMPORTANT: All accessors are ref-based (no React state) to avoid
+ * re-render loops with Plotly's onUpdate callback.
+ *
  * Usage:
  *   const drag = usePlotlyDrag();
  *   <Plot onInitialized={drag.handlePlotUpdate} onUpdate={drag.handlePlotUpdate} ... />
- *   {drag.bounds && <svg style={{ position:'absolute', left: drag.bounds.left, ... }}>...</svg>}
  */
 export function usePlotlyDrag(): PlotlyDragContext {
   const layoutRef = useRef<PlotlyLayout | null>(null);
-  const [bounds, setBounds] = useState<PlotAreaBounds | null>(null);
-  const [, setTick] = useState(0); // force re-render when layout changes
+  const boundsRef = useRef<PlotAreaBounds | null>(null);
 
   const handlePlotUpdate = useCallback((_figure: unknown, graphDiv: HTMLElement) => {
     const fl = (graphDiv as unknown as { _fullLayout?: PlotlyLayout })._fullLayout;
     if (!fl) return;
     layoutRef.current = fl;
-    const newBounds: PlotAreaBounds = {
+    boundsRef.current = {
       left: fl._size.l,
       top: fl._size.t,
       width: fl._size.w,
       height: fl._size.h,
     };
-    setBounds(newBounds);
-    setTick((t) => t + 1);
   }, []);
+
+  const getBounds = useCallback((): PlotAreaBounds | null => boundsRef.current, []);
 
   const xDataToPixel = useCallback((val: number): number => {
     const fl = layoutRef.current;
@@ -82,8 +83,6 @@ export function usePlotlyDrag(): PlotlyDragContext {
   const yDataToPixel = useCallback((val: number): number => {
     const fl = layoutRef.current;
     if (!fl) return 0;
-    // Plotly y-axis d2p returns offset from *bottom* of plot area (y increases up).
-    // SVG y increases downward, so invert.
     return fl._size.t + fl._size.h - fl.yaxis.d2p(val);
   }, []);
 
@@ -93,17 +92,19 @@ export function usePlotlyDrag(): PlotlyDragContext {
     return fl.yaxis.p2d(fl._size.h - (px - fl._size.t));
   }, []);
 
-  const xCategories = layoutRef.current?.xaxis._categories;
-  const yCategories = layoutRef.current?.yaxis._categories;
+  const getXCategories = useCallback((): string[] | undefined =>
+    layoutRef.current?.xaxis._categories, []);
+  const getYCategories = useCallback((): string[] | undefined =>
+    layoutRef.current?.yaxis._categories, []);
 
   return {
     handlePlotUpdate,
-    bounds,
+    getBounds,
     xDataToPixel,
     xPixelToData,
     yDataToPixel,
     yPixelToData,
-    xCategories,
-    yCategories,
+    getXCategories,
+    getYCategories,
   };
 }

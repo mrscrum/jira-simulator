@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import Plot from "./PlotlyChart";
 import { usePlotlyDrag } from "./usePlotlyDrag";
 import type { TimingTemplateEntryInput } from "@/lib/types";
+import { useState } from "react";
 
 const FIELDS = ["ct_min", "ct_q1", "ct_median", "ct_q3", "ct_max"] as const;
 type BoxField = (typeof FIELDS)[number];
@@ -17,19 +18,22 @@ interface CycleTimeBoxPlotProps {
   ) => void;
 }
 
-interface DragState {
+interface DragInfo {
   issueType: string;
   sp: number;
   field: BoxField;
   fieldIdx: number;
-  currentY: number; // pixel
+  circle: SVGCircleElement;
+  startY: number;
 }
 
 export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotProps) {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const drag = usePlotlyDrag();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dragState, setDragState] = useState<DragState | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<DragInfo | null>(null);
+  const [plotReady, setPlotReady] = useState(false);
 
   const validEntries = useMemo(
     () => entries.filter((e) => e.ct_median > 0),
@@ -49,99 +53,50 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     ? validEntries.filter((e) => e.issue_type === activeType)
     : validEntries;
 
-  const sorted = [...filtered].sort((a, b) => a.story_points - b.story_points);
-
-  const data = sorted.map((e) => {
-    const label = e.story_points === 0 ? "Default" : `${e.story_points} SP`;
-    return {
-      type: "box" as const,
-      name: label,
-      x: [label],
-      lowerfence: [e.ct_min],
-      q1: [e.ct_q1],
-      median: [e.ct_median],
-      q3: [e.ct_q3],
-      upperfence: [e.ct_max],
-      boxpoints: false as const,
-    };
-  });
-
-  // --- Drag logic ---
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent, issueType: string, sp: number, field: BoxField, fieldIdx: number) => {
-      if (!onEntryChange) return;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setDragState({
-        issueType,
-        sp,
-        field,
-        fieldIdx,
-        currentY: e.clientY - rect.top,
-      });
-      e.preventDefault();
-    },
-    [onEntryChange],
+  const sorted = useMemo(
+    () => [...filtered].sort((a, b) => a.story_points - b.story_points),
+    [filtered],
   );
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragState) return;
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setDragState((prev) => prev ? { ...prev, currentY: e.clientY - rect.top } : null);
-    },
-    [dragState],
+  const data = useMemo(
+    () =>
+      sorted.map((e) => {
+        const label = e.story_points === 0 ? "Default" : `${e.story_points} SP`;
+        return {
+          type: "box" as const,
+          name: label,
+          x: [label],
+          lowerfence: [e.ct_min],
+          q1: [e.ct_q1],
+          median: [e.ct_median],
+          q3: [e.ct_q3],
+          upperfence: [e.ct_max],
+          boxpoints: false as const,
+        };
+      }),
+    [sorted],
   );
 
-  const handlePointerUp = useCallback(
-    (_e: React.PointerEvent) => {
-      if (!dragState || !onEntryChange) return;
-      const dataVal = Math.max(0, Math.round(drag.yPixelToData(dragState.currentY) * 10) / 10);
-
-      // Enforce constraints: find current entry values
-      const entry = entries.find(
-        (en) => en.issue_type === dragState.issueType && en.story_points === dragState.sp,
-      );
-      if (entry) {
-        const vals = FIELDS.map((f) => entry[f]);
-        vals[dragState.fieldIdx] = dataVal;
-        // Clamp to maintain ordering
-        for (let i = dragState.fieldIdx - 1; i >= 0; i--) {
-          if (vals[i] > vals[i + 1]) vals[i] = vals[i + 1];
-        }
-        for (let i = dragState.fieldIdx + 1; i < vals.length; i++) {
-          if (vals[i] < vals[i - 1]) vals[i] = vals[i - 1];
-        }
-        // Apply all changed values
-        for (let i = 0; i < FIELDS.length; i++) {
-          if (vals[i] !== entry[FIELDS[i]]) {
-            onEntryChange(dragState.issueType, dragState.sp, FIELDS[i], vals[i]);
-          }
-        }
-      }
-      setDragState(null);
+  const handlePlotUpdate = useCallback(
+    (figure: unknown, graphDiv: HTMLElement) => {
+      drag.handlePlotUpdate(figure, graphDiv);
+      setPlotReady(true);
     },
-    [dragState, onEntryChange, entries, drag],
+    [drag],
   );
 
-  // --- Compute handle positions ---
-  const handles = useMemo(() => {
-    if (!drag.bounds || !onEntryChange) return [];
-    const result: {
-      key: string;
-      cx: number;
-      cy: number;
-      issueType: string;
-      sp: number;
-      field: BoxField;
-      fieldIdx: number;
-    }[] = [];
+  // Position SVG handles after every render when plot is ready
+  useEffect(() => {
+    if (!plotReady || !onEntryChange) return;
+    const svg = svgRef.current;
+    if (!svg) return;
 
-    const cats = drag.xCategories;
-    if (!cats) return result;
+    const bounds = drag.getBounds();
+    const cats = drag.getXCategories();
+    if (!bounds || !cats) return;
+
+    // Clear old handles
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
 
     for (const entry of sorted) {
       const label = entry.story_points === 0 ? "Default" : `${entry.story_points} SP`;
@@ -153,19 +108,100 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         const field = FIELDS[fi];
         const val = entry[field];
         const cy = drag.yDataToPixel(val);
-        result.push({
-          key: `${entry.issue_type}-${entry.story_points}-${field}`,
-          cx,
-          cy,
-          issueType: entry.issue_type,
-          sp: entry.story_points,
-          field,
-          fieldIdx: fi,
-        });
+
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", String(cx));
+        circle.setAttribute("cy", String(cy));
+        circle.setAttribute("r", "5");
+        circle.setAttribute("fill", "rgba(59,130,246,0.4)");
+        circle.setAttribute("stroke", "rgb(59,130,246)");
+        circle.setAttribute("stroke-width", "1.5");
+        circle.setAttribute("cursor", "ns-resize");
+        circle.style.pointerEvents = "auto";
+        circle.dataset.issueType = entry.issue_type;
+        circle.dataset.sp = String(entry.story_points);
+        circle.dataset.field = field;
+        circle.dataset.fieldIdx = String(fi);
+
+        svg.appendChild(circle);
       }
     }
-    return result;
-  }, [drag.bounds, drag.xCategories, drag.xDataToPixel, drag.yDataToPixel, sorted, onEntryChange]);
+  }, [plotReady, sorted, onEntryChange, drag]);
+
+  // Pointer event handlers on the container — use refs, no React state during drag
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onEntryChange) return;
+      const target = e.target as SVGCircleElement;
+      if (target.tagName !== "circle" || !target.dataset.field) return;
+
+      target.setPointerCapture(e.pointerId);
+      target.setAttribute("r", "7");
+      target.setAttribute("fill", "rgba(59,130,246,0.8)");
+
+      dragRef.current = {
+        issueType: target.dataset.issueType!,
+        sp: Number(target.dataset.sp),
+        field: target.dataset.field as BoxField,
+        fieldIdx: Number(target.dataset.fieldIdx),
+        circle: target,
+        startY: e.clientY,
+      };
+      e.preventDefault();
+    },
+    [onEntryChange],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      // Move the circle directly in the DOM — no React re-render
+      const py = e.clientY - rect.top;
+      d.circle.setAttribute("cy", String(py));
+    },
+    [],
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      const d = dragRef.current;
+      if (!d || !onEntryChange) return;
+      dragRef.current = null;
+
+      // Reset visual
+      d.circle.setAttribute("r", "5");
+      d.circle.setAttribute("fill", "rgba(59,130,246,0.4)");
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const py = e.clientY - rect.top;
+      const dataVal = Math.max(0, Math.round(drag.yPixelToData(py) * 10) / 10);
+
+      // Enforce constraints
+      const entry = entries.find(
+        (en) => en.issue_type === d.issueType && en.story_points === d.sp,
+      );
+      if (entry) {
+        const vals = FIELDS.map((f) => entry[f]);
+        vals[d.fieldIdx] = dataVal;
+        for (let i = d.fieldIdx - 1; i >= 0; i--) {
+          if (vals[i] > vals[i + 1]) vals[i] = vals[i + 1];
+        }
+        for (let i = d.fieldIdx + 1; i < vals.length; i++) {
+          if (vals[i] < vals[i - 1]) vals[i] = vals[i - 1];
+        }
+        for (let i = 0; i < FIELDS.length; i++) {
+          if (vals[i] !== entry[FIELDS[i]]) {
+            onEntryChange(d.issueType, d.sp, FIELDS[i], vals[i]);
+          }
+        }
+      }
+    },
+    [onEntryChange, entries, drag],
+  );
 
   if (validEntries.length === 0) {
     return (
@@ -199,8 +235,9 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       <div
         ref={containerRef}
         className="relative"
-        onPointerMove={dragState ? handlePointerMove : undefined}
-        onPointerUp={dragState ? handlePointerUp : undefined}
+        onPointerDown={onEntryChange ? handlePointerDown : undefined}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         <Plot
           data={data}
@@ -217,12 +254,13 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
           }}
           config={{ displayModeBar: false, responsive: true }}
           style={{ width: "100%" }}
-          onInitialized={drag.handlePlotUpdate}
-          onUpdate={drag.handlePlotUpdate}
+          onInitialized={handlePlotUpdate}
+          onUpdate={handlePlotUpdate}
         />
-        {/* SVG overlay with drag handles */}
-        {drag.bounds && onEntryChange && (
+        {/* SVG overlay — handles are created imperatively via useEffect */}
+        {onEntryChange && (
           <svg
+            ref={svgRef}
             style={{
               position: "absolute",
               left: 0,
@@ -231,32 +269,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
               height: "100%",
               pointerEvents: "none",
             }}
-          >
-            {handles.map((h) => {
-              const isDragging =
-                dragState &&
-                dragState.issueType === h.issueType &&
-                dragState.sp === h.sp &&
-                dragState.field === h.field;
-              const cy = isDragging ? dragState!.currentY : h.cy;
-              return (
-                <circle
-                  key={h.key}
-                  cx={h.cx}
-                  cy={cy}
-                  r={isDragging ? 7 : 5}
-                  fill={isDragging ? "rgba(59,130,246,0.8)" : "rgba(59,130,246,0.4)"}
-                  stroke="rgb(59,130,246)"
-                  strokeWidth={1.5}
-                  cursor="ns-resize"
-                  style={{ pointerEvents: "auto" }}
-                  onPointerDown={(e) =>
-                    handlePointerDown(e, h.issueType, h.sp, h.field, h.fieldIdx)
-                  }
-                />
-              );
-            })}
-          </svg>
+          />
         )}
       </div>
     </div>
