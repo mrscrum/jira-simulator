@@ -37,16 +37,23 @@ export function CycleTimeBoxPlot({ entries }: CycleTimeBoxPlotProps) {
     ? validEntries.filter((e) => e.issue_type === activeType)
     : validEntries;
 
-  const data = filtered.map((e) => ({
-    type: "box" as const,
-    name: e.story_points === 0 ? "Default" : `${e.story_points} SP`,
-    lowerfence: [e.ct_min],
-    q1: [e.ct_q1],
-    median: [e.ct_median],
-    q3: [e.ct_q3],
-    upperfence: [e.ct_max],
-    boxpoints: false as const,
-  }));
+  // Sort by story points so boxes appear in order
+  const sorted = [...filtered].sort((a, b) => a.story_points - b.story_points);
+
+  const data = sorted.map((e) => {
+    const label = e.story_points === 0 ? "Default" : `${e.story_points} SP`;
+    return {
+      type: "box" as const,
+      name: label,
+      x: [label],
+      lowerfence: [e.ct_min],
+      q1: [e.ct_q1],
+      median: [e.ct_median],
+      q3: [e.ct_q3],
+      upperfence: [e.ct_max],
+      boxpoints: false as const,
+    };
+  });
 
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -72,7 +79,8 @@ export function CycleTimeBoxPlot({ entries }: CycleTimeBoxPlotProps) {
           height: 300,
           margin: { t: 20, b: 60, l: 50, r: 20 },
           yaxis: { title: { text: "Hours" }, zeroline: true },
-          xaxis: { tickangle: -45 },
+          xaxis: { type: "category" as const, tickangle: -45 },
+          boxmode: "group" as const,
           showlegend: false,
           paper_bgcolor: "transparent",
           plot_bgcolor: "transparent",
