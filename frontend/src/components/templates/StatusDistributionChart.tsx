@@ -1,10 +1,18 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import Plot from "./PlotlyChart";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { usePlotlyDrag } from "./usePlotlyDrag";
 import type { PreviewConfigItem } from "@/lib/types";
 
 type ViewMode = "all" | "by_type" | "by_size";
+
+const STATUS_COLORS = [
+  "#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa",
+  "#fb923c", "#2dd4bf", "#e879f9", "#94a3b8", "#4ade80",
+];
+
+const MARGIN = { top: 10, right: 20, bottom: 40, left: 120 };
+const BAR_HEIGHT = 24;
+const BAR_GAP = 6;
+const HANDLE_WIDTH = 8;
 
 interface StatusDistributionChartProps {
   configs: PreviewConfigItem[];
@@ -16,16 +24,10 @@ interface StatusDistributionChartProps {
   ) => void;
 }
 
-const STATUS_COLORS = [
-  "#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa",
-  "#fb923c", "#2dd4bf", "#e879f9", "#94a3b8", "#4ade80",
-];
-
 interface SegmentInfo {
   statusIdx: number;
-  yIdx: number;
+  rowIdx: number;
   status: string;
-  yLabel: string;
   workflowStepId: number;
   issueType: string;
   storyPoints: number;
@@ -33,21 +35,56 @@ interface SegmentInfo {
   width: number;
 }
 
-interface DragInfo {
-  segment: SegmentInfo;
-  handle: SVGRectElement;
+interface DragState {
+  segIdx: number;
+  currentWidth: number;
 }
 
-export function StatusDistributionChart({ configs, onValueChange }: StatusDistributionChartProps) {
+/* ---------- axis helpers ---------- */
+
+function niceStep(range: number, targetTicks: number): number {
+  const raw = range / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+  return nice * mag;
+}
+
+function makeTicks(max: number, target = 6): number[] {
+  if (max <= 0) return [0];
+  const step = niceStep(max, target);
+  const ticks: number[] = [];
+  for (let v = 0; v <= max + step * 0.01; v += step) {
+    ticks.push(Math.round(v * 1e6) / 1e6);
+  }
+  return ticks;
+}
+
+export function StatusDistributionChart({
+  configs,
+  onValueChange,
+}: StatusDistributionChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
-  const drag = usePlotlyDrag();
+  const [width, setWidth] = useState(800);
+  const [drag, setDrag] = useState<DragState | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<DragInfo | null>(null);
-  const segmentsRef = useRef<SegmentInfo[]>([]);
 
+  /* responsive width */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((es) => {
+      const w = es[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  /* unique values */
   const issueTypes = useMemo(
     () => [...new Set(configs.map((c) => c.issue_type))].sort(),
     [configs],
@@ -71,13 +108,12 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
     return entries.map(([name]) => name);
   }, [configs]);
 
+  /* filter by view */
   const filtered = useMemo(() => {
-    if (viewMode === "by_type" && selectedType) {
+    if (viewMode === "by_type" && selectedType)
       return configs.filter((c) => c.issue_type === selectedType);
-    }
-    if (viewMode === "by_size" && selectedSize !== null) {
+    if (viewMode === "by_size" && selectedSize !== null)
       return configs.filter((c) => c.story_points === selectedSize);
-    }
     return configs;
   }, [configs, viewMode, selectedType, selectedSize]);
 
@@ -85,218 +121,171 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
     (c: PreviewConfigItem) => {
       if (viewMode === "by_type" && selectedType)
         return c.story_points === 0 ? "Default" : c.story_points + " SP";
-      if (viewMode === "by_size" && selectedSize !== null) return c.issue_type;
+      if (viewMode === "by_size" && selectedSize !== null)
+        return c.issue_type;
       return `${c.issue_type} / ${c.story_points === 0 ? "Default" : c.story_points + " SP"}`;
     },
     [viewMode, selectedType, selectedSize],
   );
 
-  const yLabels = useMemo(
+  const rowLabels = useMemo(
     () => [...new Set(filtered.map(makeLabel))],
     [filtered, makeLabel],
   );
 
-  const segmentLookup = useMemo(() => {
-    const lookup = new Map<string, PreviewConfigItem[]>();
-    for (const c of filtered) {
-      const label = makeLabel(c);
-      for (let si = 0; si < statuses.length; si++) {
-        if (c.jira_status === statuses[si]) {
-          const key = `${si}:${yLabels.indexOf(label)}`;
-          if (!lookup.has(key)) lookup.set(key, []);
-          lookup.get(key)!.push(c);
-        }
-      }
-    }
-    return lookup;
-  }, [filtered, makeLabel, statuses, yLabels]);
-
-  const traces = useMemo(
-    () =>
-      statuses.map((status, i) => {
-        const values = yLabels.map((label) => {
-          const matching = filtered.filter(
-            (c) => makeLabel(c) === label && c.jira_status === status,
-          );
-          if (matching.length === 0) return 0;
-          return matching.reduce((sum, c) => sum + (c.full_time_p50 ?? 0), 0) / matching.length;
-        });
-        return {
-          type: "bar" as const,
-          name: status,
-          y: yLabels,
-          x: values,
-          orientation: "h" as const,
-          marker: { color: STATUS_COLORS[i % STATUS_COLORS.length] },
-        };
-      }),
-    [statuses, yLabels, filtered, makeLabel],
-  );
-
-  // Build segments for drag handles
+  /* build segments */
   const segments = useMemo(() => {
     const result: SegmentInfo[] = [];
-    for (let yIdx = 0; yIdx < yLabels.length; yIdx++) {
+    for (let ri = 0; ri < rowLabels.length; ri++) {
+      const label = rowLabels[ri];
       let cumX = 0;
       for (let si = 0; si < statuses.length; si++) {
-        const width = (traces[si].x as number[])[yIdx] ?? 0;
-        const key = `${si}:${yIdx}`;
-        const matchingConfigs = segmentLookup.get(key);
-        if (matchingConfigs && matchingConfigs.length > 0 && width > 0) {
-          const cfg = matchingConfigs[0];
-          result.push({
-            statusIdx: si,
-            yIdx,
-            status: statuses[si],
-            yLabel: yLabels[yIdx],
-            workflowStepId: cfg.workflow_step_id,
-            issueType: cfg.issue_type,
-            storyPoints: cfg.story_points,
-            xStart: cumX,
-            width,
-          });
-        }
-        cumX += width;
+        const matching = filtered.filter(
+          (c) => makeLabel(c) === label && c.jira_status === statuses[si],
+        );
+        if (matching.length === 0) continue;
+        const avg =
+          matching.reduce((s, c) => s + (c.full_time_p50 ?? 0), 0) /
+          matching.length;
+        if (avg <= 0) { continue; }
+        const cfg = matching[0];
+        result.push({
+          statusIdx: si,
+          rowIdx: ri,
+          status: statuses[si],
+          workflowStepId: cfg.workflow_step_id,
+          issueType: cfg.issue_type,
+          storyPoints: cfg.story_points,
+          xStart: cumX,
+          width: avg,
+        });
+        cumX += avg;
       }
     }
     return result;
-  }, [yLabels, statuses, traces, segmentLookup]);
+  }, [rowLabels, statuses, filtered, makeLabel]);
 
-  // Keep segments in a ref for stable positioning callback
-  segmentsRef.current = segments;
+  /* scales */
+  const plotW = width - MARGIN.left - MARGIN.right;
+  const plotH = rowLabels.length * (BAR_HEIGHT + BAR_GAP);
+  const chartH = plotH + MARGIN.top + MARGIN.bottom;
 
-  const yLabelsLenRef = useRef(yLabels.length);
-  yLabelsLenRef.current = yLabels.length;
-
-  // Position SVG handles — called directly from Plotly callback
-  const positionHandles = useCallback(() => {
-    const svg = svgRef.current;
-    if (!svg || !onValueChange) return;
-
-    const bounds = drag.getBounds();
-    const cats = drag.getYCategories();
-    if (!bounds || !cats) return;
-
-    // Don't reposition during active drag
-    if (dragRef.current) return;
-
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
-
-    const numLabels = yLabelsLenRef.current;
-    const barHalfHeight = (bounds.height / Math.max(numLabels, 1) / 2) * 0.7;
-    const currentSegments = segmentsRef.current;
-
-    for (let i = 0; i < currentSegments.length; i++) {
-      const seg = currentSegments[i];
-      const rightEdgeX = drag.xDataToPixel(seg.xStart + seg.width);
-      const catIdx = cats.indexOf(seg.yLabel);
-      if (catIdx === -1) continue;
-      const centerY = drag.yDataToPixel(catIdx);
-      const color = STATUS_COLORS[seg.statusIdx % STATUS_COLORS.length];
-
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-
-      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute("x", String(rightEdgeX - 4));
-      rect.setAttribute("y", String(centerY - barHalfHeight));
-      rect.setAttribute("width", "8");
-      rect.setAttribute("height", String(barHalfHeight * 2));
-      rect.setAttribute("fill", "rgba(0,0,0,0.25)");
-      rect.setAttribute("stroke", color);
-      rect.setAttribute("stroke-width", "1.5");
-      rect.setAttribute("rx", "3");
-      rect.setAttribute("cursor", "ew-resize");
-      rect.style.pointerEvents = "auto";
-      rect.dataset.segIdx = String(i);
-
-      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      dot.setAttribute("cx", String(rightEdgeX));
-      dot.setAttribute("cy", String(centerY));
-      dot.setAttribute("r", "2");
-      dot.setAttribute("fill", "white");
-      dot.style.pointerEvents = "none";
-
-      g.appendChild(rect);
-      g.appendChild(dot);
-      svg.appendChild(g);
+  const xMax = useMemo(() => {
+    let max = 0;
+    const rowTotals = new Map<number, number>();
+    for (const seg of segments) {
+      const total = (rowTotals.get(seg.rowIdx) ?? 0) + seg.width;
+      rowTotals.set(seg.rowIdx, total);
+      if (total > max) max = total;
     }
-  }, [onValueChange, drag]);
+    // account for active drag
+    if (drag) {
+      const s = segments[drag.segIdx];
+      if (s) {
+        const delta = drag.currentWidth - s.width;
+        const rowTotal = (rowTotals.get(s.rowIdx) ?? 0) + delta;
+        if (rowTotal > max) max = rowTotal;
+      }
+    }
+    return max * 1.1 || 10;
+  }, [segments, drag]);
 
-  // Called by Plotly on both onInitialized and onUpdate
-  const handlePlotReady = useCallback(
-    (figure: unknown, graphDiv: HTMLElement) => {
-      drag.handlePlotUpdate(figure, graphDiv);
-      requestAnimationFrame(positionHandles);
-    },
-    [drag, positionHandles],
+  const xScale = useCallback(
+    (val: number) => (val / xMax) * plotW,
+    [xMax, plotW],
+  );
+  const xInverse = useCallback(
+    (px: number) => (px / plotW) * xMax,
+    [xMax, plotW],
+  );
+  const yCenter = useCallback(
+    (rowIdx: number) => rowIdx * (BAR_HEIGHT + BAR_GAP) + BAR_HEIGHT / 2,
+    [],
   );
 
-  // Pointer handlers
+  const xTicks = useMemo(() => makeTicks(xMax), [xMax]);
+
+  /* get segment width, accounting for drag */
+  const getWidth = useCallback(
+    (segIdx: number): number => {
+      if (drag && drag.segIdx === segIdx) return drag.currentWidth;
+      return segments[segIdx]?.width ?? 0;
+    },
+    [drag, segments],
+  );
+
+  /* compute cumulative xStart for rendering, accounting for drag */
+  const getSegmentX = useCallback(
+    (segIdx: number): number => {
+      const seg = segments[segIdx];
+      if (!seg) return 0;
+      let x = 0;
+      for (let i = 0; i < segments.length; i++) {
+        const s = segments[i];
+        if (s.rowIdx !== seg.rowIdx) continue;
+        if (i === segIdx) return x;
+        x += getWidth(i);
+      }
+      return x;
+    },
+    [segments, getWidth],
+  );
+
+  /* pointer handlers */
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
+    (segIdx: number) => (e: React.PointerEvent) => {
       if (!onValueChange) return;
-      const target = e.target as SVGRectElement;
-      if (target.tagName !== "rect" || !target.dataset.segIdx) return;
-
-      const segIdx = Number(target.dataset.segIdx);
-      const seg = segmentsRef.current[segIdx];
-      if (!seg) return;
-
-      target.setPointerCapture(e.pointerId);
-      target.setAttribute("fill", "rgba(0,0,0,0.5)");
-
-      dragRef.current = { segment: seg, handle: target };
+      (e.target as Element).setPointerCapture(e.pointerId);
+      setDrag({ segIdx, currentWidth: segments[segIdx].width });
       e.preventDefault();
     },
-    [onValueChange],
+    [onValueChange, segments],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const px = e.clientX - rect.left;
-      d.handle.setAttribute("x", String(px - 4));
-      const dot = d.handle.nextElementSibling as SVGCircleElement | null;
-      if (dot) dot.setAttribute("cx", String(px));
+      if (!drag) return;
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const localX = e.clientX - rect.left - MARGIN.left;
+      const seg = segments[drag.segIdx];
+      if (!seg) return;
+      const segX = getSegmentX(drag.segIdx);
+      const newRight = xInverse(localX);
+      const newWidth = Math.max(0.1, Math.round((newRight - segX) * 10) / 10);
+      setDrag((prev) => (prev ? { ...prev, currentWidth: newWidth } : null));
     },
-    [],
+    [drag, xInverse, segments, getSegmentX],
   );
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const d = dragRef.current;
-      if (!d || !onValueChange) return;
-      dragRef.current = null;
-
-      d.handle.setAttribute("fill", "rgba(0,0,0,0.25)");
-
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const px = e.clientX - rect.left;
-      const newRightX = drag.xPixelToData(px);
-      const newWidth = Math.max(0.1, Math.round((newRightX - d.segment.xStart) * 10) / 10);
-
+  const handlePointerUp = useCallback(() => {
+    if (!drag || !onValueChange) return;
+    const seg = segments[drag.segIdx];
+    if (seg) {
       onValueChange(
-        d.segment.workflowStepId,
-        d.segment.issueType,
-        d.segment.storyPoints,
-        newWidth,
+        seg.workflowStepId,
+        seg.issueType,
+        seg.storyPoints,
+        drag.currentWidth,
       );
-    },
-    [onValueChange, drag],
-  );
+    }
+    setDrag(null);
+  }, [drag, onValueChange, segments]);
 
   if (configs.length === 0) return null;
 
   return (
     <div className="rounded-lg border bg-card p-4">
+      {/* header */}
       <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-sm font-semibold">Expected Time in Status (p50, hours)</h3>
+        <h3 className="text-sm font-semibold">
+          Expected Time in Status (p50, hours)
+        </h3>
         {onValueChange && (
-          <span className="text-[10px] text-muted-foreground">Drag edges to edit</span>
+          <span className="text-[10px] text-muted-foreground">
+            Drag edges to edit
+          </span>
         )}
         <div className="ml-auto flex items-center gap-1">
           <Button
@@ -313,7 +302,8 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
             className="h-6 px-2 text-xs"
             onClick={() => {
               setViewMode("by_type");
-              if (!selectedType && issueTypes.length > 0) setSelectedType(issueTypes[0]);
+              if (!selectedType && issueTypes.length > 0)
+                setSelectedType(issueTypes[0]);
             }}
           >
             By Type
@@ -324,7 +314,8 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
             className="h-6 px-2 text-xs"
             onClick={() => {
               setViewMode("by_size");
-              if (selectedSize === null && sizes.length > 0) setSelectedSize(sizes[0]);
+              if (selectedSize === null && sizes.length > 0)
+                setSelectedSize(sizes[0]);
             }}
           >
             By Size
@@ -363,44 +354,116 @@ export function StatusDistributionChart({ configs, onValueChange }: StatusDistri
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        className="relative"
-        onPointerDown={onValueChange ? handlePointerDown : undefined}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      >
-        <Plot
-          data={traces}
-          layout={{
-            barmode: "stack",
-            height: Math.max(200, yLabels.length * 30 + 80),
-            margin: { t: 10, b: 40, l: 120, r: 20 },
-            xaxis: { title: { text: "Hours" } },
-            yaxis: { autorange: "reversed" as const },
-            legend: { orientation: "h" as const, y: -0.15 },
-            paper_bgcolor: "transparent",
-            plot_bgcolor: "transparent",
-            font: { size: 11 },
-          }}
-          config={{ displayModeBar: false, responsive: true }}
-          style={{ width: "100%" }}
-          onInitialized={handlePlotReady}
-          onUpdate={handlePlotReady}
-        />
-        {onValueChange && (
-          <svg
-            ref={svgRef}
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: "100%",
-              height: "100%",
-              pointerEvents: "none",
-            }}
-          />
-        )}
+      {/* chart */}
+      <div ref={containerRef}>
+        <svg
+          ref={svgRef}
+          width={width}
+          height={chartH}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          style={{ userSelect: "none", touchAction: "none" }}
+        >
+          <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+            {/* x grid + ticks */}
+            {xTicks.map((t) => (
+              <g key={t} transform={`translate(${xScale(t)},0)`}>
+                <line y1={0} y2={plotH} stroke="#e5e7eb" strokeWidth={1} />
+                <text
+                  y={plotH + 16}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill="#6b7280"
+                >
+                  {t}
+                </text>
+              </g>
+            ))}
+            {/* x axis label */}
+            <text
+              x={plotW / 2}
+              y={plotH + 32}
+              textAnchor="middle"
+              fontSize={11}
+              fill="#6b7280"
+            >
+              Hours
+            </text>
+
+            {/* row labels */}
+            {rowLabels.map((label, ri) => (
+              <text
+                key={label}
+                x={-8}
+                y={yCenter(ri)}
+                textAnchor="end"
+                dominantBaseline="middle"
+                fontSize={10}
+                fill="#374151"
+              >
+                {label}
+              </text>
+            ))}
+
+            {/* bar segments */}
+            {segments.map((seg, si) => {
+              const w = getWidth(si);
+              const x = xScale(getSegmentX(si));
+              const pxW = xScale(w);
+              const y = yCenter(seg.rowIdx) - BAR_HEIGHT / 2;
+              const color = STATUS_COLORS[seg.statusIdx % STATUS_COLORS.length];
+              const isDragging = drag?.segIdx === si;
+
+              return (
+                <g key={si}>
+                  {/* bar rect */}
+                  <rect
+                    x={x}
+                    y={y}
+                    width={Math.max(0, pxW)}
+                    height={BAR_HEIGHT}
+                    fill={color}
+                    fillOpacity={0.75}
+                    stroke={color}
+                    strokeWidth={0.5}
+                  />
+
+                  {/* drag handle on right edge */}
+                  {onValueChange && pxW > 4 && (
+                    <rect
+                      x={x + pxW - HANDLE_WIDTH / 2}
+                      y={y}
+                      width={HANDLE_WIDTH}
+                      height={BAR_HEIGHT}
+                      fill={isDragging ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.15)"}
+                      stroke={color}
+                      strokeWidth={1.5}
+                      rx={3}
+                      cursor="ew-resize"
+                      onPointerDown={handlePointerDown(si)}
+                    />
+                  )}
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+
+        {/* legend */}
+        <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+          {statuses.map((status, i) => (
+            <div key={status} className="flex items-center gap-1">
+              <div
+                className="h-3 w-3 rounded-sm"
+                style={{
+                  backgroundColor: STATUS_COLORS[i % STATUS_COLORS.length],
+                  opacity: 0.75,
+                }}
+              />
+              <span className="text-xs text-muted-foreground">{status}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
