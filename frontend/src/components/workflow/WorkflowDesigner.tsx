@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useJiraStatuses } from "@/hooks/useJiraStatuses";
 import { useReplaceWorkflow, useWorkflow } from "@/hooks/useWorkflow";
-import type { TouchTimeConfigInput, WorkflowStep, WorkflowStepInput } from "@/lib/types";
+import type { PreviewConfigItem, TouchTimeConfigInput, WorkflowStep, WorkflowStepInput } from "@/lib/types";
+import { StatusDistributionChart } from "@/components/templates/StatusDistributionChart";
 import { AddStepModal } from "./AddStepModal";
 import { MoveLeftGrid } from "./MoveLeftGrid";
 import { StepRow } from "./StepRow";
@@ -115,6 +116,38 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
     setDirty(true);
   };
 
+  // Build PreviewConfigItem[] for the status distribution chart
+  const statusDistributionConfigs = useMemo<PreviewConfigItem[]>(() => {
+    const configs: PreviewConfigItem[] = [];
+    for (const step of localSteps) {
+      // Infer status_category when not set (same logic as backend)
+      let cat = step.status_category;
+      if (!cat) {
+        const idx = localSteps.indexOf(step);
+        if (idx === 0) cat = "todo";
+        else if (idx === localSteps.length - 1) cat = "done";
+        else cat = "in_progress";
+      }
+
+      const ttConfigs = localTouchTimes[step.id] ?? [];
+      for (const tt of ttConfigs) {
+        configs.push({
+          workflow_step_id: step.id,
+          jira_status: step.jira_status,
+          status_category: cat,
+          issue_type: tt.issue_type,
+          story_points: tt.story_points,
+          min_hours: tt.min_hours,
+          max_hours: tt.max_hours,
+          full_time_p25: tt.full_time_p25 ?? null,
+          full_time_p50: tt.full_time_p50 ?? null,
+          full_time_p99: tt.full_time_p99 ?? null,
+        });
+      }
+    }
+    return configs;
+  }, [localSteps, localTouchTimes]);
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -207,6 +240,13 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
             touchTimes={localTouchTimes}
             onChange={handleTouchTimesChangeAll}
           />
+        </div>
+      )}
+
+      {/* Status distribution chart — shows expected time in status */}
+      {statusDistributionConfigs.length > 0 && (
+        <div className="mt-6 border-t pt-6">
+          <StatusDistributionChart configs={statusDistributionConfigs} />
         </div>
       )}
 

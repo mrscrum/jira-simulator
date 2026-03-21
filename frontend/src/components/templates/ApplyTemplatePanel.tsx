@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTeams } from "@/hooks/useTeams";
-import { useApplyTemplate, usePreviewTemplate } from "@/hooks/useTemplates";
-import { StatusDistributionChart } from "./StatusDistributionChart";
+import { useApplyTemplate } from "@/hooks/useTemplates";
 
 interface ApplyTemplatePanelProps {
   templateId: number;
@@ -12,16 +11,7 @@ export function ApplyTemplatePanel({ templateId }: ApplyTemplatePanelProps) {
   const { data: teams = [] } = useTeams();
   const applyTemplate = useApplyTemplate();
   const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
-  const [previewTeamId, setPreviewTeamId] = useState<number | null>(null);
-  const { data: preview } = usePreviewTemplate(templateId, previewTeamId);
   const [applied, setApplied] = useState(false);
-
-  // Auto-select the first team for preview so the chart shows immediately
-  useEffect(() => {
-    if (previewTeamId === null && teams.length > 0) {
-      setPreviewTeamId(teams[0].id);
-    }
-  }, [teams, previewTeamId]);
 
   const toggleTeam = (teamId: number) => {
     setSelectedTeamIds((prev) =>
@@ -42,8 +32,6 @@ export function ApplyTemplatePanel({ templateId }: ApplyTemplatePanelProps) {
     );
   };
 
-  const previewTeamName = teams.find((t) => t.id === previewTeamId)?.name;
-
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold">Apply Template to Teams</h3>
@@ -62,17 +50,6 @@ export function ApplyTemplatePanel({ templateId }: ApplyTemplatePanelProps) {
                 className="rounded"
               />
               <span>{team.name}</span>
-              <Button
-                variant={previewTeamId === team.id ? "default" : "ghost"}
-                size="sm"
-                className="ml-auto h-5 px-2 text-[10px]"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setPreviewTeamId(team.id);
-                }}
-              >
-                {previewTeamId === team.id ? "Previewing" : "Preview"}
-              </Button>
             </label>
           ))}
         </div>
@@ -93,22 +70,9 @@ export function ApplyTemplatePanel({ templateId }: ApplyTemplatePanelProps) {
         </div>
       </div>
 
-      {/* Status distribution chart — always visible when preview data exists */}
-      {preview && preview.configs.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs text-muted-foreground">
-            Expected time in status for <strong>{previewTeamName}</strong> workflow:
-          </p>
-          <StatusDistributionChart configs={preview.configs} />
-        </div>
-      )}
-
-      {preview && preview.configs.length === 0 && previewTeamId && (
-        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-          No preview available. Make sure the team&apos;s workflow has steps with status categories set
-          (or at least 2+ steps for auto-inference).
-        </div>
-      )}
+      <p className="text-xs text-muted-foreground">
+        After applying, view the &quot;Expected Time in Status&quot; chart in each team&apos;s Workflow section.
+      </p>
     </div>
   );
 }
