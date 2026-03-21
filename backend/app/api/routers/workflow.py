@@ -57,6 +57,7 @@ def replace_workflow(
             max_wait_hours=step_input.max_wait_hours,
             wip_contribution=step_input.wip_contribution,
             roles_json=step_input.roles_json,
+            status_category=step_input.status_category,
         )
         session.add(step)
         session.flush()

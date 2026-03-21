@@ -7,7 +7,8 @@ export type Section =
   | "members"
   | "settings"
   | "dependencies"
-  | "simulation";
+  | "simulation"
+  | "templates";
 
 interface ShellProps {
   activeTeamId: number | null;

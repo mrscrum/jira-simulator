@@ -16,6 +16,11 @@ import type {
   WorkflowStep,
   WorkflowStepInput,
   WorkflowStepUpdate,
+  TimingTemplate,
+  TimingTemplateCreate,
+  TimingTemplateUpdate,
+  TemplateApplyRequest,
+  TemplatePreviewResponse,
 } from "./types";
 
 const BASE_URL = "/api";
@@ -156,6 +161,22 @@ export const setupE2E = () =>
   request<{ teams: Array<Record<string, unknown>> }>("/e2e/setup", {
     method: "POST",
   });
+
+// Templates
+export const fetchTemplates = () =>
+  request<TimingTemplate[]>("/templates");
+export const fetchTemplate = (id: number) =>
+  request<TimingTemplate>(`/templates/${id}`);
+export const createTemplate = (data: TimingTemplateCreate) =>
+  request<TimingTemplate>("/templates", { method: "POST", body: JSON.stringify(data) });
+export const updateTemplate = (id: number, data: TimingTemplateUpdate) =>
+  request<TimingTemplate>(`/templates/${id}`, { method: "PUT", body: JSON.stringify(data) });
+export const deleteTemplate = (id: number) =>
+  request<void>(`/templates/${id}`, { method: "DELETE" });
+export const previewTemplate = (templateId: number, teamId: number) =>
+  request<TemplatePreviewResponse>(`/templates/${templateId}/preview?team_id=${teamId}`, { method: "POST" });
+export const applyTemplate = (templateId: number, data: TemplateApplyRequest) =>
+  request<{ applied_to: number }>(`/templates/${templateId}/apply`, { method: "POST", body: JSON.stringify(data) });
 
 // Jira Proxy
 export const fetchJiraStatuses = (projectKey: string) =>

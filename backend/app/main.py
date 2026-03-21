@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app.api.routers.dependencies import router as deps_router
 from app.api.routers.e2e_setup import router as e2e_router
+from app.api.routers.templates import router as templates_router
 from app.api.routers.jira_integration import router as jira_router
 from app.api.routers.members import router as members_router
 from app.api.routers.move_left import router as move_left_router
@@ -108,6 +109,7 @@ app.include_router(deps_router)
 app.include_router(sim_router)
 app.include_router(jira_router)
 app.include_router(e2e_router)
+app.include_router(templates_router)
 
 
 @app.get("/health")

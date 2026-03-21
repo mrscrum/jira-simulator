@@ -7,12 +7,14 @@ const SECTION_LABELS: Record<Section, string> = {
   settings: "Settings",
   dependencies: "Dependencies",
   simulation: "Simulation",
+  templates: "Templates",
 };
 
 const SECTION_HINTS: Record<Section, string> = {
   workflow: "Drag to reorder steps · Configure touch times and move-left",
   members: "Manage team members and their capacities",
   settings: "Sprint capacity, working hours, and simulation parameters",
+  templates: "Manage cycle-time templates and apply them to teams",
   dependencies: "Define cross-team dependency links",
   simulation: "Control the simulation engine",
 };

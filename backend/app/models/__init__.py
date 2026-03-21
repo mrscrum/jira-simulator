@@ -18,6 +18,7 @@ from app.models.simulation_event_config import SimulationEventConfig
 from app.models.simulation_event_log import SimulationEventLog
 from app.models.sprint import Sprint
 from app.models.team import Team
+from app.models.timing_template import TimingTemplate, TimingTemplateEntry
 from app.models.touch_time_config import TouchTimeConfig
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
@@ -41,6 +42,8 @@ __all__ = [
     "SimulationEventLog",
     "Sprint",
     "Team",
+    "TimingTemplate",
+    "TimingTemplateEntry",
     "TouchTimeConfig",
     "Workflow",
     "WorkflowStep",

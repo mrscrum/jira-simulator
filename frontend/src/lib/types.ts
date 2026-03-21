@@ -103,6 +103,7 @@ export interface WorkflowStep {
   order: number;
   max_wait_hours: number;
   wip_contribution: number;
+  status_category: string | null;
   touch_time_configs: TouchTimeConfig[];
   created_at: string;
   updated_at: string;
@@ -115,6 +116,7 @@ export interface WorkflowStepInput {
   order: number;
   max_wait_hours?: number;
   wip_contribution?: number;
+  status_category?: string | null;
   touch_time_configs?: TouchTimeConfigInput[];
 }
 
@@ -125,6 +127,7 @@ export interface WorkflowStepUpdate {
   order?: number;
   max_wait_hours?: number;
   wip_contribution?: number;
+  status_category?: string | null;
 }
 
 export interface Workflow {
@@ -212,4 +215,76 @@ export interface TickInterval {
 export interface JiraStatus {
   name: string;
   category: string;
+}
+
+// Timing Templates
+export interface TimingTemplateEntry {
+  id: number;
+  template_id: number;
+  issue_type: string;
+  story_points: number;
+  ct_min: number;
+  ct_q1: number;
+  ct_median: number;
+  ct_q3: number;
+  ct_max: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimingTemplateEntryInput {
+  issue_type: string;
+  story_points: number;
+  ct_min: number;
+  ct_q1: number;
+  ct_median: number;
+  ct_q3: number;
+  ct_max: number;
+}
+
+export interface TimingTemplate {
+  id: number;
+  name: string;
+  description: string | null;
+  spread_factor: number;
+  entries: TimingTemplateEntry[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TimingTemplateCreate {
+  name: string;
+  description?: string | null;
+  spread_factor?: number;
+  entries: TimingTemplateEntryInput[];
+}
+
+export interface TimingTemplateUpdate {
+  name?: string;
+  description?: string | null;
+  spread_factor?: number;
+  entries?: TimingTemplateEntryInput[];
+}
+
+export interface PreviewConfigItem {
+  workflow_step_id: number;
+  jira_status: string;
+  status_category: string | null;
+  issue_type: string;
+  story_points: number;
+  min_hours: number;
+  max_hours: number;
+  full_time_p25: number | null;
+  full_time_p50: number | null;
+  full_time_p99: number | null;
+}
+
+export interface TemplatePreviewResponse {
+  template_id: number;
+  team_id: number;
+  configs: PreviewConfigItem[];
+}
+
+export interface TemplateApplyRequest {
+  team_ids: number[];
 }

@@ -91,10 +91,18 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
       order: s.order,
       max_wait_hours: s.max_wait_hours,
       wip_contribution: s.wip_contribution,
+      status_category: s.status_category,
       touch_time_configs: localTouchTimes[s.id] ?? [],
     }));
     replaceWorkflow.mutate(steps);
     setDirty(false);
+  };
+
+  const handleUpdateStep = (stepId: number, updates: Partial<WorkflowStep>) => {
+    setLocalSteps((prev) =>
+      prev.map((s) => (s.id === stepId ? { ...s, ...updates } : s)),
+    );
+    setDirty(true);
   };
 
   const handleDeleteStep = (stepId: number) => {
@@ -156,6 +164,7 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
                   step={step}
                   jiraStatuses={jiraStatuses}
                   onDelete={() => handleDeleteStep(step.id)}
+                  onUpdate={(updates) => handleUpdateStep(step.id, updates)}
                 />
               ))}
             </div>
@@ -177,6 +186,7 @@ export function WorkflowDesigner({ teamId, projectKey }: WorkflowDesignerProps) 
             order: data.order,
             max_wait_hours: data.max_wait_hours ?? 24,
             wip_contribution: data.wip_contribution ?? 1,
+            status_category: data.status_category ?? null,
             touch_time_configs: [],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),

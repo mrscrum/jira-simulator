@@ -10,12 +10,14 @@ interface StepRowProps {
   step: WorkflowStep;
   jiraStatuses: JiraStatus[];
   onDelete: () => void;
+  onUpdate?: (updates: Partial<WorkflowStep>) => void;
 }
 
 export function StepRow({
   step,
   jiraStatuses,
   onDelete,
+  onUpdate,
 }: StepRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: step.id });
@@ -72,6 +74,27 @@ export function StepRow({
               </Badge>
             )}
             <span>· max wait {step.max_wait_hours}h</span>
+            {onUpdate && (
+              <div className="ml-2 flex items-center gap-0.5">
+                {(["todo", "in_progress", "done"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    className={`rounded px-1.5 py-0.5 text-[10px] ${
+                      step.status_category === cat
+                        ? cat === "todo"
+                          ? "bg-slate-200 text-slate-700 font-medium"
+                          : cat === "in_progress"
+                          ? "bg-blue-100 text-blue-700 font-medium"
+                          : "bg-green-100 text-green-700 font-medium"
+                        : "text-muted-foreground hover:bg-accent"
+                    }`}
+                    onClick={() => onUpdate({ status_category: cat })}
+                  >
+                    {cat === "todo" ? "To Do" : cat === "in_progress" ? "In Progress" : "Done"}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <Button

@@ -8,6 +8,7 @@ import { MemberTable } from "@/components/members/MemberTable";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { SimulationDashboard } from "@/components/simulation/SimulationDashboard";
 import { WorkflowDesigner } from "@/components/workflow/WorkflowDesigner";
+import { TemplatePage } from "@/components/templates/TemplatePage";
 import { useCreateTeam, useTeams } from "@/hooks/useTeams";
 
 const queryClient = new QueryClient({
@@ -92,6 +93,8 @@ function SectionContent({
       return <DependencyConfig />;
     case "simulation":
       return <SimulationDashboard />;
+    case "templates":
+      return <TemplatePage />;
   }
 }
 

@@ -10,6 +10,7 @@ class WorkflowStepBase(BaseModel):
     max_wait_hours: float = 24.0
     wip_contribution: float = 1.0
     roles_json: str | None = None
+    status_category: str | None = None
 
 
 class WorkflowStepCreate(WorkflowStepBase):
@@ -33,6 +34,7 @@ class WorkflowStepUpdate(BaseModel):
     max_wait_hours: float | None = None
     wip_contribution: float | None = None
     roles_json: str | None = None
+    status_category: str | None = None
 
 
 class WorkflowStepCreateRequest(BaseModel):
@@ -60,6 +62,7 @@ class WorkflowStepInput(BaseModel):
     max_wait_hours: float = 24.0
     wip_contribution: float = 1.0
     roles_json: str | None = None
+    status_category: str | None = None
     touch_time_configs: list[TouchTimeConfigInput] = []
 
 

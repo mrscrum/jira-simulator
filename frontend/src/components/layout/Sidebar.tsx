@@ -5,6 +5,7 @@ const NAV_ITEMS: { section: Section; label: string }[] = [
   { section: "workflow", label: "Workflow" },
   { section: "members", label: "Members" },
   { section: "settings", label: "Settings" },
+  { section: "templates", label: "Templates" },
   { section: "dependencies", label: "Dependencies" },
   { section: "simulation", label: "Simulation" },
 ];

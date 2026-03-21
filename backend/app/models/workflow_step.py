@@ -26,6 +26,7 @@ class WorkflowStep(TimestampMixin, Base):
     max_wait_hours: Mapped[float] = mapped_column(Float, default=24.0, nullable=False)
     wip_contribution: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     roles_json: Mapped[str | None] = mapped_column(String, nullable=True)
+    status_category: Mapped[str | None] = mapped_column(String, nullable=True)
 
     workflow: Mapped["Workflow"] = relationship(back_populates="steps")
     touch_time_configs: Mapped[list["TouchTimeConfig"]] = relationship(
