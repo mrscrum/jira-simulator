@@ -1,4 +1,4 @@
-import Plot from "react-plotly.js";
+import Plot from "./PlotlyChart";
 import type { TimingTemplateEntryInput } from "@/lib/types";
 
 interface CycleTimeBoxPlotProps {

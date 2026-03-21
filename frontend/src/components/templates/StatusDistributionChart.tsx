@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import Plot from "react-plotly.js";
+import Plot from "./PlotlyChart";
 import { Button } from "@/components/ui/button";
 import type { PreviewConfigItem } from "@/lib/types";
 
