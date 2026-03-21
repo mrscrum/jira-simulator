@@ -71,15 +71,36 @@ def distribute_cycle_time(entry, in_progress_steps, spread_factor) -> list[dict]
     return results
 
 
+def _infer_status_category(steps: list) -> dict:
+    """Infer status categories when not explicitly set.
+
+    First step → todo, last step → done, everything else → in_progress.
+    """
+    categories = {}
+    for i, step in enumerate(steps):
+        if step.status_category:
+            categories[step.id] = step.status_category
+        elif i == 0:
+            categories[step.id] = "todo"
+        elif i == len(steps) - 1:
+            categories[step.id] = "done"
+        else:
+            categories[step.id] = "in_progress"
+    return categories
+
+
 def generate_preview(template, workflow_steps) -> list[dict]:
     """Build a full set of config items for a template + workflow.
 
     Groups steps by status_category and applies appropriate logic
-    for todo / in_progress / done categories.
+    for todo / in_progress / done categories. When categories are not
+    set, infers them: first=todo, last=done, middle=in_progress.
     """
-    todo_steps = [s for s in workflow_steps if s.status_category == "todo"]
-    done_steps = [s for s in workflow_steps if s.status_category == "done"]
-    in_progress_steps = [s for s in workflow_steps if s.status_category == "in_progress"]
+    cats = _infer_status_category(workflow_steps)
+
+    todo_steps = [s for s in workflow_steps if cats[s.id] == "todo"]
+    done_steps = [s for s in workflow_steps if cats[s.id] == "done"]
+    in_progress_steps = [s for s in workflow_steps if cats[s.id] == "in_progress"]
 
     configs: list[dict] = []
 
@@ -89,7 +110,7 @@ def generate_preview(template, workflow_steps) -> list[dict]:
             configs.append({
                 "workflow_step_id": step.id,
                 "jira_status": step.jira_status,
-                "status_category": step.status_category,
+                "status_category": cats[step.id],
                 "issue_type": entry.issue_type,
                 "story_points": entry.story_points,
                 "min_hours": 0,
@@ -104,7 +125,7 @@ def generate_preview(template, workflow_steps) -> list[dict]:
             configs.append({
                 "workflow_step_id": step.id,
                 "jira_status": step.jira_status,
-                "status_category": step.status_category,
+                "status_category": cats[step.id],
                 "issue_type": entry.issue_type,
                 "story_points": entry.story_points,
                 "min_hours": 0,
@@ -121,7 +142,7 @@ def generate_preview(template, workflow_steps) -> list[dict]:
         for item in distributed:
             step = next(s for s in in_progress_steps if s.id == item["workflow_step_id"])
             item["jira_status"] = step.jira_status
-            item["status_category"] = step.status_category
+            item["status_category"] = cats[step.id]
             configs.append(item)
 
     return configs
