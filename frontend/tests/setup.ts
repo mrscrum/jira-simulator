@@ -6,7 +6,7 @@ vi.mock("react-plotly.js/factory", () => ({
   __esModule: true,
   default: () => () => null,
 }));
-vi.mock("plotly.js-basic-dist-min", () => ({
+vi.mock("plotly.js-cartesian-dist-min", () => ({
   __esModule: true,
   default: {},
 }));
