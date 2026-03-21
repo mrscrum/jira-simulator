@@ -2,18 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_session
+from app.engine.template_engine import apply_template_to_team, generate_preview
 from app.models.timing_template import TimingTemplate, TimingTemplateEntry
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
 from app.schemas.timing_template import (
+    PreviewConfigItem,
+    TemplateApplyRequest,
+    TemplatePreviewResponse,
     TimingTemplateCreate,
     TimingTemplateRead,
     TimingTemplateUpdate,
-    TemplateApplyRequest,
-    TemplatePreviewResponse,
-    PreviewConfigItem,
 )
-from app.engine.template_engine import generate_preview, apply_template_to_team
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 

@@ -3,7 +3,6 @@ import math
 from app.models.touch_time_config import TouchTimeConfig
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
-from app.models.timing_template import TimingTemplate
 
 
 def compute_percentiles(ct_min, ct_q1, ct_median, ct_q3, ct_max):

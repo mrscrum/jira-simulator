@@ -5,12 +5,12 @@ from fastapi import FastAPI
 
 from app.api.routers.dependencies import router as deps_router
 from app.api.routers.e2e_setup import router as e2e_router
-from app.api.routers.templates import router as templates_router
 from app.api.routers.jira_integration import router as jira_router
 from app.api.routers.members import router as members_router
 from app.api.routers.move_left import router as move_left_router
 from app.api.routers.simulation import router as sim_router
 from app.api.routers.teams import router as teams_router
+from app.api.routers.templates import router as templates_router
 from app.api.routers.workflow import router as workflow_router
 from app.config import get_settings
 from app.database import create_engine_from_url, create_session_factory
