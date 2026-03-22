@@ -102,14 +102,12 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   const boxHalfH = (ROW_HEIGHT * BOX_HEIGHT_RATIO) / 2;
 
   const xExtent = useMemo(() => {
-    if (sorted.length === 0) return { min: 0, max: 10 };
-    let lo = Infinity, hi = -Infinity;
+    if (sorted.length === 0) return { min: 0, max: 25 };
+    let hi = -Infinity;
     for (const e of sorted) {
-      if (e.ct_min < lo) lo = e.ct_min;
       if (e.ct_max > hi) hi = e.ct_max;
     }
-    const pad = (hi - lo) * 0.1 || 1;
-    return { min: Math.max(0, lo - pad), max: hi + pad };
+    return { min: 0, max: Math.max(25, hi * 1.1) };
   }, [sorted]);
 
   const xScale = useCallback(
