@@ -170,7 +170,8 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      const localX = e.clientX - rect.left - MARGIN.left;
+      const scale = width / rect.width;
+      const localX = (e.clientX - rect.left) * scale - MARGIN.left;
       const raw = xInverse(localX);
       const clamped = Math.max(0, Math.round(raw * 10) / 10);
       setDrag((prev) => (prev ? { ...prev, currentValue: clamped } : null));
@@ -245,14 +246,15 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       </div>
 
       {/* chart */}
-      <div ref={containerRef} className="relative">
+      <div ref={containerRef} className="relative w-full">
         <svg
           ref={svgRef}
-          width={width}
+          width="100%"
           height={chartH}
+          viewBox={`0 0 ${width} ${chartH}`}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          style={{ userSelect: "none", touchAction: "none" }}
+          style={{ userSelect: "none", touchAction: "none", display: "block" }}
         >
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
             {/* x grid + ticks */}
