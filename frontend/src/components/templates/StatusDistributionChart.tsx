@@ -280,7 +280,7 @@ export function StatusDistributionChart({
       {/* header */}
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-semibold">
-          Expected Time in Status (p50, hours)
+          Expected Time in Status (p50, business hours)
         </h3>
         {onValueChange && (
           <span className="text-[10px] text-muted-foreground">
@@ -387,7 +387,7 @@ export function StatusDistributionChart({
               fontSize={11}
               fill="#6b7280"
             >
-              Hours
+              Business Hours
             </text>
 
             {/* row labels */}

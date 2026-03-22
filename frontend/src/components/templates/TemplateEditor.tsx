@@ -172,7 +172,7 @@ export function TemplateEditor({ templateId }: TemplateEditorProps) {
 
       {/* Entries grid grouped by issue type */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold">Cycle Time Entries (hours)</h3>
+        <h3 className="text-sm font-semibold">Cycle Time Entries (business hours)</h3>
 
         {issueTypes.length === 0 && (
           <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">

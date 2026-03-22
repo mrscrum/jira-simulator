@@ -276,7 +276,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
               fontSize={11}
               fill="#6b7280"
             >
-              Hours
+              Business Hours
             </text>
 
             {/* horizontal box plots */}
