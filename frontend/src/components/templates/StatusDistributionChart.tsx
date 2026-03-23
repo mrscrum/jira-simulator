@@ -69,11 +69,12 @@ export function StatusDistributionChart({
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [width, setWidth] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* observe SVG element's rendered width */
+  /* observe the wrapper div's width — NOT the SVG */
   useEffect(() => {
-    const el = svgRef.current;
+    const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
@@ -354,7 +355,7 @@ export function StatusDistributionChart({
       )}
 
       {/* chart */}
-      <div className="relative">
+      <div ref={wrapRef} className="relative">
         <svg
           ref={svgRef}
           height={chartH}

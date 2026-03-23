@@ -59,11 +59,12 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   const [width, setWidth] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* observe the SVG element's rendered width */
+  /* observe the wrapper div's width — NOT the SVG (clientWidth unreliable on SVG) */
   useEffect(() => {
-    const el = svgRef.current;
+    const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
@@ -243,7 +244,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       </div>
 
       {/* chart — SVG is 100% width, we read its clientWidth for coordinates */}
-      <div className="relative">
+      <div ref={wrapRef} className="relative">
         <svg
           ref={svgRef}
           height={chartH}
