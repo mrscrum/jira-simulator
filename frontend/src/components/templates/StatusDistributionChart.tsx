@@ -248,8 +248,7 @@ export function StatusDistributionChart({
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      const scale = width / rect.width;
-      const localX = (e.clientX - rect.left) * scale - MARGIN.left;
+      const localX = e.clientX - rect.left - MARGIN.left;
       const seg = segments[drag.segIdx];
       if (!seg) return;
       const segX = getSegmentX(drag.segIdx);
@@ -356,12 +355,11 @@ export function StatusDistributionChart({
       )}
 
       {/* chart */}
-      <div ref={containerRef} className="w-full">
+      <div ref={containerRef} className="w-full overflow-hidden">
         <svg
           ref={svgRef}
-          width="100%"
+          width={width}
           height={chartH}
-          viewBox={`0 0 ${width} ${chartH}`}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           style={{ userSelect: "none", touchAction: "none", display: "block" }}
