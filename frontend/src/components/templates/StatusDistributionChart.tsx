@@ -67,18 +67,17 @@ export function StatusDistributionChart({
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
-  const [width, setWidth] = useState(800);
+  const [width, setWidth] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* responsive width */
+  /* observe SVG element's rendered width */
   useEffect(() => {
-    const el = containerRef.current;
+    const el = svgRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((es) => {
-      const w = es[0]?.contentRect.width;
-      if (w && w > 0) setWidth(w);
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (w > 0) setWidth(w);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -166,7 +165,7 @@ export function StatusDistributionChart({
   }, [rowLabels, statuses, filtered, makeLabel]);
 
   /* scales */
-  const plotW = width - MARGIN.left - MARGIN.right;
+  const plotW = Math.max(1, width - MARGIN.left - MARGIN.right);
   const plotH = rowLabels.length * (BAR_HEIGHT + BAR_GAP);
   const chartH = plotH + MARGIN.top + MARGIN.bottom;
 
@@ -355,15 +354,15 @@ export function StatusDistributionChart({
       )}
 
       {/* chart */}
-      <div ref={containerRef} className="w-full overflow-hidden">
+      <div className="relative">
         <svg
           ref={svgRef}
-          width={width}
           height={chartH}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          style={{ userSelect: "none", touchAction: "none", display: "block" }}
+          style={{ width: "100%", display: "block", userSelect: "none", touchAction: "none" }}
         >
+          {width > 0 && (
           <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
             {/* x grid + ticks */}
             {xTicks.map((t) => (
@@ -447,6 +446,7 @@ export function StatusDistributionChart({
               );
             })}
           </g>
+          )}
         </svg>
 
         {/* legend */}

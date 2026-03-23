@@ -56,19 +56,18 @@ function makeTicks(min: number, max: number, target = 8): number[] {
 
 export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotProps) {
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [width, setWidth] = useState(800);
+  const [width, setWidth] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string } | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* responsive width */
+  /* observe the SVG element's rendered width */
   useEffect(() => {
-    const el = containerRef.current;
+    const el = svgRef.current;
     if (!el) return;
-    const ro = new ResizeObserver((es) => {
-      const w = es[0]?.contentRect.width;
-      if (w && w > 0) setWidth(w);
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth;
+      if (w > 0) setWidth(w);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -96,7 +95,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   );
 
   /* scales — HORIZONTAL: x = value (Hours), y = category bands */
-  const plotW = width - MARGIN.left - MARGIN.right;
+  const plotW = Math.max(1, width - MARGIN.left - MARGIN.right);
   const plotH = sorted.length * (ROW_HEIGHT + ROW_GAP);
   const chartH = plotH + MARGIN.top + MARGIN.bottom;
   const boxHalfH = (ROW_HEIGHT * BOX_HEIGHT_RATIO) / 2;
@@ -107,7 +106,6 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     for (const e of sorted) {
       if (e.ct_max > hi) hi = e.ct_max;
     }
-    // Fixed at 25h; if data exceeds 25, scale up to fit
     return { min: 0, max: Math.max(25, hi) };
   }, [sorted]);
 
@@ -244,154 +242,155 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         </div>
       </div>
 
-      {/* chart */}
-      <div ref={containerRef} className="relative w-full overflow-hidden">
+      {/* chart — SVG is 100% width, we read its clientWidth for coordinates */}
+      <div className="relative">
         <svg
           ref={svgRef}
-          width={width}
           height={chartH}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          style={{ userSelect: "none", touchAction: "none", display: "block" }}
+          style={{ width: "100%", display: "block", userSelect: "none", touchAction: "none" }}
         >
-          <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-            {/* x grid + ticks */}
-            {xTicks.map((t) => (
-              <g key={t} transform={`translate(${xScale(t)},0)`}>
-                <line y1={0} y2={plotH} stroke="#e5e7eb" strokeWidth={1} />
-                <text
-                  y={plotH + 16}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="#6b7280"
-                >
-                  {t}
-                </text>
-              </g>
-            ))}
-            {/* x axis label */}
-            <text
-              x={plotW / 2}
-              y={plotH + 34}
-              textAnchor="middle"
-              fontSize={11}
-              fill="#6b7280"
-            >
-              Business Hours
-            </text>
-
-            {/* horizontal box plots */}
-            {sorted.map((entry, ei) => {
-              const cy = yCenter(ei);
-              const color = COLORS[ei % COLORS.length];
-              const vMin = getVal(ei, 0);
-              const vQ1 = getVal(ei, 1);
-              const vMed = getVal(ei, 2);
-              const vQ3 = getVal(ei, 3);
-              const vMax = getVal(ei, 4);
-              const label =
-                entry.story_points === 0
-                  ? "Default"
-                  : `${entry.story_points} SP`;
-
-              return (
-                <g key={`${entry.issue_type}-${entry.story_points}`}>
-                  {/* row label */}
+          {width > 0 && (
+            <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+              {/* x grid + ticks */}
+              {xTicks.map((t) => (
+                <g key={t} transform={`translate(${xScale(t)},0)`}>
+                  <line y1={0} y2={plotH} stroke="#e5e7eb" strokeWidth={1} />
                   <text
-                    x={-10}
-                    y={cy}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                    fontSize={11}
-                    fill="#374151"
+                    y={plotH + 16}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fill="#6b7280"
                   >
-                    {label}
+                    {t}
                   </text>
-
-                  {/* row background for hover clarity */}
-                  <rect
-                    x={0}
-                    y={cy - ROW_HEIGHT / 2}
-                    width={plotW}
-                    height={ROW_HEIGHT}
-                    fill={color}
-                    fillOpacity={0.04}
-                    rx={4}
-                  />
-
-                  {/* whisker line min→max */}
-                  <line
-                    x1={xScale(vMin)}
-                    y1={cy}
-                    x2={xScale(vMax)}
-                    y2={cy}
-                    stroke={color}
-                    strokeWidth={1.5}
-                  />
-                  {/* min cap (vertical) */}
-                  <line
-                    x1={xScale(vMin)}
-                    y1={cy - boxHalfH * 0.5}
-                    x2={xScale(vMin)}
-                    y2={cy + boxHalfH * 0.5}
-                    stroke={color}
-                    strokeWidth={1.5}
-                  />
-                  {/* max cap (vertical) */}
-                  <line
-                    x1={xScale(vMax)}
-                    y1={cy - boxHalfH * 0.5}
-                    x2={xScale(vMax)}
-                    y2={cy + boxHalfH * 0.5}
-                    stroke={color}
-                    strokeWidth={1.5}
-                  />
-                  {/* box q1→q3 */}
-                  <rect
-                    x={xScale(vQ1)}
-                    y={cy - boxHalfH}
-                    width={xScale(vQ3) - xScale(vQ1)}
-                    height={boxHalfH * 2}
-                    fill={color}
-                    fillOpacity={0.25}
-                    stroke={color}
-                    strokeWidth={1.5}
-                    rx={2}
-                  />
-                  {/* median line (vertical) */}
-                  <line
-                    x1={xScale(vMed)}
-                    y1={cy - boxHalfH}
-                    x2={xScale(vMed)}
-                    y2={cy + boxHalfH}
-                    stroke={color}
-                    strokeWidth={2.5}
-                  />
-
-                  {/* drag handles — circles on each parameter */}
-                  {onEntryChange &&
-                    FIELDS.map((_, fi) => {
-                      const v = getVal(ei, fi);
-                      const isDragging =
-                        drag?.entryIdx === ei && drag?.fieldIdx === fi;
-                      return (
-                        <circle
-                          key={fi}
-                          cx={xScale(v)}
-                          cy={cy}
-                          r={isDragging ? HANDLE_R + 2 : HANDLE_R}
-                          fill={isDragging ? color : `${color}55`}
-                          stroke={color}
-                          strokeWidth={isDragging ? 2.5 : 1.5}
-                          cursor="ew-resize"
-                          onPointerDown={handlePointerDown(ei, fi)}
-                        />
-                      );
-                    })}
                 </g>
-              );
-            })}
-          </g>
+              ))}
+              {/* x axis label */}
+              <text
+                x={plotW / 2}
+                y={plotH + 34}
+                textAnchor="middle"
+                fontSize={11}
+                fill="#6b7280"
+              >
+                Business Hours
+              </text>
+
+              {/* horizontal box plots */}
+              {sorted.map((entry, ei) => {
+                const cy = yCenter(ei);
+                const color = COLORS[ei % COLORS.length];
+                const vMin = getVal(ei, 0);
+                const vQ1 = getVal(ei, 1);
+                const vMed = getVal(ei, 2);
+                const vQ3 = getVal(ei, 3);
+                const vMax = getVal(ei, 4);
+                const label =
+                  entry.story_points === 0
+                    ? "Default"
+                    : `${entry.story_points} SP`;
+
+                return (
+                  <g key={`${entry.issue_type}-${entry.story_points}`}>
+                    {/* row label */}
+                    <text
+                      x={-10}
+                      y={cy}
+                      textAnchor="end"
+                      dominantBaseline="middle"
+                      fontSize={11}
+                      fill="#374151"
+                    >
+                      {label}
+                    </text>
+
+                    {/* row background for hover clarity */}
+                    <rect
+                      x={0}
+                      y={cy - ROW_HEIGHT / 2}
+                      width={plotW}
+                      height={ROW_HEIGHT}
+                      fill={color}
+                      fillOpacity={0.04}
+                      rx={4}
+                    />
+
+                    {/* whisker line min→max */}
+                    <line
+                      x1={xScale(vMin)}
+                      y1={cy}
+                      x2={xScale(vMax)}
+                      y2={cy}
+                      stroke={color}
+                      strokeWidth={1.5}
+                    />
+                    {/* min cap (vertical) */}
+                    <line
+                      x1={xScale(vMin)}
+                      y1={cy - boxHalfH * 0.5}
+                      x2={xScale(vMin)}
+                      y2={cy + boxHalfH * 0.5}
+                      stroke={color}
+                      strokeWidth={1.5}
+                    />
+                    {/* max cap (vertical) */}
+                    <line
+                      x1={xScale(vMax)}
+                      y1={cy - boxHalfH * 0.5}
+                      x2={xScale(vMax)}
+                      y2={cy + boxHalfH * 0.5}
+                      stroke={color}
+                      strokeWidth={1.5}
+                    />
+                    {/* box q1→q3 */}
+                    <rect
+                      x={xScale(vQ1)}
+                      y={cy - boxHalfH}
+                      width={xScale(vQ3) - xScale(vQ1)}
+                      height={boxHalfH * 2}
+                      fill={color}
+                      fillOpacity={0.25}
+                      stroke={color}
+                      strokeWidth={1.5}
+                      rx={2}
+                    />
+                    {/* median line (vertical) */}
+                    <line
+                      x1={xScale(vMed)}
+                      y1={cy - boxHalfH}
+                      x2={xScale(vMed)}
+                      y2={cy + boxHalfH}
+                      stroke={color}
+                      strokeWidth={2.5}
+                    />
+
+                    {/* drag handles — circles on each parameter */}
+                    {onEntryChange &&
+                      FIELDS.map((_, fi) => {
+                        const v = getVal(ei, fi);
+                        const isDragging =
+                          drag?.entryIdx === ei && drag?.fieldIdx === fi;
+                        return (
+                          <circle
+                            key={fi}
+                            cx={xScale(v)}
+                            cy={cy}
+                            r={isDragging ? HANDLE_R + 2 : HANDLE_R}
+                            fill={isDragging ? color : `${color}55`}
+                            stroke={color}
+                            strokeWidth={isDragging ? 2.5 : 1.5}
+                            cursor="ew-resize"
+                            onPointerDown={handlePointerDown(ei, fi)}
+                          />
+                        );
+                      })}
+                  </g>
+                );
+              })}
+            </g>
+          )}
         </svg>
 
         {/* floating tooltip during drag */}
