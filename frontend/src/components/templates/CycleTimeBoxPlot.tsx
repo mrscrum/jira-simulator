@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { TimingTemplateEntryInput } from "@/lib/types";
 
@@ -67,21 +67,44 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     if (!drag) setLocalEntries(entries);
   }, [entries, drag]);
 
-  /* observe the wrapper div's width */
+  /* ---- width measurement: triple-redundancy approach ---- */
+
+  // 1. useLayoutEffect: reads width before browser paints (runs every render)
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const w = el.getBoundingClientRect().width;
+    if (w > 0 && w !== width) setWidth(w);
+  });
+
+  // 2. ResizeObserver: catches container resizes after initial mount
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const update = () => {
-      const w = el.clientWidth;
-      if (w > 0) setWidth(w);
-    };
-    // immediate read + rAF fallback for first layout
-    update();
-    requestAnimationFrame(update);
-    const ro = new ResizeObserver(update);
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (w > 0) setWidth(w);
+      }
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // 3. Fallback timer: catches edge cases where neither of the above fires
+  useEffect(() => {
+    if (width > 0) return;
+    const id = setInterval(() => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) {
+        setWidth(w);
+        clearInterval(id);
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [width]);
 
   /* data filtering */
   const validEntries = useMemo(
@@ -104,8 +127,9 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     [filtered],
   );
 
-  /* scales */
-  const plotW = Math.max(1, width - MARGIN.left - MARGIN.right);
+  /* scales — use fallback width of 800 so chart always renders something */
+  const effectiveWidth = width > 0 ? width : 800;
+  const plotW = Math.max(1, effectiveWidth - MARGIN.left - MARGIN.right);
   const plotH = sorted.length * (ROW_HEIGHT + ROW_GAP);
   const chartH = plotH + MARGIN.top + MARGIN.bottom;
   const boxHalfH = (ROW_HEIGHT * BOX_HEIGHT_RATIO) / 2;
@@ -265,156 +289,159 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       </div>
 
       {/* chart */}
-      <div ref={wrapRef} className="relative">
+      <div ref={wrapRef} className="relative overflow-hidden">
         <svg
           ref={svgRef}
+          width="100%"
           height={chartH}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={() => { setDrag(null); setTooltip(null); }}
-          style={{ width: "100%", display: "block", userSelect: "none", touchAction: "none" }}
+          style={{ display: "block", userSelect: "none", touchAction: "none" }}
         >
-          {width > 0 && (
-            <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-              {/* x grid + ticks */}
-              {xTicks.map((t) => (
-                <g key={t} transform={`translate(${xScale(t)},0)`}>
-                  <line y1={0} y2={plotH} stroke="#e5e7eb" strokeWidth={1} />
+          <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
+            {/* x grid + ticks */}
+            {xTicks.map((t) => (
+              <g key={t} transform={`translate(${xScale(t)},0)`}>
+                <line y1={0} y2={plotH} stroke="#e5e7eb" strokeWidth={1} />
+                <text
+                  y={plotH + 16}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fill="#6b7280"
+                >
+                  {t}
+                </text>
+              </g>
+            ))}
+            {/* x axis label */}
+            <text
+              x={plotW / 2}
+              y={plotH + 34}
+              textAnchor="middle"
+              fontSize={11}
+              fill="#6b7280"
+            >
+              Business Hours
+            </text>
+
+            {/* horizontal box plots */}
+            {sorted.map((entry, ei) => {
+              const cy = yCenter(ei);
+              const color = COLORS[ei % COLORS.length];
+              const vMin = entry.ct_min;
+              const vQ1 = entry.ct_q1;
+              const vMed = entry.ct_median;
+              const vQ3 = entry.ct_q3;
+              const vMax = entry.ct_max;
+              const label =
+                entry.story_points === 0
+                  ? "Default"
+                  : `${entry.story_points} SP`;
+
+              return (
+                <g key={`${entry.issue_type}-${entry.story_points}`} data-testid={`boxplot-row-${entry.story_points}`}>
+                  {/* row label */}
                   <text
-                    y={plotH + 16}
-                    textAnchor="middle"
-                    fontSize={10}
-                    fill="#6b7280"
+                    x={-10}
+                    y={cy}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                    fontSize={11}
+                    fill="#374151"
                   >
-                    {t}
+                    {label}
                   </text>
+
+                  {/* row background */}
+                  <rect
+                    x={0}
+                    y={cy - ROW_HEIGHT / 2}
+                    width={plotW}
+                    height={ROW_HEIGHT}
+                    fill={color}
+                    fillOpacity={0.04}
+                    rx={4}
+                  />
+
+                  {/* whisker line min→max */}
+                  <line
+                    x1={xScale(vMin)}
+                    y1={cy}
+                    x2={xScale(vMax)}
+                    y2={cy}
+                    stroke={color}
+                    strokeWidth={1.5}
+                    data-testid={`whisker-${entry.story_points}`}
+                  />
+                  {/* min cap */}
+                  <line
+                    x1={xScale(vMin)}
+                    y1={cy - boxHalfH * 0.5}
+                    x2={xScale(vMin)}
+                    y2={cy + boxHalfH * 0.5}
+                    stroke={color}
+                    strokeWidth={1.5}
+                  />
+                  {/* max cap */}
+                  <line
+                    x1={xScale(vMax)}
+                    y1={cy - boxHalfH * 0.5}
+                    x2={xScale(vMax)}
+                    y2={cy + boxHalfH * 0.5}
+                    stroke={color}
+                    strokeWidth={1.5}
+                  />
+                  {/* box q1→q3 */}
+                  <rect
+                    x={xScale(vQ1)}
+                    y={cy - boxHalfH}
+                    width={Math.max(0, xScale(vQ3) - xScale(vQ1))}
+                    height={boxHalfH * 2}
+                    fill={color}
+                    fillOpacity={0.22}
+                    stroke={color}
+                    strokeWidth={1.5}
+                    rx={3}
+                    data-testid={`box-${entry.story_points}`}
+                  />
+                  {/* median line */}
+                  <line
+                    x1={xScale(vMed)}
+                    y1={cy - boxHalfH}
+                    x2={xScale(vMed)}
+                    y2={cy + boxHalfH}
+                    stroke={color}
+                    strokeWidth={2.5}
+                    data-testid={`median-${entry.story_points}`}
+                  />
+
+                  {/* drag handles */}
+                  {onEntryChange &&
+                    FIELDS.map((_, fi) => {
+                      const v = entry[FIELDS[fi]];
+                      const isDragging =
+                        drag?.entryIdx === ei && drag?.fieldIdx === fi;
+                      return (
+                        <circle
+                          key={fi}
+                          cx={xScale(v)}
+                          cy={cy}
+                          r={isDragging ? HANDLE_R + 2 : HANDLE_R}
+                          fill={color}
+                          fillOpacity={isDragging ? 1 : 0.35}
+                          stroke={color}
+                          strokeWidth={isDragging ? 2.5 : 1.5}
+                          cursor="ew-resize"
+                          data-testid={`handle-${entry.story_points}-${FIELDS[fi]}`}
+                          onPointerDown={handlePointerDown(ei, fi)}
+                        />
+                      );
+                    })}
                 </g>
-              ))}
-              {/* x axis label */}
-              <text
-                x={plotW / 2}
-                y={plotH + 34}
-                textAnchor="middle"
-                fontSize={11}
-                fill="#6b7280"
-              >
-                Business Hours
-              </text>
-
-              {/* horizontal box plots */}
-              {sorted.map((entry, ei) => {
-                const cy = yCenter(ei);
-                const color = COLORS[ei % COLORS.length];
-                const vMin = entry.ct_min;
-                const vQ1 = entry.ct_q1;
-                const vMed = entry.ct_median;
-                const vQ3 = entry.ct_q3;
-                const vMax = entry.ct_max;
-                const label =
-                  entry.story_points === 0
-                    ? "Default"
-                    : `${entry.story_points} SP`;
-
-                return (
-                  <g key={`${entry.issue_type}-${entry.story_points}`}>
-                    {/* row label */}
-                    <text
-                      x={-10}
-                      y={cy}
-                      textAnchor="end"
-                      dominantBaseline="middle"
-                      fontSize={11}
-                      fill="#374151"
-                    >
-                      {label}
-                    </text>
-
-                    {/* row background */}
-                    <rect
-                      x={0}
-                      y={cy - ROW_HEIGHT / 2}
-                      width={plotW}
-                      height={ROW_HEIGHT}
-                      fill={color}
-                      fillOpacity={0.04}
-                      rx={4}
-                    />
-
-                    {/* whisker line min→max */}
-                    <line
-                      x1={xScale(vMin)}
-                      y1={cy}
-                      x2={xScale(vMax)}
-                      y2={cy}
-                      stroke={color}
-                      strokeWidth={1.5}
-                    />
-                    {/* min cap */}
-                    <line
-                      x1={xScale(vMin)}
-                      y1={cy - boxHalfH * 0.5}
-                      x2={xScale(vMin)}
-                      y2={cy + boxHalfH * 0.5}
-                      stroke={color}
-                      strokeWidth={1.5}
-                    />
-                    {/* max cap */}
-                    <line
-                      x1={xScale(vMax)}
-                      y1={cy - boxHalfH * 0.5}
-                      x2={xScale(vMax)}
-                      y2={cy + boxHalfH * 0.5}
-                      stroke={color}
-                      strokeWidth={1.5}
-                    />
-                    {/* box q1→q3 */}
-                    <rect
-                      x={xScale(vQ1)}
-                      y={cy - boxHalfH}
-                      width={Math.max(0, xScale(vQ3) - xScale(vQ1))}
-                      height={boxHalfH * 2}
-                      fill={color}
-                      fillOpacity={0.22}
-                      stroke={color}
-                      strokeWidth={1.5}
-                      rx={3}
-                    />
-                    {/* median line */}
-                    <line
-                      x1={xScale(vMed)}
-                      y1={cy - boxHalfH}
-                      x2={xScale(vMed)}
-                      y2={cy + boxHalfH}
-                      stroke={color}
-                      strokeWidth={2.5}
-                    />
-
-                    {/* drag handles */}
-                    {onEntryChange &&
-                      FIELDS.map((_, fi) => {
-                        const v = entry[FIELDS[fi]];
-                        const isDragging =
-                          drag?.entryIdx === ei && drag?.fieldIdx === fi;
-                        return (
-                          <circle
-                            key={fi}
-                            cx={xScale(v)}
-                            cy={cy}
-                            r={isDragging ? HANDLE_R + 2 : HANDLE_R}
-                            fill={color}
-                            fillOpacity={isDragging ? 1 : 0.35}
-                            stroke={color}
-                            strokeWidth={isDragging ? 2.5 : 1.5}
-                            cursor="ew-resize"
-                            onPointerDown={handlePointerDown(ei, fi)}
-                          />
-                        );
-                      })}
-                  </g>
-                );
-              })}
-            </g>
-          )}
+              );
+            })}
+          </g>
         </svg>
 
         {/* floating tooltip during drag */}
