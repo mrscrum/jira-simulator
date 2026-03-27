@@ -7,15 +7,15 @@ type BoxField = (typeof FIELDS)[number];
 const FIELD_LABELS = ["Min", "Q1", "Median", "Q3", "Max"];
 
 const COLORS = [
-  "#60a5fa", "#fb923c", "#4ade80", "#f87171", "#a78bfa",
-  "#fbbf24", "#2dd4bf", "#e879f9", "#94a3b8", "#34d399",
+  "#60a5fa", "#fb923c", "#4ade80", "#f87171", "#a78bfa", "#fbbf24",
+  "#2dd4bf", "#e879f9", "#94a3b8", "#34d399",
 ];
 
-const MARGIN = { top: 10, right: 30, bottom: 40, left: 80 };
+const MARGIN = { top: 12, right: 30, bottom: 42, left: 72 };
 const ROW_HEIGHT = 48;
 const ROW_GAP = 8;
 const BOX_HEIGHT_RATIO = 0.55;
-const HANDLE_R = 8;
+const HANDLE_R = 7;
 
 interface CycleTimeBoxPlotProps {
   entries: TimingTemplateEntryInput[];
@@ -30,7 +30,6 @@ interface CycleTimeBoxPlotProps {
 interface DragState {
   entryIdx: number;
   fieldIdx: number;
-  currentValue: number;
 }
 
 /* ---------- axis helpers ---------- */
@@ -62,7 +61,13 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   const wrapRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  /* observe the wrapper div's width — NOT the SVG (clientWidth unreliable on SVG) */
+  /* working copy of entries that we mutate during drag for instant feedback */
+  const [localEntries, setLocalEntries] = useState<TimingTemplateEntryInput[]>([]);
+  useEffect(() => {
+    if (!drag) setLocalEntries(entries);
+  }, [entries, drag]);
+
+  /* observe the wrapper div's width */
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -76,8 +81,8 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
 
   /* data filtering */
   const validEntries = useMemo(
-    () => entries.filter((e) => e.ct_median > 0),
-    [entries],
+    () => localEntries.filter((e) => e.ct_median > 0),
+    [localEntries],
   );
   const issueTypes = useMemo(
     () => [...new Set(validEntries.map((e) => e.issue_type))].sort(),
@@ -95,7 +100,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     [filtered],
   );
 
-  /* scales — HORIZONTAL: x = value (Hours), y = category bands */
+  /* scales */
   const plotW = Math.max(1, width - MARGIN.left - MARGIN.right);
   const plotH = sorted.length * (ROW_HEIGHT + ROW_GAP);
   const chartH = plotH + MARGIN.top + MARGIN.bottom;
@@ -111,17 +116,11 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   }, [sorted]);
 
   const xScale = useCallback(
-    (val: number) => {
-      const { min, max } = xExtent;
-      return ((val - min) / (max - min)) * plotW;
-    },
+    (val: number) => ((val - xExtent.min) / (xExtent.max - xExtent.min)) * plotW,
     [xExtent, plotW],
   );
   const xInverse = useCallback(
-    (px: number) => {
-      const { min, max } = xExtent;
-      return min + (px / plotW) * (max - min);
-    },
+    (px: number) => xExtent.min + (px / plotW) * (xExtent.max - xExtent.min),
     [xExtent, plotW],
   );
 
@@ -135,28 +134,17 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
     [xExtent],
   );
 
-  /* get value for a field, accounting for active drag */
-  const getVal = useCallback(
-    (entryIdx: number, fieldIdx: number): number => {
-      if (drag && drag.entryIdx === entryIdx && drag.fieldIdx === fieldIdx) {
-        return drag.currentValue;
-      }
-      return sorted[entryIdx]?.[FIELDS[fieldIdx]] ?? 0;
-    },
-    [drag, sorted],
-  );
-
-  /* pointer handlers — horizontal drag */
+  /* pointer handlers */
   const handlePointerDown = useCallback(
     (entryIdx: number, fieldIdx: number) => (e: React.PointerEvent) => {
       if (!onEntryChange) return;
       (e.target as Element).setPointerCapture(e.pointerId);
-      const val = sorted[entryIdx][FIELDS[fieldIdx]];
-      setDrag({ entryIdx, fieldIdx, currentValue: val });
+      const entry = sorted[entryIdx];
+      setDrag({ entryIdx, fieldIdx });
       setTooltip({
         x: e.clientX,
         y: e.clientY,
-        label: `${FIELD_LABELS[fieldIdx]}: ${val}h`,
+        label: `${FIELD_LABELS[fieldIdx]}: ${entry[FIELDS[fieldIdx]]}h`,
       });
       e.preventDefault();
     },
@@ -172,43 +160,72 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       const localX = e.clientX - rect.left - MARGIN.left;
       const raw = xInverse(localX);
       const clamped = Math.max(0, Math.round(raw * 10) / 10);
-      setDrag((prev) => (prev ? { ...prev, currentValue: clamped } : null));
+
+      setLocalEntries((prev) => {
+        const entry = sorted[drag.entryIdx];
+        if (!entry) return prev;
+        const idx = prev.findIndex(
+          (p) => p.issue_type === entry.issue_type && p.story_points === entry.story_points,
+        );
+        if (idx === -1) return prev;
+
+        const vals = FIELDS.map((f) => prev[idx][f]);
+        vals[drag.fieldIdx] = clamped;
+
+        // enforce ordering: min <= q1 <= median <= q3 <= max
+        for (let i = drag.fieldIdx - 1; i >= 0; i--) {
+          if (vals[i] > vals[i + 1]) vals[i] = vals[i + 1];
+        }
+        for (let i = drag.fieldIdx + 1; i < vals.length; i++) {
+          if (vals[i] < vals[i - 1]) vals[i] = vals[i - 1];
+        }
+
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          ct_min: vals[0],
+          ct_q1: vals[1],
+          ct_median: vals[2],
+          ct_q3: vals[3],
+          ct_max: vals[4],
+        };
+        return next;
+      });
+
       setTooltip({
         x: e.clientX,
         y: e.clientY,
         label: `${FIELD_LABELS[drag.fieldIdx]}: ${clamped}h`,
       });
     },
-    [drag, xInverse],
+    [drag, xInverse, sorted],
   );
 
   const handlePointerUp = useCallback(() => {
-    if (!drag || !onEntryChange) return;
-    const entry = sorted[drag.entryIdx];
-    if (!entry) {
+    if (!drag || !onEntryChange) {
       setDrag(null);
       setTooltip(null);
       return;
     }
 
-    const vals = FIELDS.map((f) => entry[f]);
-    vals[drag.fieldIdx] = drag.currentValue;
-
-    // enforce ordering: min <= q1 <= median <= q3 <= max
-    for (let i = drag.fieldIdx - 1; i >= 0; i--) {
-      if (vals[i] > vals[i + 1]) vals[i] = vals[i + 1];
-    }
-    for (let i = drag.fieldIdx + 1; i < vals.length; i++) {
-      if (vals[i] < vals[i - 1]) vals[i] = vals[i - 1];
-    }
-    for (let i = 0; i < FIELDS.length; i++) {
-      if (vals[i] !== entry[FIELDS[i]]) {
-        onEntryChange(entry.issue_type, entry.story_points, FIELDS[i], vals[i]);
+    // commit all changed fields from localEntries back to parent
+    const entry = sorted[drag.entryIdx];
+    if (entry) {
+      const localEntry = localEntries.find(
+        (p) => p.issue_type === entry.issue_type && p.story_points === entry.story_points,
+      );
+      if (localEntry) {
+        for (const field of FIELDS) {
+          if (localEntry[field] !== entry[field]) {
+            onEntryChange(entry.issue_type, entry.story_points, field, localEntry[field]);
+          }
+        }
       }
     }
+
     setDrag(null);
     setTooltip(null);
-  }, [drag, onEntryChange, sorted]);
+  }, [drag, onEntryChange, sorted, localEntries]);
 
   if (validEntries.length === 0) {
     return (
@@ -243,13 +260,14 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
         </div>
       </div>
 
-      {/* chart — SVG is 100% width, we read its clientWidth for coordinates */}
+      {/* chart */}
       <div ref={wrapRef} className="relative">
         <svg
           ref={svgRef}
           height={chartH}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={() => { setDrag(null); setTooltip(null); }}
           style={{ width: "100%", display: "block", userSelect: "none", touchAction: "none" }}
         >
           {width > 0 && (
@@ -283,11 +301,11 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
               {sorted.map((entry, ei) => {
                 const cy = yCenter(ei);
                 const color = COLORS[ei % COLORS.length];
-                const vMin = getVal(ei, 0);
-                const vQ1 = getVal(ei, 1);
-                const vMed = getVal(ei, 2);
-                const vQ3 = getVal(ei, 3);
-                const vMax = getVal(ei, 4);
+                const vMin = entry.ct_min;
+                const vQ1 = entry.ct_q1;
+                const vMed = entry.ct_median;
+                const vQ3 = entry.ct_q3;
+                const vMax = entry.ct_max;
                 const label =
                   entry.story_points === 0
                     ? "Default"
@@ -307,7 +325,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                       {label}
                     </text>
 
-                    {/* row background for hover clarity */}
+                    {/* row background */}
                     <rect
                       x={0}
                       y={cy - ROW_HEIGHT / 2}
@@ -327,7 +345,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                       stroke={color}
                       strokeWidth={1.5}
                     />
-                    {/* min cap (vertical) */}
+                    {/* min cap */}
                     <line
                       x1={xScale(vMin)}
                       y1={cy - boxHalfH * 0.5}
@@ -336,7 +354,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                       stroke={color}
                       strokeWidth={1.5}
                     />
-                    {/* max cap (vertical) */}
+                    {/* max cap */}
                     <line
                       x1={xScale(vMax)}
                       y1={cy - boxHalfH * 0.5}
@@ -349,15 +367,15 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                     <rect
                       x={xScale(vQ1)}
                       y={cy - boxHalfH}
-                      width={xScale(vQ3) - xScale(vQ1)}
+                      width={Math.max(0, xScale(vQ3) - xScale(vQ1))}
                       height={boxHalfH * 2}
                       fill={color}
-                      fillOpacity={0.25}
+                      fillOpacity={0.22}
                       stroke={color}
                       strokeWidth={1.5}
-                      rx={2}
+                      rx={3}
                     />
-                    {/* median line (vertical) */}
+                    {/* median line */}
                     <line
                       x1={xScale(vMed)}
                       y1={cy - boxHalfH}
@@ -367,10 +385,10 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                       strokeWidth={2.5}
                     />
 
-                    {/* drag handles — circles on each parameter */}
+                    {/* drag handles */}
                     {onEntryChange &&
                       FIELDS.map((_, fi) => {
-                        const v = getVal(ei, fi);
+                        const v = entry[FIELDS[fi]];
                         const isDragging =
                           drag?.entryIdx === ei && drag?.fieldIdx === fi;
                         return (
@@ -379,7 +397,8 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
                             cx={xScale(v)}
                             cy={cy}
                             r={isDragging ? HANDLE_R + 2 : HANDLE_R}
-                            fill={isDragging ? color : `${color}55`}
+                            fill={color}
+                            fillOpacity={isDragging ? 1 : 0.35}
                             stroke={color}
                             strokeWidth={isDragging ? 2.5 : 1.5}
                             cursor="ew-resize"
@@ -399,14 +418,47 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
           <div
             className="pointer-events-none fixed z-50 rounded bg-gray-900 px-2 py-1 text-xs text-white shadow-lg"
             style={{
-              left: tooltip.x + 12,
-              top: tooltip.y - 28,
+              left: tooltip.x + 14,
+              top: tooltip.y - 30,
             }}
           >
             {tooltip.label}
           </div>
         )}
       </div>
+
+      {/* values table */}
+      {sorted.length > 0 && (
+        <table className="mt-4 w-full text-xs" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr className="border-b text-[10px] text-muted-foreground">
+              <th className="py-1 text-left font-medium">Size</th>
+              <th className="py-1 text-center font-medium">Min</th>
+              <th className="py-1 text-center font-medium">Q1</th>
+              <th className="py-1 text-center font-medium">Median</th>
+              <th className="py-1 text-center font-medium">Q3</th>
+              <th className="py-1 text-center font-medium">Max</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((entry) => (
+              <tr
+                key={`${entry.issue_type}-${entry.story_points}`}
+                className="border-b border-muted/40"
+              >
+                <td className="py-1 font-medium">
+                  {entry.story_points === 0 ? "Default" : `${entry.story_points} SP`}
+                </td>
+                {FIELDS.map((f) => (
+                  <td key={f} className="py-1 text-center tabular-nums">
+                    {entry[f]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
