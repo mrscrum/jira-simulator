@@ -71,10 +71,14 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => {
+    const update = () => {
       const w = el.clientWidth;
       if (w > 0) setWidth(w);
-    });
+    };
+    // immediate read + rAF fallback for first layout
+    update();
+    requestAnimationFrame(update);
+    const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
