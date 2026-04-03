@@ -2,11 +2,9 @@
 
 from app.engine.snapshots import (
     IssueSnapshot,
-    MemberSnapshot,
     MoveLeftConfigSnapshot,
     MoveLeftTargetSnapshot,
     TeamSnapshot,
-    TouchTimeConfigSnapshot,
     WorkflowStepSnapshot,
 )
 

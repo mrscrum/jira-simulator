@@ -1,16 +1,15 @@
 """Tests for the event dispatcher."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from app.engine.event_dispatcher import EventDispatcher
 from app.models.base import Base
 from app.models.event_audit_log import EventAuditLog
-from app.models.jira_write_queue_entry import JiraWriteQueueEntry
 from app.models.scheduled_event import ScheduledEvent
 
 

@@ -1,17 +1,15 @@
 """Tests for the sprint pre-computation engine."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from app.engine.precompute import (
     PrecomputeResult,
-    ScheduledEventData,
     _compute_tick_wall_times,
     precompute_sprint,
 )
 from app.engine.snapshots import (
     IssueSnapshot,
     MemberSnapshot,
-    MoveLeftConfigSnapshot,
     TeamSnapshot,
     TouchTimeConfigSnapshot,
     WorkflowStepSnapshot,
@@ -89,10 +87,19 @@ class TestPrecomputeSprint:
         ]
 
     def _make_workflow_steps(self):
+        dev_roles = '["dev"]'
         return [
-            WorkflowStepSnapshot(id=1, workflow_id=1, jira_status="To Do", order=1, roles_json='["dev"]'),
-            WorkflowStepSnapshot(id=2, workflow_id=1, jira_status="In Progress", order=2, roles_json='["dev"]'),
-            WorkflowStepSnapshot(id=3, workflow_id=1, jira_status="Done", order=3),
+            WorkflowStepSnapshot(
+                id=1, workflow_id=1, jira_status="To Do",
+                order=1, roles_json=dev_roles,
+            ),
+            WorkflowStepSnapshot(
+                id=2, workflow_id=1, jira_status="In Progress",
+                order=2, roles_json=dev_roles,
+            ),
+            WorkflowStepSnapshot(
+                id=3, workflow_id=1, jira_status="Done", order=3,
+            ),
         ]
 
     def _make_touch_time_configs(self):
