@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from app.models.precomputation_run import PrecomputationRun
 from app.models.scheduled_event import ScheduledEvent
 from app.schemas.scheduled_event import (
     AuditSummary,
@@ -86,30 +85,28 @@ def get_scheduled_event(event_id: int, request: Request):
 
 @router.post(
     "/scheduled-events/{event_id}/cancel",
-    response_model=ScheduledEventRead,
 )
 def cancel_scheduled_event(
     event_id: int,
     body: ScheduledEventCancel,
     request: Request,
 ):
+    """Delete a single pending event."""
     session: Session = request.app.state.session_factory()
     try:
         event = session.get(ScheduledEvent, event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="Event not found")
-        if event.status != "PENDING":
+        if event.status not in ("PENDING", "MODIFIED"):
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot cancel event in {event.status} status",
             )
 
-        event.status = "CANCELLED"
-        event.cancelled_at = datetime.now(UTC)
-        event.cancel_reason = body.reason
+        session.delete(event)
         session.commit()
 
-        return ScheduledEventRead.model_validate(event)
+        return {"deleted": True, "id": event_id}
     except HTTPException:
         raise
     except Exception:
@@ -177,25 +174,18 @@ def cancel_all_pending_events(
     sprint_id: int,
     request: Request,
 ):
+    """Delete all pending/modified events for a sprint."""
     session: Session = request.app.state.session_factory()
     try:
-        now = datetime.now(UTC)
-        pending = (
+        count = (
             session.query(ScheduledEvent)
             .filter_by(team_id=team_id, sprint_id=sprint_id)
             .filter(ScheduledEvent.status.in_(["PENDING", "MODIFIED"]))
-            .all()
+            .delete(synchronize_session="fetch")
         )
 
-        count = 0
-        for event in pending:
-            event.status = "CANCELLED"
-            event.cancelled_at = now
-            event.cancel_reason = "Bulk cancellation"
-            count += 1
-
         session.commit()
-        return {"cancelled": count}
+        return {"deleted": count}
     except Exception:
         session.rollback()
         raise
@@ -234,41 +224,11 @@ async def recompute_sprint(
     body: PrecomputeRequest,
     request: Request,
 ):
-    session: Session = request.app.state.session_factory()
-    try:
-        # Cancel all pending events for the current sprint
-        now = datetime.now(UTC)
-        pending = (
-            session.query(ScheduledEvent)
-            .filter_by(team_id=team_id, sprint_id=sprint_id)
-            .filter(ScheduledEvent.status.in_(["PENDING", "MODIFIED"]))
-            .all()
-        )
-        for event in pending:
-            event.status = "CANCELLED"
-            event.cancelled_at = now
-            event.cancel_reason = "Superseded by recomputation"
-
-        # Mark old precomputation run as superseded
-        old_run = (
-            session.query(PrecomputationRun)
-            .filter_by(team_id=team_id, sprint_id=sprint_id, status="ACTIVE")
-            .first()
-        )
-        if old_run:
-            old_run.status = "SUPERSEDED"
-
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-    # Trigger new precomputation
+    """Delete old pending events and recompute for the same sprint."""
     engine = request.app.state.simulation_engine
-    result = await engine.compute_and_schedule_sprint(
+    result = await engine.recompute_sprint_schedule(
         team_id=team_id,
+        sprint_id=sprint_id,
         rng_seed=body.rng_seed,
     )
     return PrecomputeResponse(**result)

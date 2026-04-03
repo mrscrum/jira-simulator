@@ -211,7 +211,7 @@ export const fetchScheduledEvent = (eventId: number) =>
   request<ScheduledEvent>(`/scheduled-events/${eventId}`);
 
 export const cancelScheduledEvent = (eventId: number, reason?: string) =>
-  request<ScheduledEvent>(`/scheduled-events/${eventId}/cancel`, {
+  request<{ deleted: boolean; id: number }>(`/scheduled-events/${eventId}/cancel`, {
     method: "POST",
     body: JSON.stringify({ reason: reason ?? null }),
   });
@@ -226,7 +226,7 @@ export const modifyScheduledEvent = (
   });
 
 export const cancelAllPendingEvents = (teamId: number, sprintId: number) =>
-  request<{ cancelled: number }>(
+  request<{ deleted: number }>(
     `/teams/${teamId}/sprints/${sprintId}/events/cancel-all`,
     { method: "POST" },
   );

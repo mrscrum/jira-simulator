@@ -189,7 +189,7 @@ async def _generate_backlog(
         count=count,
         team_name=team.name,
         content_generator=gen,
-        issue_types=["Story"],  # Only Stories support SP estimation
+        issue_types=["Story", "Bug", "Task"],
         rng=rng,
     )
 
@@ -364,25 +364,31 @@ async def _sync_issues_to_jira(
 # ── Default timing template ──
 # Realistic cycle-time distributions (in hours) for Story issues by SP.
 # Based on typical Scrum team data: ct_min, ct_q1, ct_median, ct_q3, ct_max.
+_CYCLE_TIME_BY_SP = {
+    1:  (1.0,  2.0,  4.0,  6.0,  12.0),
+    2:  (2.0,  4.0,  8.0,  12.0, 24.0),
+    3:  (3.0,  6.0,  12.0, 18.0, 36.0),
+    5:  (5.0,  10.0, 20.0, 30.0, 60.0),
+    8:  (8.0,  16.0, 32.0, 48.0, 96.0),
+    13: (12.0, 24.0, 48.0, 72.0, 144.0),
+}
+
 DEFAULT_TEMPLATE_ENTRIES = [
-    # SP=1: small items, ~2-8h cycle time
-    {"issue_type": "Story", "story_points": 1,
-     "ct_min": 1.0, "ct_q1": 2.0, "ct_median": 4.0, "ct_q3": 6.0, "ct_max": 12.0},
-    # SP=2: ~4-16h
-    {"issue_type": "Story", "story_points": 2,
-     "ct_min": 2.0, "ct_q1": 4.0, "ct_median": 8.0, "ct_q3": 12.0, "ct_max": 24.0},
-    # SP=3: ~6-24h
-    {"issue_type": "Story", "story_points": 3,
-     "ct_min": 3.0, "ct_q1": 6.0, "ct_median": 12.0, "ct_q3": 18.0, "ct_max": 36.0},
-    # SP=5: ~8-40h
-    {"issue_type": "Story", "story_points": 5,
-     "ct_min": 5.0, "ct_q1": 10.0, "ct_median": 20.0, "ct_q3": 30.0, "ct_max": 60.0},
-    # SP=8: ~16-64h
-    {"issue_type": "Story", "story_points": 8,
-     "ct_min": 8.0, "ct_q1": 16.0, "ct_median": 32.0, "ct_q3": 48.0, "ct_max": 96.0},
-    # SP=13: ~24-100h
-    {"issue_type": "Story", "story_points": 13,
-     "ct_min": 12.0, "ct_q1": 24.0, "ct_median": 48.0, "ct_q3": 72.0, "ct_max": 144.0},
+    {
+        "issue_type": issue_type,
+        "story_points": sp,
+        "ct_min": vals[0] * scale,
+        "ct_q1": vals[1] * scale,
+        "ct_median": vals[2] * scale,
+        "ct_q3": vals[3] * scale,
+        "ct_max": vals[4] * scale,
+    }
+    for issue_type, scale in [
+        ("Story", 1.0),
+        ("Bug", 0.7),    # bugs are typically faster to fix
+        ("Task", 0.8),   # tasks are slightly faster than stories
+    ]
+    for sp, vals in _CYCLE_TIME_BY_SP.items()
 ]
 
 
