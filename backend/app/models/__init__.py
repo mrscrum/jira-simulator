@@ -2,6 +2,7 @@ from app.models.base import Base
 from app.models.cross_team_dependency import CrossTeamDependency
 from app.models.daily_capacity_log import DailyCapacityLog
 from app.models.dysfunction_config import DysfunctionConfig
+from app.models.event_audit_log import EventAuditLog
 from app.models.issue import Issue
 from app.models.jira_config import JiraConfig
 from app.models.jira_issue_link import JiraIssueLink
@@ -14,6 +15,8 @@ from app.models.move_left_config import (
     MoveLeftTarget,
 )
 from app.models.organization import Organization
+from app.models.precomputation_run import PrecomputationRun
+from app.models.scheduled_event import ScheduledEvent
 from app.models.simulation_event_config import SimulationEventConfig
 from app.models.simulation_event_log import SimulationEventLog
 from app.models.sprint import Sprint
@@ -28,6 +31,7 @@ __all__ = [
     "CrossTeamDependency",
     "DailyCapacityLog",
     "DysfunctionConfig",
+    "EventAuditLog",
     "Issue",
     "JiraConfig",
     "JiraIssueLink",
@@ -38,6 +42,8 @@ __all__ = [
     "MoveLeftSameStepStatus",
     "MoveLeftTarget",
     "Organization",
+    "PrecomputationRun",
+    "ScheduledEvent",
     "SimulationEventConfig",
     "SimulationEventLog",
     "Sprint",

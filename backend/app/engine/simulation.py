@@ -121,6 +121,195 @@ class SimulationEngine:
         self._last_successful_tick = at
         self._tick_count += 1
 
+    async def compute_and_schedule_sprint(
+        self, team_id: int, rng_seed: int | None = None,
+    ) -> dict:
+        """Pre-compute a full sprint and store events as a schedule.
+
+        1. Load team, workflow, members, backlog, configs from DB.
+        2. Create sprint record.
+        3. Run precompute_sprint() in-memory on snapshots.
+        4. Bulk-insert ScheduledEvent rows.
+        5. Create PrecomputationRun record.
+        6. Apply planning results (sprint_id on issues, committed_points).
+
+        Returns:
+            dict with batch_id, total_events, total_ticks, sprint_id.
+        """
+        from uuid import uuid4
+
+        from app.engine.precompute import precompute_sprint
+        from app.engine.snapshots import (
+            issue_to_snapshot,
+            member_to_snapshot,
+            move_left_config_to_snapshot,
+            team_to_snapshot,
+            touch_time_config_to_snapshot,
+            workflow_step_to_snapshot,
+        )
+        from app.models.issue import Issue
+        from app.models.member import Member
+        from app.models.move_left_config import MoveLeftConfig
+        from app.models.precomputation_run import PrecomputationRun
+        from app.models.scheduled_event import ScheduledEvent
+        from app.models.team import Team
+        from app.models.touch_time_config import TouchTimeConfig
+        from app.models.workflow import Workflow
+        from app.models.workflow_step import WorkflowStep
+
+        session = self._session_factory()
+        try:
+            team = session.get(Team, team_id)
+            if team is None:
+                raise ValueError(f"Team {team_id} not found")
+
+            # Load workflow
+            workflow = session.query(Workflow).filter_by(team_id=team.id).first()
+            if workflow is None:
+                raise ValueError(f"No workflow configured for team {team_id}")
+
+            workflow_steps = (
+                session.query(WorkflowStep)
+                .filter_by(workflow_id=workflow.id)
+                .order_by(WorkflowStep.order)
+                .all()
+            )
+            if not workflow_steps:
+                raise ValueError(f"No workflow steps for team {team_id}")
+
+            final_step = workflow_steps[-1]
+
+            # Load members
+            members = (
+                session.query(Member)
+                .filter_by(team_id=team.id, is_active=True)
+                .all()
+            )
+
+            # Load touch time configs
+            step_ids = [s.id for s in workflow_steps]
+            all_ttcs = (
+                session.query(TouchTimeConfig)
+                .filter(TouchTimeConfig.workflow_step_id.in_(step_ids))
+                .all()
+            )
+
+            # Load move-left configs
+            move_left_configs = (
+                session.query(MoveLeftConfig)
+                .filter_by(team_id=team.id)
+                .all()
+            )
+
+            # Load backlog
+            backlog_issues = (
+                session.query(Issue)
+                .filter_by(team_id=team.id)
+                .filter(
+                    Issue.sprint_id.is_(None),
+                    Issue.completed_at.is_(None),
+                    Issue.issue_type != "Epic",
+                    Issue.status != final_step.jira_status,
+                )
+                .order_by(
+                    Issue.carried_over.desc(),
+                    Issue.backlog_priority.asc(),
+                )
+                .all()
+            )
+
+            # Create sprint record
+            now = datetime.now(UTC)
+            sprint = _create_next_sprint(session, team, now)
+
+            # Build snapshots
+            team_snap = team_to_snapshot(team)
+            member_snaps = [member_to_snapshot(m) for m in members]
+            issue_snaps = [issue_to_snapshot(i) for i in backlog_issues]
+            step_snaps = [workflow_step_to_snapshot(s) for s in workflow_steps]
+            ttc_snaps = {
+                (t.workflow_step_id, t.issue_type, t.story_points): touch_time_config_to_snapshot(t)
+                for t in all_ttcs
+            }
+            ml_snaps = [move_left_config_to_snapshot(c) for c in move_left_configs]
+
+            # Run pre-computation
+            result = precompute_sprint(
+                team=team_snap,
+                backlog_issues=issue_snaps,
+                workflow_steps=step_snaps,
+                touch_time_configs=ttc_snaps,
+                move_left_configs=ml_snaps,
+                members=member_snaps,
+                sprint_start=sprint.start_date,
+                sprint_length_days=team.sprint_length_days,
+                jira_sprint_id=sprint.jira_sprint_id,
+                jira_board_id=team.jira_board_id,
+                sprint_name=sprint.name,
+                sprint_db_id=sprint.id,
+                rng_seed=rng_seed,
+            )
+
+            # Bulk-insert scheduled events
+            batch_id = str(uuid4())
+            for event_data in result.events:
+                sched_event = ScheduledEvent(
+                    team_id=team.id,
+                    sprint_id=sprint.id,
+                    issue_id=event_data.issue_id,
+                    event_type=event_data.event_type,
+                    scheduled_at=event_data.wall_clock_time,
+                    sim_tick=event_data.sim_tick,
+                    payload=event_data.payload,
+                    status="PENDING",
+                    batch_id=batch_id,
+                    sequence_order=event_data.sequence_order,
+                )
+                session.add(sched_event)
+
+            # Create precomputation run record
+            run = PrecomputationRun(
+                batch_id=batch_id,
+                team_id=team.id,
+                sprint_id=sprint.id,
+                rng_seed=result.rng_seed,
+                total_events=len(result.events),
+                total_ticks=result.total_ticks,
+            )
+            session.add(run)
+
+            # Apply planning results to DB
+            for issue_id in result.selected_issue_ids:
+                issue = session.get(Issue, issue_id)
+                if issue:
+                    issue.sprint_id = sprint.id
+
+            sprint.committed_points = result.committed_points
+            sprint.capacity_target = result.capacity_target
+            sprint.phase = "ACTIVE"
+            sprint.status = "active"
+
+            session.commit()
+
+            logger.info(
+                "Pre-computed sprint %d for team %d: %d events, batch=%s",
+                sprint.id, team.id, len(result.events), batch_id,
+            )
+
+            return {
+                "batch_id": batch_id,
+                "total_events": len(result.events),
+                "total_ticks": result.total_ticks,
+                "sprint_id": sprint.id,
+            }
+
+        except Exception:
+            session.rollback()
+            logger.exception("Sprint precomputation failed for team %d", team_id)
+            raise
+        finally:
+            session.close()
+
     async def tick(self) -> list[TeamTickResult]:
         """Execute one simulation tick across all active teams."""
         if not self.should_tick():

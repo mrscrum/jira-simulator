@@ -8,6 +8,7 @@ const SECTION_LABELS: Record<Section, string> = {
   dependencies: "Dependencies",
   simulation: "Simulation",
   templates: "Templates",
+  schedule: "Event Schedule",
 };
 
 const SECTION_HINTS: Record<Section, string> = {
@@ -17,6 +18,7 @@ const SECTION_HINTS: Record<Section, string> = {
   templates: "Manage cycle-time templates and apply them to teams",
   dependencies: "Define cross-team dependency links",
   simulation: "Control the simulation engine",
+  schedule: "View, cancel, and modify pre-computed sprint events",
 };
 
 interface TopbarProps {

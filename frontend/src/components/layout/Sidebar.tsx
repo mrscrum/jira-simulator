@@ -8,6 +8,7 @@ const NAV_ITEMS: { section: Section; label: string }[] = [
   { section: "templates", label: "Templates" },
   { section: "dependencies", label: "Dependencies" },
   { section: "simulation", label: "Simulation" },
+  { section: "schedule", label: "Schedule" },
 ];
 
 const TEAM_COLORS = [

@@ -182,3 +182,73 @@ export const applyTemplate = (templateId: number, data: TemplateApplyRequest) =>
 // Jira Proxy
 export const fetchJiraStatuses = (projectKey: string) =>
   request<JiraStatus[]>(`/jira/projects/${projectKey}/statuses`);
+
+// Scheduled Events
+import type {
+  ScheduledEvent,
+  ScheduledEventListResponse,
+  AuditSummary,
+  PrecomputeResponse,
+} from "./types";
+
+export const fetchScheduledEvents = (
+  teamId: number,
+  sprintId: number,
+  params?: { status?: string; event_type?: string; page?: number; page_size?: number },
+) => {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.event_type) qs.set("event_type", params.event_type);
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.page_size) qs.set("page_size", String(params.page_size));
+  const q = qs.toString();
+  return request<ScheduledEventListResponse>(
+    `/teams/${teamId}/sprints/${sprintId}/events${q ? `?${q}` : ""}`,
+  );
+};
+
+export const fetchScheduledEvent = (eventId: number) =>
+  request<ScheduledEvent>(`/scheduled-events/${eventId}`);
+
+export const cancelScheduledEvent = (eventId: number, reason?: string) =>
+  request<ScheduledEvent>(`/scheduled-events/${eventId}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ reason: reason ?? null }),
+  });
+
+export const modifyScheduledEvent = (
+  eventId: number,
+  data: { scheduled_at?: string; payload?: Record<string, unknown> },
+) =>
+  request<ScheduledEvent>(`/scheduled-events/${eventId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const cancelAllPendingEvents = (teamId: number, sprintId: number) =>
+  request<{ cancelled: number }>(
+    `/teams/${teamId}/sprints/${sprintId}/events/cancel-all`,
+    { method: "POST" },
+  );
+
+export const triggerPrecomputation = (teamId: number, rngSeed?: number) =>
+  request<PrecomputeResponse>(`/teams/${teamId}/sprints/precompute`, {
+    method: "POST",
+    body: JSON.stringify({ rng_seed: rngSeed ?? null }),
+  });
+
+export const recomputeSprint = (
+  teamId: number,
+  sprintId: number,
+  rngSeed?: number,
+) =>
+  request<PrecomputeResponse>(
+    `/teams/${teamId}/sprints/${sprintId}/recompute`,
+    { method: "POST", body: JSON.stringify({ rng_seed: rngSeed ?? null }) },
+  );
+
+export const triggerManualDispatch = () =>
+  request<{ dispatched: number }>("/simulation/dispatch", { method: "POST" });
+
+export const fetchAuditSummary = (teamId: number, sprintId: number) =>
+  request<AuditSummary>(`/teams/${teamId}/sprints/${sprintId}/audit`);

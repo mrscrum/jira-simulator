@@ -13,6 +13,9 @@ export interface Team {
   sprint_capacity_max: number;
   priority_randomization: boolean;
   tick_duration_hours: number;
+  sprint_cadence_rule: string | null;
+  sprint_cadence_time: string | null;
+  sprint_auto_schedule: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -287,4 +290,65 @@ export interface TemplatePreviewResponse {
 
 export interface TemplateApplyRequest {
   team_ids: number[];
+}
+
+// Scheduled Events
+export interface ScheduledEvent {
+  id: number;
+  team_id: number;
+  sprint_id: number;
+  issue_id: number | null;
+  event_type: string;
+  scheduled_at: string;
+  sim_tick: number;
+  payload: Record<string, unknown>;
+  status: string;
+  dispatched_at: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  modified_at: string | null;
+  original_payload: Record<string, unknown> | null;
+  original_scheduled_at: string | null;
+  batch_id: string;
+  sequence_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledEventListResponse {
+  events: ScheduledEvent[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface EventAuditEntry {
+  id: number;
+  scheduled_event_id: number;
+  jira_queue_entry_id: string | null;
+  expected_at: string;
+  dispatched_at: string | null;
+  verified_at: string | null;
+  verification_status: string;
+  failure_reason: string | null;
+  alert_sent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuditSummary {
+  total: number;
+  pending: number;
+  dispatched: number;
+  verified: number;
+  failed: number;
+  timeout: number;
+  failures: EventAuditEntry[];
+}
+
+export interface PrecomputeResponse {
+  batch_id: string;
+  total_events: number;
+  total_ticks: number;
+  sprint_id: number;
 }

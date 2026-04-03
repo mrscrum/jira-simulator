@@ -36,3 +36,6 @@ class JiraWriteQueueEntry(Base):
     )
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(String, nullable=True)
+    scheduled_event_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("scheduled_events.id"), nullable=True
+    )

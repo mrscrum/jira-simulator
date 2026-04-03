@@ -11,7 +11,7 @@ class TestSettings:
         from app.config import Settings
 
         settings = Settings(_env_file=None)
-        assert settings.database_url == "sqlite:///./data/simulator.db"
+        assert settings.database_url == "postgresql://simulator:simulator@localhost:5432/simulator"
 
     def test_loads_default_environment(self, monkeypatch):
         monkeypatch.setenv("JIRA_BASE_URL", "https://test.atlassian.net")

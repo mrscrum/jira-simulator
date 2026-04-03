@@ -37,6 +37,18 @@ class TestDatabaseEngine:
             assert result == 1
 
 
+    def test_postgresql_url_sets_pool_config(self):
+        """Verify PostgreSQL URLs get connection pool settings (without connecting)."""
+        from app.database import create_engine_from_url
+
+        # Use a dummy URL — we're not actually connecting
+        engine = create_engine_from_url(
+            "postgresql://user:pass@localhost:5432/testdb"
+        )
+        assert engine.pool.size() == 10
+        engine.dispose()
+
+
 class TestSessionFactory:
     def test_creates_session(self):
         from app.database import create_engine_from_url, create_session_factory

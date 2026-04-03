@@ -73,6 +73,15 @@ class Team(TimestampMixin, Base):
     tick_duration_hours: Mapped[float] = mapped_column(
         Float, default=1.0, nullable=False
     )
+    sprint_cadence_rule: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+    sprint_cadence_time: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )
+    sprint_auto_schedule: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     organization: Mapped["Organization"] = relationship(back_populates="teams")
     members: Mapped[list["Member"]] = relationship(back_populates="team")

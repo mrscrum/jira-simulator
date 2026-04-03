@@ -5,6 +5,7 @@ import { Shell } from "@/components/layout/Shell";
 import type { Section } from "@/components/layout/Shell";
 import { DependencyConfig } from "@/components/dependencies/DependencyConfig";
 import { MemberTable } from "@/components/members/MemberTable";
+import { EventSchedule } from "@/components/schedule/EventSchedule";
 import { TeamSettings } from "@/components/settings/TeamSettings";
 import { SimulationDashboard } from "@/components/simulation/SimulationDashboard";
 import { WorkflowDesigner } from "@/components/workflow/WorkflowDesigner";
@@ -95,6 +96,8 @@ function SectionContent({
       return <SimulationDashboard />;
     case "templates":
       return <TemplatePage />;
+    case "schedule":
+      return <EventSchedule teamId={teamId} />;
   }
 }
 

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     jira_email: str
     jira_api_token: str
     openai_api_key: str
-    database_url: str = "sqlite:///./data/simulator.db"
+    database_url: str = "postgresql://simulator:simulator@localhost:5432/simulator"
     environment: str = "production"
     log_level: str = "INFO"
     tick_interval_minutes: int = 30

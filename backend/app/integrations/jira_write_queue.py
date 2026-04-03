@@ -46,6 +46,7 @@ class JiraWriteQueue:
         payload: dict,
         issue_id: int | None = None,
         session: Session | None = None,
+        scheduled_event_id: int | None = None,
     ) -> None:
         own_session = session is None
         if own_session:
@@ -57,6 +58,7 @@ class JiraWriteQueue:
             operation_type=operation_type,
             payload=payload,
             priority=priority,
+            scheduled_event_id=scheduled_event_id,
         )
         session.add(entry)
         if own_session:

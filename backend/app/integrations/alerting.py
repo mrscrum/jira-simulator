@@ -13,6 +13,8 @@ class AlertEvent(enum.StrEnum):
     ENGINE_CRASH = "ENGINE_CRASH"
     BOOTSTRAP_INCOMPLETE = "BOOTSTRAP_INCOMPLETE"
     DAILY_DIGEST = "DAILY_DIGEST"
+    EVENT_DISPATCH_FAILED = "EVENT_DISPATCH_FAILED"
+    EVENT_AUDIT_TIMEOUT = "EVENT_AUDIT_TIMEOUT"
 
 
 SUBJECT_MAP = {
@@ -21,6 +23,8 @@ SUBJECT_MAP = {
     AlertEvent.ENGINE_CRASH: "[Simulator] Engine error — simulation paused",
     AlertEvent.BOOTSTRAP_INCOMPLETE: "[Simulator] Bootstrap warnings for {team}",
     AlertEvent.DAILY_DIGEST: "[Simulator] Daily activity digest",
+    AlertEvent.EVENT_DISPATCH_FAILED: "[Simulator] Scheduled event failed — {event_type}",
+    AlertEvent.EVENT_AUDIT_TIMEOUT: "[Simulator] Scheduled event timed out — {event_type}",
 }
 
 
@@ -66,6 +70,13 @@ class AlertingService:
         if event == AlertEvent.BOOTSTRAP_INCOMPLETE:
             team = context.get("team", "Unknown")
             return f"Bootstrap for team '{team}' completed with warnings."
+        if event == AlertEvent.EVENT_DISPATCH_FAILED:
+            event_id = context.get("event_id", "?")
+            reason = context.get("reason", "Unknown")
+            return f"Scheduled event {event_id} failed to write to Jira: {reason}"
+        if event == AlertEvent.EVENT_AUDIT_TIMEOUT:
+            event_id = context.get("event_id", "?")
+            return f"Scheduled event {event_id} was not processed within the timeout window."
         return ""
 
     def _format_digest(self, data: dict) -> str:
