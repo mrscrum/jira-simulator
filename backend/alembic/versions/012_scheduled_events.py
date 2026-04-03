@@ -72,7 +72,10 @@ def upgrade() -> None:
         sa.Column("total_events", sa.Integer(), nullable=False),
         sa.Column("total_ticks", sa.Integer(), nullable=False),
         sa.Column("computed_at", sa.DateTime(), nullable=False),
-        sa.Column("superseded_by", sa.Integer(), sa.ForeignKey("precomputation_runs.id"), nullable=True),
+        sa.Column(
+            "superseded_by", sa.Integer(),
+            sa.ForeignKey("precomputation_runs.id"), nullable=True,
+        ),
         sa.Column("status", sa.String(), nullable=False, server_default="ACTIVE"),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
@@ -82,8 +85,14 @@ def upgrade() -> None:
     op.create_table(
         "event_audit_log",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("scheduled_event_id", sa.Integer(), sa.ForeignKey("scheduled_events.id"), nullable=False),
-        sa.Column("jira_queue_entry_id", sa.String(), sa.ForeignKey("jira_write_queue.id"), nullable=True),
+        sa.Column(
+            "scheduled_event_id", sa.Integer(),
+            sa.ForeignKey("scheduled_events.id"), nullable=False,
+        ),
+        sa.Column(
+            "jira_queue_entry_id", sa.String(),
+            sa.ForeignKey("jira_write_queue.id"), nullable=True,
+        ),
         sa.Column("expected_at", sa.DateTime(), nullable=False),
         sa.Column("dispatched_at", sa.DateTime(), nullable=True),
         sa.Column("verified_at", sa.DateTime(), nullable=True),
@@ -102,7 +111,13 @@ def upgrade() -> None:
     # -- Add sprint cadence columns to teams --
     _add_column_safe("teams", sa.Column("sprint_cadence_rule", sa.String(), nullable=True))
     _add_column_safe("teams", sa.Column("sprint_cadence_time", sa.String(), nullable=True))
-    _add_column_safe("teams", sa.Column("sprint_auto_schedule", sa.Boolean(), nullable=False, server_default="true"))
+    _add_column_safe(
+        "teams",
+        sa.Column(
+            "sprint_auto_schedule", sa.Boolean(),
+            nullable=False, server_default="true",
+        ),
+    )
 
     # -- Add scheduled_event_id to jira_write_queue --
     # Note: using _add_column_safe for idempotency on SQLite test databases.
