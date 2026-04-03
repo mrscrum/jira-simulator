@@ -201,7 +201,7 @@ class SimulationEngine:
                 .all()
             )
 
-            # Load backlog
+            # Load backlog (unassigned issues available for planning)
             backlog_issues = (
                 session.query(Issue)
                 .filter_by(team_id=team.id)
@@ -217,6 +217,19 @@ class SimulationEngine:
                 )
                 .all()
             )
+
+            logger.info(
+                "Precompute team %d: %d backlog issues, "
+                "%d workflow steps, %d TTCs, %d members",
+                team_id, len(backlog_issues), len(workflow_steps),
+                len(all_ttcs), len(members),
+            )
+
+            if not backlog_issues:
+                raise ValueError(
+                    f"No backlog issues available for team {team_id}. "
+                    "All issues may already be assigned to sprints."
+                )
 
             # Create sprint record
             now = datetime.now(UTC)

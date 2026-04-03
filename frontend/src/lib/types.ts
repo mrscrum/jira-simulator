@@ -292,6 +292,19 @@ export interface TemplateApplyRequest {
   team_ids: number[];
 }
 
+// Sprints
+export interface SprintSummary {
+  id: number;
+  name: string;
+  status: string;
+  phase: string;
+  sprint_number: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  committed_points: number | null;
+  completed_points: number | null;
+}
+
 // Scheduled Events
 export interface ScheduledEvent {
   id: number;

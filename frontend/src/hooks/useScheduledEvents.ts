@@ -4,11 +4,21 @@ import {
   cancelScheduledEvent,
   fetchAuditSummary,
   fetchScheduledEvents,
+  fetchTeamSprints,
   modifyScheduledEvent,
   recomputeSprint,
   triggerManualDispatch,
   triggerPrecomputation,
 } from "@/lib/api";
+
+export function useTeamSprints(teamId: number | null) {
+  return useQuery({
+    queryKey: ["team-sprints", teamId],
+    queryFn: () => fetchTeamSprints(teamId!),
+    enabled: !!teamId,
+    refetchInterval: 30_000,
+  });
+}
 
 export function useScheduledEvents(
   teamId: number | null,
@@ -93,6 +103,7 @@ export function usePrecompute() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["scheduled-events"] });
       qc.invalidateQueries({ queryKey: ["audit-summary"] });
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
     },
   });
 }
@@ -112,6 +123,7 @@ export function useRecompute() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["scheduled-events"] });
       qc.invalidateQueries({ queryKey: ["audit-summary"] });
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
     },
   });
 }

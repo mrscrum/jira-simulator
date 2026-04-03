@@ -183,6 +183,14 @@ export const applyTemplate = (templateId: number, data: TemplateApplyRequest) =>
 export const fetchJiraStatuses = (projectKey: string) =>
   request<JiraStatus[]>(`/jira/projects/${projectKey}/statuses`);
 
+// Sprints
+import type {
+  SprintSummary,
+} from "./types";
+
+export const fetchTeamSprints = (teamId: number) =>
+  request<SprintSummary[]>(`/teams/${teamId}/sprints`);
+
 // Scheduled Events
 import type {
   ScheduledEvent,

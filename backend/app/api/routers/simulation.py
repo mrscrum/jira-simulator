@@ -273,6 +273,32 @@ def get_current_sprint(team_id: int, db: Session = Depends(get_session)):
     }
 
 
+@router.get("/teams/{team_id}/sprints")
+def list_team_sprints(team_id: int, db: Session = Depends(get_session)):
+    """List all sprints for a team, most recent first."""
+    from app.models.sprint import Sprint
+    sprints = (
+        db.query(Sprint)
+        .filter(Sprint.team_id == team_id)
+        .order_by(Sprint.sprint_number.desc())
+        .all()
+    )
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "status": s.status,
+            "phase": s.phase,
+            "sprint_number": s.sprint_number,
+            "start_date": s.start_date.isoformat() if s.start_date else None,
+            "end_date": s.end_date.isoformat() if s.end_date else None,
+            "committed_points": s.committed_points,
+            "completed_points": s.completed_points,
+        }
+        for s in sprints
+    ]
+
+
 @router.post("/simulation/{team_id}/sprint/advance")
 def advance_sprint(team_id: int, db: Session = Depends(get_session)):
     from app.models.sprint import Sprint

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ScheduledEvent } from "@/lib/types";
 import {
+  useTeamSprints,
   useScheduledEvents,
   useCancelEvent,
   useCancelAllEvents,
@@ -31,6 +32,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
   const [selectedEvent, setSelectedEvent] = useState<ScheduledEvent | null>(null);
   const [showAudit, setShowAudit] = useState(false);
 
+  const { data: sprints } = useTeamSprints(teamId);
   const { data, isLoading } = useScheduledEvents(teamId, sprintId, {
     status: statusFilter,
     page,
@@ -100,25 +102,36 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
         </div>
       )}
 
+      {precompute.isError && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+          Pre-compute failed: {(precompute.error as Error)?.message ?? "Unknown error"}
+        </div>
+      )}
+
       {/* Audit summary */}
       {showAudit && sprintId && (
         <AuditDashboard teamId={teamId} sprintId={sprintId} />
       )}
 
-      {/* Sprint ID input (temporary, until sprint list endpoint exists) */}
+      {/* Sprint selector + filters */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-muted-foreground">Sprint ID:</label>
-        <input
-          type="number"
+        <label className="text-sm font-medium text-muted-foreground">Sprint:</label>
+        <select
           value={sprintId ?? ""}
           onChange={(e) => {
             const val = e.target.value ? parseInt(e.target.value, 10) : null;
             setSprintId(val);
             setPage(1);
           }}
-          className="w-24 rounded-md border px-2 py-1 text-sm"
-          placeholder="Sprint ID"
-        />
+          className="min-w-[240px] rounded-md border px-2 py-1 text-sm"
+        >
+          <option value="">Select a sprint...</option>
+          {(sprints ?? []).map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({s.phase}{s.committed_points != null ? ` \u2022 ${s.committed_points} pts` : ""})
+            </option>
+          ))}
+        </select>
 
         <select
           value={statusFilter ?? ""}
@@ -132,20 +145,19 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           <option value="PENDING">Pending</option>
           <option value="MODIFIED">Modified</option>
           <option value="DISPATCHED">Dispatched</option>
-          <option value="CANCELLED">Cancelled</option>
         </select>
 
         {sprintId && (
           <button
             onClick={() => {
-              if (confirm("Cancel all pending events?")) {
+              if (confirm("Delete all pending events for this sprint?")) {
                 cancelAll.mutate({ teamId, sprintId });
               }
             }}
             disabled={cancelAll.isPending}
             className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
           >
-            Cancel All Pending
+            Delete All Pending
           </button>
         )}
       </div>
@@ -155,10 +167,10 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
         <div className="py-8 text-center text-muted-foreground">Loading events...</div>
       ) : !sprintId ? (
         <div className="py-8 text-center text-muted-foreground">
-          Enter a sprint ID or pre-compute a sprint to see events
+          Select a sprint or pre-compute a new one to see events
         </div>
       ) : events.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground">No events found</div>
+        <div className="py-8 text-center text-muted-foreground">No events found for this sprint</div>
       ) : (
         <>
           <div className="overflow-auto rounded-md border">
@@ -182,7 +194,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{event.event_type}</td>
                     <td className="px-3 py-2">
-                      {String(event.payload?.issue_key ?? event.issue_id ?? "—")}
+                      {String(event.payload?.issue_key ?? event.issue_id ?? "\u2014")}
                     </td>
                     <td className="px-3 py-2">
                       <span
@@ -207,7 +219,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
                             disabled={cancelEvent.isPending}
                             className="rounded px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
                           >
-                            Cancel
+                            Delete
                           </button>
                         )}
                       </div>
