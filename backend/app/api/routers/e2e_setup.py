@@ -13,11 +13,13 @@ from app.engine.backlog import (
     TemplateContentGenerator,
     generate_issues,
 )
+from app.engine.template_engine import apply_template_to_team
 from app.models.issue import Issue
 from app.models.jira_config import JiraConfig
 from app.models.member import Member
 from app.models.organization import Organization
 from app.models.team import Team
+from app.models.timing_template import TimingTemplate, TimingTemplateEntry
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
 
@@ -359,6 +361,63 @@ async def _sync_issues_to_jira(
     return enqueued
 
 
+# ── Default timing template ──
+# Realistic cycle-time distributions (in hours) for Story issues by SP.
+# Based on typical Scrum team data: ct_min, ct_q1, ct_median, ct_q3, ct_max.
+DEFAULT_TEMPLATE_ENTRIES = [
+    # SP=1: small items, ~2-8h cycle time
+    {"issue_type": "Story", "story_points": 1,
+     "ct_min": 1.0, "ct_q1": 2.0, "ct_median": 4.0, "ct_q3": 6.0, "ct_max": 12.0},
+    # SP=2: ~4-16h
+    {"issue_type": "Story", "story_points": 2,
+     "ct_min": 2.0, "ct_q1": 4.0, "ct_median": 8.0, "ct_q3": 12.0, "ct_max": 24.0},
+    # SP=3: ~6-24h
+    {"issue_type": "Story", "story_points": 3,
+     "ct_min": 3.0, "ct_q1": 6.0, "ct_median": 12.0, "ct_q3": 18.0, "ct_max": 36.0},
+    # SP=5: ~8-40h
+    {"issue_type": "Story", "story_points": 5,
+     "ct_min": 5.0, "ct_q1": 10.0, "ct_median": 20.0, "ct_q3": 30.0, "ct_max": 60.0},
+    # SP=8: ~16-64h
+    {"issue_type": "Story", "story_points": 8,
+     "ct_min": 8.0, "ct_q1": 16.0, "ct_median": 32.0, "ct_q3": 48.0, "ct_max": 96.0},
+    # SP=13: ~24-100h
+    {"issue_type": "Story", "story_points": 13,
+     "ct_min": 12.0, "ct_q1": 24.0, "ct_median": 48.0, "ct_q3": 72.0, "ct_max": 144.0},
+]
+
+
+def _create_default_template(session: Session) -> TimingTemplate:
+    """Create or return the default timing template."""
+    existing = (
+        session.query(TimingTemplate)
+        .filter(TimingTemplate.name == "Default Scrum Template")
+        .first()
+    )
+    if existing:
+        return existing
+
+    template = TimingTemplate(
+        name="Default Scrum Template",
+        description=(
+            "Realistic cycle-time distributions for Scrum teams. "
+            "Auto-created by E2E setup."
+        ),
+        spread_factor=0.33,
+    )
+    session.add(template)
+    session.flush()
+
+    for entry_data in DEFAULT_TEMPLATE_ENTRIES:
+        session.add(TimingTemplateEntry(
+            template_id=template.id, **entry_data,
+        ))
+
+    session.flush()
+    logger.info("Created default timing template with %d entries",
+                len(DEFAULT_TEMPLATE_ENTRIES))
+    return template
+
+
 @router.post("/setup")
 async def setup_e2e(request: Request):
     """Create 3 demo teams with full data and trigger Jira bootstrap."""
@@ -374,10 +433,24 @@ async def setup_e2e(request: Request):
         org = _get_or_create_org(session)
         results = []
 
+        # Create default timing template (idempotent).
+        template = _create_default_template(session)
+        session.commit()
+
         for defn in TEAM_DEFINITIONS:
             team = _create_team(session, org, defn)
             issues = await _generate_backlog(session, team, defn["backlog_count"])
             session.commit()
+
+            # Apply timing template to team (creates TouchTimeConfigs).
+            try:
+                apply_template_to_team(template, team.id, session)
+                logger.info("Applied timing template to team %s", team.name)
+            except Exception as e:
+                logger.warning(
+                    "Failed to apply template to team %s: %s",
+                    team.name, e,
+                )
 
             # Trigger Jira bootstrap if available.
             bootstrap_status = "skipped"
