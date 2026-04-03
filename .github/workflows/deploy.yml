@@ -75,9 +75,8 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             cd frontend && npm ci && npm run build && cd ..
-            sudo mkdir -p /data
             sudo docker compose up -d --build --force-recreate
-            sleep 5
+            sleep 10
 
       - name: Verify deployment
         if: success() && github.event.inputs.check_only != 'true'
@@ -114,12 +113,12 @@ jobs:
             echo "=== Stopping simulation ==="
             curl -s -X POST http://localhost/api/simulation/reset || true
             echo ""
-            echo "=== Removing old database ==="
-            sudo docker compose -f /app/jira-simulator/docker-compose.yml exec -T backend rm -f /data/simulator.db || true
-            echo "=== Restarting backend ==="
+            echo "=== Resetting PostgreSQL database ==="
             cd /app/jira-simulator
+            sudo docker compose exec -T db psql -U simulator -d simulator -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" || true
+            echo "=== Restarting backend (will re-run migrations) ==="
             sudo docker compose restart backend
-            sleep 5
+            sleep 8
             echo "=== Health check ==="
             curl -s http://localhost/health
 
