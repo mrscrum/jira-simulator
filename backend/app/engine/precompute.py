@@ -20,7 +20,7 @@ from app.engine.snapshots import (
     MemberSnapshot,
     TeamSnapshot,
 )
-from app.engine.sprint_lifecycle import check_sprint_end, plan_sprint
+from app.engine.sprint_lifecycle import plan_sprint
 from app.engine.types import JiraWriteAction
 from app.engine.workflow_engine import enter_status, get_touch_time_config, process_item_tick
 
@@ -70,6 +70,46 @@ def _parse_holidays(holidays_json: str) -> list[date]:
     return result
 
 
+def _compute_sprint_end(
+    sprint_start: datetime,
+    sprint_length_days: int,
+    tz_name: str,
+    start_hour: int,
+    end_hour: int,
+    holidays: list[date],
+    working_days: list[int],
+) -> datetime:
+    """Compute sprint end as sprint_length_days WORKING days from start.
+
+    Counts only business days (matching working_days and not holidays),
+    so a 14-day sprint = 14 working days ≈ 3 calendar weeks.
+    """
+    from zoneinfo import ZoneInfo
+
+    if sprint_length_days <= 0:
+        return sprint_start  # No sprint
+
+    tz = ZoneInfo(tz_name)
+    local_start = sprint_start.astimezone(tz)
+    current_date = local_start.date()
+    working_counted = 0
+
+    while working_counted < sprint_length_days:
+        current_date += timedelta(days=1)
+        if (
+            current_date.weekday() in working_days
+            and current_date not in holidays
+        ):
+            working_counted += 1
+
+    # Sprint ends at end_hour on the last working day
+    end_local = datetime(
+        current_date.year, current_date.month, current_date.day,
+        end_hour, 0, 0, tzinfo=tz,
+    )
+    return end_local.astimezone(UTC)
+
+
 def _compute_tick_wall_times(
     sprint_start: datetime,
     sprint_length_days: int,
@@ -84,8 +124,12 @@ def _compute_tick_wall_times(
 
     Advances from sprint_start by tick_duration_hours, skipping
     non-working time via next_working_moment().
+    sprint_length_days is counted in WORKING days (not calendar days).
     """
-    sprint_end = sprint_start + timedelta(days=sprint_length_days)
+    sprint_end = _compute_sprint_end(
+        sprint_start, sprint_length_days, tz_name,
+        start_hour, end_hour, holidays, working_days,
+    )
     tick_delta = timedelta(hours=tick_duration_hours)
 
     tick_times: list[datetime] = []
@@ -180,6 +224,15 @@ def precompute_sprint(
         sprint_start, sprint_length_days, tick_hours,
         team.timezone, team.working_hours_start, team.working_hours_end,
         holidays, working_days,
+    )
+    logger.info(
+        "Tick schedule: %d ticks, sprint_start=%s, "
+        "sprint_length=%d working days, tick_hours=%.1f, "
+        "first_tick=%s, last_tick=%s",
+        len(tick_times), sprint_start.isoformat(),
+        sprint_length_days, tick_hours,
+        tick_times[0].isoformat() if tick_times else "N/A",
+        tick_times[-1].isoformat() if tick_times else "N/A",
     )
 
     if not tick_times:
@@ -309,17 +362,36 @@ def precompute_sprint(
                 issue.status = final_step.jira_status
                 completed_points += issue.story_points or 0
 
-        # Check sprint end
-        sprint_start_utc = sprint_start
-        if sprint_start_utc.tzinfo is None:
-            sprint_start_utc = sprint_start_utc.replace(tzinfo=UTC)
-        if check_sprint_end(sprint_start_utc, sprint_length_days, wall_time):
+        # Check if all items are complete → stop early
+        all_done = all(
+            i.completed_at is not None for i in sprint_issues
+        )
+        if all_done:
+            logger.info(
+                "All %d items completed at tick %d — ending sprint early",
+                len(sprint_issues), tick_idx,
+            )
             if jira_sprint_id:
                 _add_event(tick_idx, wall_time, JiraWriteAction(
                     operation_type="COMPLETE_SPRINT",
                     payload={"sprint_id": jira_sprint_id},
                 ))
             break
+
+    # Add COMPLETE_SPRINT at the end if not already added
+    if (
+        jira_sprint_id
+        and tick_times
+        and not any(
+            e.event_type == "COMPLETE_SPRINT" for e in events
+        )
+    ):
+        last_wall = tick_times[-1]
+        last_tick = len(tick_times) - 1
+        _add_event(last_tick, last_wall, JiraWriteAction(
+            operation_type="COMPLETE_SPRINT",
+            payload={"sprint_id": jira_sprint_id},
+        ))
 
     # ── Build final states ────────────────────────────────────────────────
 

@@ -14,7 +14,7 @@ import json
 import logging
 import random
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from app.engine.sim_clock import SimClock
@@ -919,6 +919,7 @@ def _get_prioritized_backlog(session, team_id, final_status):
 
 def _create_next_sprint(session, team, now: datetime):
     """Create the next sprint for a team."""
+    from app.engine.precompute import _compute_sprint_end, _parse_holidays
     from app.engine.sprint_lifecycle import SprintPhase
     from app.models.sprint import Sprint
 
@@ -937,7 +938,14 @@ def _create_next_sprint(session, team, now: datetime):
         if start_date.tzinfo is None:
             start_date = start_date.replace(tzinfo=UTC)
 
-    end_date = start_date + timedelta(days=team.sprint_length_days)
+    # Compute end date using working days (not calendar days)
+    holidays = _parse_holidays(team.holidays)
+    working_days = [0, 1, 2, 3, 4]  # Mon-Fri
+    end_date = _compute_sprint_end(
+        start_date, team.sprint_length_days,
+        team.timezone, team.working_hours_start,
+        team.working_hours_end, holidays, working_days,
+    )
 
     sprint = Sprint(
         team_id=team.id,

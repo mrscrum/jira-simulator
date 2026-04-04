@@ -473,3 +473,147 @@ def get_flow_matrix(
         }
     finally:
         session.close()
+
+
+# ── Diagnostics ─────────────────────────────────────────────────────────
+
+@router.get("/teams/{team_id}/sprints/{sprint_id}/diagnostics")
+def sprint_diagnostics(
+    team_id: int,
+    sprint_id: int,
+    request: Request,
+):
+    """Diagnostic info about a sprint's precomputed events."""
+    from collections import Counter
+
+    from app.models.member import Member
+    from app.models.touch_time_config import TouchTimeConfig
+    from app.models.workflow import Workflow
+    from app.models.workflow_step import WorkflowStep
+
+    session: Session = request.app.state.session_factory()
+    try:
+        sprint = session.get(Sprint, sprint_id)
+        if sprint is None:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+
+        # Event stats
+        events = (
+            session.query(ScheduledEvent)
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .all()
+        )
+        tick_counts = Counter(e.sim_tick for e in events)
+        type_counts = Counter(e.event_type for e in events)
+        status_counts = Counter(e.status for e in events)
+
+        # Issues in sprint
+        issues = (
+            session.query(Issue)
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .all()
+        )
+        issue_types = Counter(i.issue_type for i in issues)
+        sp_values = Counter(i.story_points for i in issues)
+
+        # Workflow + TTCs
+        workflow = (
+            session.query(Workflow)
+            .filter_by(team_id=team_id).first()
+        )
+        step_info = []
+        ttc_count = 0
+        if workflow:
+            steps = (
+                session.query(WorkflowStep)
+                .filter_by(workflow_id=workflow.id)
+                .order_by(WorkflowStep.order)
+                .all()
+            )
+            step_ids = [s.id for s in steps]
+            ttc_count = (
+                session.query(TouchTimeConfig)
+                .filter(TouchTimeConfig.workflow_step_id.in_(step_ids))
+                .count()
+            )
+            for s in steps:
+                step_ttcs = (
+                    session.query(TouchTimeConfig)
+                    .filter_by(workflow_step_id=s.id)
+                    .all()
+                )
+                step_info.append({
+                    "id": s.id,
+                    "status": s.jira_status,
+                    "order": s.order,
+                    "role_required": s.role_required,
+                    "ttc_count": len(step_ttcs),
+                    "ttc_issue_types": list(
+                        {t.issue_type for t in step_ttcs},
+                    ),
+                    "ttc_story_points": sorted(
+                        {t.story_points for t in step_ttcs},
+                    ),
+                })
+
+        # Members
+        members = (
+            session.query(Member)
+            .filter_by(team_id=team_id, is_active=True)
+            .all()
+        )
+        member_roles = Counter(m.role for m in members)
+
+        from app.models.team import Team
+        team = session.get(Team, team_id)
+
+        return {
+            "sprint": {
+                "id": sprint.id,
+                "name": sprint.name,
+                "phase": sprint.phase,
+                "start_date": (
+                    sprint.start_date.isoformat()
+                    if sprint.start_date else None
+                ),
+                "end_date": (
+                    sprint.end_date.isoformat()
+                    if sprint.end_date else None
+                ),
+                "committed_points": sprint.committed_points,
+            },
+            "team": {
+                "sprint_length_days": (
+                    team.sprint_length_days if team else None
+                ),
+                "tick_duration_hours": (
+                    team.tick_duration_hours if team else None
+                ),
+                "working_hours": (
+                    f"{team.working_hours_start}-{team.working_hours_end}"
+                    if team else None
+                ),
+                "timezone": team.timezone if team else None,
+            },
+            "events": {
+                "total": len(events),
+                "by_tick": dict(sorted(tick_counts.items())),
+                "by_type": dict(type_counts),
+                "by_status": dict(status_counts),
+            },
+            "issues": {
+                "count": len(issues),
+                "by_type": dict(issue_types),
+                "by_story_points": dict(sp_values),
+            },
+            "workflow": {
+                "steps": step_info,
+                "total_ttcs": ttc_count,
+            },
+            "members": {
+                "count": len(members),
+                "by_role": dict(member_roles),
+            },
+        }
+    finally:
+        session.close()
