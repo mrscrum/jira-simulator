@@ -490,7 +490,7 @@ def get_flow_matrix(
 
             matrix[day_idx] = dict(status_counts)
 
-        # Build response: statuses ordered by workflow step order
+        # Build response: ALL workflow statuses in workflow order
         if team_workflow:
             wf_steps = (
                 session.query(WorkflowStep)
@@ -498,13 +498,7 @@ def get_flow_matrix(
                 .order_by(WorkflowStep.order)
                 .all()
             )
-            status_order = {
-                s.jira_status: s.order for s in wf_steps
-            }
-            ordered_statuses = sorted(
-                all_statuses,
-                key=lambda s: status_order.get(s, 999),
-            )
+            ordered_statuses = [s.jira_status for s in wf_steps]
         else:
             ordered_statuses = sorted(all_statuses)
 

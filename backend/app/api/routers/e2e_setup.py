@@ -33,7 +33,7 @@ TEAM_DEFINITIONS = [
     {
         "name": "Platform Engineering",
         "jira_project_key": "PLAT",
-        "sprint_length_days": 14,
+        "sprint_length_days": 10,
         "members": [
             ("Alex Chen", "Backend"),
             ("Maria Lopez", "Backend"),
@@ -62,7 +62,7 @@ TEAM_DEFINITIONS = [
     {
         "name": "Mobile Squad",
         "jira_project_key": "MOBI",
-        "sprint_length_days": 14,
+        "sprint_length_days": 10,
         "members": [
             ("Liam Johnson", "iOS"),
             ("Olivia Davis", "iOS"),
@@ -89,7 +89,7 @@ TEAM_DEFINITIONS = [
     {
         "name": "Data Analytics",
         "jira_project_key": "DATA",
-        "sprint_length_days": 14,
+        "sprint_length_days": 10,
         "members": [
             ("Ethan Miller", "Data Eng"),
             ("Isabella Wilson", "Data Eng"),
@@ -547,8 +547,6 @@ async def prepare_simulation(request: Request):
 
         team_info = []
         for team in teams:
-            # Set sprint length to 2 days for accelerated testing.
-            team.sprint_length_days = 2
             # Ensure no pause before planning.
             team.pause_before_planning = False
 
@@ -585,13 +583,11 @@ async def prepare_simulation(request: Request):
         session.commit()
 
         return {
-            "message": "Simulation prepared. Sprint length set to 2 days for all teams.",
+            "message": "Simulation prepared. Teams ready for sprint precompute.",
             "instructions": [
-                "1. Set clock speed: PUT /simulation/clock {\"speed\": 60}",
+                "1. Pre-compute sprint: POST /teams/{id}/sprints/precompute",
                 "2. Start simulation: POST /simulation/start",
                 "3. Monitor: GET /simulation/status",
-                "4. At 60x speed, each sprint takes ~50 real minutes (2 sim days).",
-                "5. 4 sprints ≈ 3.5 hours. Use speed=360 for ~35 min total.",
             ],
             "teams": team_info,
         }
