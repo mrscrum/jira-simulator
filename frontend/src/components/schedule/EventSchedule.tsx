@@ -113,10 +113,8 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           </button>
         )}
 
-        {/* 4. Delete Sprint (SIMULATED or PLANNING only) */}
-        {sprintId &&
-          selectedSprint &&
-          (selectedSprint.phase === "SIMULATED" || selectedSprint.phase === "PLANNING") && (
+        {/* 4. Delete Sprint */}
+        {sprintId && selectedSprint && (
             <button
               onClick={() => {
                 if (
