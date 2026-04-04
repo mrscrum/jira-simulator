@@ -236,16 +236,21 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
       return;
     }
 
-    // commit all changed fields from localEntries back to parent
-    const entry = sorted[drag.entryIdx];
-    if (entry) {
+    // commit changed fields from localEntries back to parent
+    // Compare against the original `entries` prop (not `sorted`, which is
+    // derived from localEntries and would always match).
+    const draggedEntry = sorted[drag.entryIdx];
+    if (draggedEntry) {
       const localEntry = localEntries.find(
-        (p) => p.issue_type === entry.issue_type && p.story_points === entry.story_points,
+        (p) => p.issue_type === draggedEntry.issue_type && p.story_points === draggedEntry.story_points,
       );
-      if (localEntry) {
+      const originalEntry = entries.find(
+        (p) => p.issue_type === draggedEntry.issue_type && p.story_points === draggedEntry.story_points,
+      );
+      if (localEntry && originalEntry) {
         for (const field of FIELDS) {
-          if (localEntry[field] !== entry[field]) {
-            onEntryChange(entry.issue_type, entry.story_points, field, localEntry[field]);
+          if (localEntry[field] !== originalEntry[field]) {
+            onEntryChange(draggedEntry.issue_type, draggedEntry.story_points, field, localEntry[field]);
           }
         }
       }
@@ -253,7 +258,7 @@ export function CycleTimeBoxPlot({ entries, onEntryChange }: CycleTimeBoxPlotPro
 
     setDrag(null);
     setTooltip(null);
-  }, [drag, onEntryChange, sorted, localEntries]);
+  }, [drag, onEntryChange, sorted, localEntries, entries]);
 
   if (validEntries.length === 0) {
     return (
