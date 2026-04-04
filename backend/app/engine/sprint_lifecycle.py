@@ -11,6 +11,7 @@ from enum import StrEnum
 
 class SprintPhase(StrEnum):
     PLANNING = "PLANNING"
+    SIMULATED = "SIMULATED"
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
 

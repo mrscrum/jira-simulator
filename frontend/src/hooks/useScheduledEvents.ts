@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  activateSprint,
   cancelAllPendingEvents,
   cancelScheduledEvent,
+  deleteSprint,
   fetchAuditSummary,
   fetchFlowMatrix,
   fetchItemEvents,
@@ -158,6 +160,33 @@ export function useFlowMatrix(teamId: number | null, sprintId: number | null) {
     queryFn: () => fetchFlowMatrix(teamId!, sprintId!),
     enabled: !!teamId && !!sprintId,
     refetchInterval: 30_000,
+  });
+}
+
+export function useActivateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, sprintId }: { teamId: number; sprintId: number }) =>
+      activateSprint(teamId, sprintId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-events"] });
+    },
+  });
+}
+
+export function useDeleteSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, sprintId }: { teamId: number; sprintId: number }) =>
+      deleteSprint(teamId, sprintId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-events"] });
+      qc.invalidateQueries({ queryKey: ["audit-summary"] });
+      qc.invalidateQueries({ queryKey: ["sprint-items"] });
+      qc.invalidateQueries({ queryKey: ["flow-matrix"] });
+    },
   });
 }
 

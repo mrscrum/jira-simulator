@@ -45,8 +45,8 @@ def _make_carryover_issue(
 
 
 class TestSprintPhase:
-    def test_three_phases_only(self):
-        assert set(SprintPhase) == {"PLANNING", "ACTIVE", "COMPLETED"}
+    def test_four_phases_only(self):
+        assert set(SprintPhase) == {"PLANNING", "SIMULATED", "ACTIVE", "COMPLETED"}
 
 
 class TestPlanSprint:

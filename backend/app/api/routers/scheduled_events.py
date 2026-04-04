@@ -238,6 +238,99 @@ async def recompute_sprint(
     return PrecomputeResponse(**result)
 
 
+# ── Activate sprint (SIMULATED → ACTIVE) ────────────────────────────────
+
+@router.post("/teams/{team_id}/sprints/{sprint_id}/activate")
+def activate_sprint(
+    team_id: int,
+    sprint_id: int,
+    request: Request,
+):
+    """Move a SIMULATED sprint to ACTIVE so events can be dispatched."""
+    session: Session = request.app.state.session_factory()
+    try:
+        sprint = session.get(Sprint, sprint_id)
+        if sprint is None:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        if sprint.team_id != team_id:
+            raise HTTPException(status_code=400, detail="Sprint/team mismatch")
+        if sprint.phase not in ("SIMULATED", "PLANNING"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot activate sprint in {sprint.phase} phase",
+            )
+        sprint.phase = "ACTIVE"
+        sprint.status = "active"
+        session.commit()
+        return {
+            "id": sprint.id,
+            "name": sprint.name,
+            "phase": sprint.phase,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+# ── Delete sprint and all its events ─────────────────────────────────────
+
+@router.delete("/teams/{team_id}/sprints/{sprint_id}")
+def delete_sprint(
+    team_id: int,
+    sprint_id: int,
+    request: Request,
+):
+    """Delete a sprint, its events, and unassign its issues."""
+    session: Session = request.app.state.session_factory()
+    try:
+        sprint = session.get(Sprint, sprint_id)
+        if sprint is None:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        if sprint.team_id != team_id:
+            raise HTTPException(status_code=400, detail="Sprint/team mismatch")
+
+        # Delete all scheduled events
+        (
+            session.query(ScheduledEvent)
+            .filter_by(sprint_id=sprint_id)
+            .delete(synchronize_session="fetch")
+        )
+
+        # Unassign issues from this sprint
+        from app.models.precomputation_run import PrecomputationRun
+        issues = (
+            session.query(Issue)
+            .filter_by(sprint_id=sprint_id)
+            .all()
+        )
+        for issue in issues:
+            issue.sprint_id = None
+
+        # Delete precomputation runs
+        (
+            session.query(PrecomputationRun)
+            .filter_by(sprint_id=sprint_id)
+            .delete(synchronize_session="fetch")
+        )
+
+        # Delete the sprint
+        session.delete(sprint)
+        session.commit()
+
+        return {"deleted": True, "sprint_id": sprint_id}
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 # ── Manual dispatch trigger ───────────────────────────────────────────────
 
 @router.post("/simulation/dispatch")
@@ -438,12 +531,12 @@ def get_flow_matrix(
             if issue.id not in issue_state:
                 issue_state[issue.id] = default_status
 
-        # Use the actual event time range for day boundaries
-        # (skip non-working days before the first event)
+        # Use sprint start/end for day boundaries (full sprint)
+        # Start from the first event day; end at the sprint end date
         first_event_date = _naive(events[0].scheduled_at).date()
-        last_event_date = _naive(events[-1].scheduled_at).date()
+        sprint_end_date = _naive(sprint.end_date).date()
         start_date = first_event_date
-        end_date = last_event_date
+        end_date = max(sprint_end_date, first_event_date)
 
         from datetime import timedelta
         days: list[str] = []

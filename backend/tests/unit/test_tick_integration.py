@@ -149,7 +149,7 @@ class TestSprintPlanning:
         # A sprint should have been created
         sprint = session.query(Sprint).filter_by(team_id=team.id).first()
         assert sprint is not None
-        assert sprint.phase == SprintPhase.ACTIVE.value
+        assert sprint.phase == SprintPhase.SIMULATED.value
         assert sprint.committed_points > 0
 
         # Issues should be assigned to the sprint
@@ -220,7 +220,7 @@ class TestActiveSprintProcessing:
         session.commit()
 
         sprint = session.query(Sprint).filter_by(team_id=team.id).first()
-        assert sprint.phase == SprintPhase.ACTIVE.value
+        assert sprint.phase == SprintPhase.SIMULATED.value
 
         # Second tick: sprint is ACTIVE with PENDING events → stays ACTIVE
         session.expire_all()
@@ -228,7 +228,7 @@ class TestActiveSprintProcessing:
         session.commit()
 
         session.refresh(sprint)
-        assert sprint.phase == SprintPhase.ACTIVE.value
+        assert sprint.phase == SprintPhase.SIMULATED.value
         assert result.error is None
 
 
@@ -245,7 +245,13 @@ class TestSprintCompletion:
         session.commit()
 
         sprint = session.query(Sprint).filter_by(team_id=team.id).first()
-        assert sprint.phase == SprintPhase.ACTIVE.value
+        assert sprint.phase == SprintPhase.SIMULATED.value
+
+        # Activate the sprint (SIMULATED → ACTIVE) so the tick engine
+        # can detect completion
+        sprint.phase = SprintPhase.ACTIVE.value
+        sprint.status = "active"
+        session.commit()
 
         # Mark all events as DISPATCHED (simulating the dispatcher)
         events = session.query(ScheduledEvent).filter_by(
@@ -278,6 +284,11 @@ class TestSprintCompletion:
 
         sprint1 = session.query(Sprint).filter_by(team_id=team.id).first()
 
+        # Activate the sprint (SIMULATED → ACTIVE)
+        sprint1.phase = SprintPhase.ACTIVE.value
+        sprint1.status = "active"
+        session.commit()
+
         # Mark all events as DISPATCHED
         events = session.query(ScheduledEvent).filter_by(
             sprint_id=sprint1.id,
@@ -308,6 +319,7 @@ class TestSprintCompletion:
         )
         assert len(sprints) >= 2
         assert sprints[-1].phase in (
+            SprintPhase.SIMULATED.value,
             SprintPhase.ACTIVE.value,
             SprintPhase.PLANNING.value,
         )

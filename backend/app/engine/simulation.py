@@ -299,8 +299,8 @@ class SimulationEngine:
 
             sprint.committed_points = result.committed_points
             sprint.capacity_target = result.capacity_target
-            sprint.phase = "ACTIVE"
-            sprint.status = "active"
+            sprint.phase = "SIMULATED"
+            sprint.status = "future"
 
             session.commit()
 
@@ -879,7 +879,7 @@ class SimulationEngine:
 # ---------------------------------------------------------------------------
 
 def _get_active_or_planning_sprint(session, team_id):
-    """Find the current active or planning sprint."""
+    """Find the current active, simulated, or planning sprint."""
     from app.engine.sprint_lifecycle import SprintPhase
     from app.models.sprint import Sprint
 
@@ -888,6 +888,7 @@ def _get_active_or_planning_sprint(session, team_id):
         .filter_by(team_id=team_id)
         .filter(Sprint.phase.in_([
             SprintPhase.PLANNING.value,
+            SprintPhase.SIMULATED.value,
             SprintPhase.ACTIVE.value,
             SprintPhase.COMPLETED.value,
         ]))

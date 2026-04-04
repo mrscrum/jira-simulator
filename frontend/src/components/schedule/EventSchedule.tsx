@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ScheduledEvent } from "@/lib/types";
+import type { ScheduledEvent, SprintSummary } from "@/lib/types";
 import {
   useTeamSprints,
   useScheduledEvents,
@@ -7,6 +7,8 @@ import {
   useCancelAllEvents,
   usePrecompute,
   useRecompute,
+  useActivateSprint,
+  useDeleteSprint,
   useManualDispatch,
 } from "@/hooks/useScheduledEvents";
 import { EventDetail } from "./EventDetail";
@@ -20,6 +22,13 @@ const STATUS_COLORS: Record<string, string> = {
   DISPATCHED: "bg-green-100 text-green-800",
   FAILED: "bg-red-100 text-red-800",
   SKIPPED: "bg-gray-100 text-gray-500",
+};
+
+const PHASE_COLORS: Record<string, string> = {
+  PLANNING: "bg-gray-100 text-gray-700",
+  SIMULATED: "bg-purple-100 text-purple-800",
+  ACTIVE: "bg-green-100 text-green-800",
+  COMPLETED: "bg-blue-100 text-blue-800",
 };
 
 type TabView = "items" | "timeline" | "flow" | "audit";
@@ -45,11 +54,17 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
   const cancelAll = useCancelAllEvents();
   const precompute = usePrecompute();
   const recompute = useRecompute();
+  const activate = useActivateSprint();
+  const deleteSpr = useDeleteSprint();
   const dispatch = useManualDispatch();
 
   const events = data?.events ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 50);
+
+  const selectedSprint: SprintSummary | undefined = (sprints ?? []).find(
+    (s) => s.id === sprintId,
+  );
 
   const tabs: { key: TabView; label: string }[] = [
     { key: "items", label: "Sprint Items" },
@@ -60,26 +75,72 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header with actions */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Event Schedule</h2>
-        <div className="flex gap-2">
+      {/* Header */}
+      <h2 className="text-xl font-semibold">Event Schedule</h2>
+
+      {/* Sprint Actions — clear lifecycle separation */}
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 p-4">
+        <span className="text-sm font-medium text-muted-foreground mr-1">Actions:</span>
+
+        {/* 1. Create & Simulate Sprint */}
+        <button
+          onClick={() => precompute.mutate({ teamId })}
+          disabled={precompute.isPending}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {precompute.isPending ? "Computing..." : "Create & Simulate Sprint"}
+        </button>
+
+        {/* 2. Activate Sprint (only for SIMULATED sprints) */}
+        {sprintId && selectedSprint?.phase === "SIMULATED" && (
           <button
-            onClick={() => precompute.mutate({ teamId })}
-            disabled={precompute.isPending}
-            className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            onClick={() => activate.mutate({ teamId, sprintId })}
+            disabled={activate.isPending}
+            className="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
           >
-            {precompute.isPending ? "Computing..." : "Pre-compute Sprint"}
+            {activate.isPending ? "Activating..." : "Activate Sprint"}
           </button>
-          {sprintId && (
+        )}
+
+        {/* 3. Re-simulate (only for SIMULATED sprints — re-run simulation) */}
+        {sprintId && selectedSprint?.phase === "SIMULATED" && (
+          <button
+            onClick={() => recompute.mutate({ teamId, sprintId })}
+            disabled={recompute.isPending}
+            className="rounded-md bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {recompute.isPending ? "Re-simulating..." : "Re-simulate"}
+          </button>
+        )}
+
+        {/* 4. Delete Sprint (SIMULATED or PLANNING only) */}
+        {sprintId &&
+          selectedSprint &&
+          (selectedSprint.phase === "SIMULATED" || selectedSprint.phase === "PLANNING") && (
             <button
-              onClick={() => recompute.mutate({ teamId, sprintId })}
-              disabled={recompute.isPending}
-              className="rounded-md bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
+              onClick={() => {
+                if (
+                  confirm(
+                    `Delete sprint "${selectedSprint.name}" and all its events? This cannot be undone.`,
+                  )
+                ) {
+                  deleteSpr.mutate(
+                    { teamId, sprintId },
+                    {
+                      onSuccess: () => setSprintId(null),
+                    },
+                  );
+                }
+              }}
+              disabled={deleteSpr.isPending}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {recompute.isPending ? "Recomputing..." : "Re-compute"}
+              {deleteSpr.isPending ? "Deleting..." : "Delete Sprint"}
             </button>
           )}
+
+        {/* Manual dispatch (for ACTIVE sprints) */}
+        {sprintId && selectedSprint?.phase === "ACTIVE" && (
           <button
             onClick={() => dispatch.mutate()}
             disabled={dispatch.isPending}
@@ -87,7 +148,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           >
             {dispatch.isPending ? "Dispatching..." : "Manual Dispatch"}
           </button>
-        </div>
+        )}
       </div>
 
       {/* Feedback banners */}
@@ -106,10 +167,44 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           </button>
         </div>
       )}
-
       {precompute.isError && (
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
           Pre-compute failed: {(precompute.error as Error)?.message ?? "Unknown error"}
+        </div>
+      )}
+      {activate.isSuccess && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Sprint activated! Events will be dispatched on schedule.
+          <button onClick={() => activate.reset()} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {activate.isError && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+          Activation failed: {(activate.error as Error)?.message ?? "Unknown error"}
+        </div>
+      )}
+      {deleteSpr.isSuccess && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Sprint deleted.
+          <button onClick={() => deleteSpr.reset()} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {deleteSpr.isError && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
+          Delete failed: {(deleteSpr.error as Error)?.message ?? "Unknown error"}
+        </div>
+      )}
+      {recompute.isSuccess && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Re-simulation complete: {recompute.data.total_events} events across{" "}
+          {recompute.data.total_ticks} ticks.
+          <button onClick={() => recompute.reset()} className="ml-2 underline">
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -123,27 +218,40 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
             setSprintId(val);
             setPage(1);
           }}
-          className="min-w-[280px] rounded-md border px-2 py-1 text-sm"
+          className="min-w-[320px] rounded-md border px-2 py-1 text-sm"
         >
           <option value="">Select a sprint...</option>
           {(sprints ?? []).map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} ({s.phase}{s.committed_points != null ? ` \u2022 ${s.committed_points} pts` : ""})
+              {s.name} ({s.phase}
+              {s.committed_points != null ? ` \u2022 ${s.committed_points} pts` : ""})
             </option>
           ))}
         </select>
 
-        {sprintId && (
+        {/* Phase badge */}
+        {selectedSprint && (
+          <span
+            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              PHASE_COLORS[selectedSprint.phase] ?? "bg-gray-100"
+            }`}
+          >
+            {selectedSprint.phase}
+          </span>
+        )}
+
+        {/* Cancel all pending (available for any sprint with events) */}
+        {sprintId && selectedSprint?.phase !== "COMPLETED" && (
           <button
             onClick={() => {
-              if (confirm("Delete all pending events for this sprint?")) {
+              if (confirm("Cancel all pending events for this sprint?")) {
                 cancelAll.mutate({ teamId, sprintId });
               }
             }}
             disabled={cancelAll.isPending}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+            className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
           >
-            Delete All Pending
+            Cancel All Pending
           </button>
         )}
       </div>
@@ -170,7 +278,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
       {/* Tab content */}
       {!sprintId ? (
         <div className="py-8 text-center text-muted-foreground">
-          Select a sprint or pre-compute a new one to see events
+          Select a sprint or create & simulate a new one to see events
         </div>
       ) : activeTab === "items" ? (
         <SprintItemList teamId={teamId} sprintId={sprintId} />
@@ -194,6 +302,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
               <option value="PENDING">Pending</option>
               <option value="MODIFIED">Modified</option>
               <option value="DISPATCHED">Dispatched</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
 
@@ -249,7 +358,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
                                 disabled={cancelEvent.isPending}
                                 className="rounded px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
                               >
-                                Delete
+                                Cancel
                               </button>
                             )}
                           </div>
@@ -271,7 +380,9 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
                     >
                       Prev
                     </button>
-                    <span className="px-2 py-1 text-sm">{page} / {totalPages}</span>
+                    <span className="px-2 py-1 text-sm">
+                      {page} / {totalPages}
+                    </span>
                     <button
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page >= totalPages}

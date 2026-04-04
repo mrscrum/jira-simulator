@@ -274,3 +274,15 @@ export const fetchItemEvents = (teamId: number, sprintId: number, issueId: numbe
 
 export const fetchFlowMatrix = (teamId: number, sprintId: number) =>
   request<FlowMatrixData>(`/teams/${teamId}/sprints/${sprintId}/flow-matrix`);
+
+export const activateSprint = (teamId: number, sprintId: number) =>
+  request<{ status: string; phase: string }>(
+    `/teams/${teamId}/sprints/${sprintId}/activate`,
+    { method: "POST" },
+  );
+
+export const deleteSprint = (teamId: number, sprintId: number) =>
+  request<{ deleted_events: number }>(
+    `/teams/${teamId}/sprints/${sprintId}`,
+    { method: "DELETE" },
+  );
