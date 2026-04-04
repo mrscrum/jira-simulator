@@ -378,11 +378,9 @@ def get_flow_matrix(
         if not issues:
             return {"days": [], "statuses": [], "items": [], "points": []}
 
-        # Issue id → (current_status, story_points)
-        issue_state: dict[int, str] = {}
+        # Issue id → story_points
         issue_points: dict[int, int] = {}
         for issue in issues:
-            issue_state[issue.id] = "Backlog"
             issue_points[issue.id] = issue.story_points or 0
 
         # Load transition events ordered by time
@@ -410,16 +408,42 @@ def get_flow_matrix(
                 return dt.replace(tzinfo=None)
             return dt
 
-        # Determine day boundaries from sprint dates
-        sprint_start = _naive(sprint.start_date)
-        sprint_end = _naive(sprint.end_date)
+        # Initialize issue state from tick-0 transition events
+        # (the planning step assigns each issue its first status)
+        issue_state: dict[int, str] = {}
+        for ev in events:
+            if ev.sim_tick == 0 and ev.issue_id:
+                target = ev.payload.get("target_status")
+                if target and ev.issue_id not in issue_state:
+                    issue_state[ev.issue_id] = target
+        # Any issues without a tick-0 event get the first
+        # workflow step status as default
+        from app.models.workflow import Workflow
+        from app.models.workflow_step import WorkflowStep
+        default_status = "Backlog"
+        team_workflow = (
+            session.query(Workflow)
+            .filter_by(team_id=team_id).first()
+        )
+        if team_workflow:
+            first_step = (
+                session.query(WorkflowStep)
+                .filter_by(workflow_id=team_workflow.id)
+                .order_by(WorkflowStep.order)
+                .first()
+            )
+            if first_step:
+                default_status = first_step.jira_status
+        for issue in issues:
+            if issue.id not in issue_state:
+                issue_state[issue.id] = default_status
 
-        # Use the actual event time range (not just sprint dates)
-        # to ensure we cover all days with events
+        # Use the actual event time range for day boundaries
+        # (skip non-working days before the first event)
         first_event_date = _naive(events[0].scheduled_at).date()
         last_event_date = _naive(events[-1].scheduled_at).date()
-        start_date = min(sprint_start.date(), first_event_date)
-        end_date = max(sprint_end.date(), last_event_date)
+        start_date = first_event_date
+        end_date = last_event_date
 
         from datetime import timedelta
         days: list[str] = []
@@ -466,8 +490,24 @@ def get_flow_matrix(
 
             matrix[day_idx] = dict(status_counts)
 
-        # Build response in order
-        ordered_statuses = sorted(all_statuses)
+        # Build response: statuses ordered by workflow step order
+        if team_workflow:
+            wf_steps = (
+                session.query(WorkflowStep)
+                .filter_by(workflow_id=team_workflow.id)
+                .order_by(WorkflowStep.order)
+                .all()
+            )
+            status_order = {
+                s.jira_status: s.order for s in wf_steps
+            }
+            ordered_statuses = sorted(
+                all_statuses,
+                key=lambda s: status_order.get(s, 999),
+            )
+        else:
+            ordered_statuses = sorted(all_statuses)
+
         items_grid = []
         points_grid = []
         for status in ordered_statuses:

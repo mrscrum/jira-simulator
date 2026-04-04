@@ -87,7 +87,7 @@ export function TeamSettings({ teamId }: TeamSettingsProps) {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sprint-length">Sprint Length (days)</Label>
+              <Label htmlFor="sprint-length">Sprint Length (business days)</Label>
               <Input
                 id="sprint-length"
                 type="number"

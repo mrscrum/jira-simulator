@@ -80,7 +80,7 @@ export function AddTeamModal({
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="sprint-len">Sprint Length (days)</Label>
+              <Label htmlFor="sprint-len">Sprint Length (business days)</Label>
               <Input
                 id="sprint-len"
                 type="number"
