@@ -145,8 +145,8 @@ def _create_team(
         jira_project_key=defn["jira_project_key"],
         sprint_length_days=defn["sprint_length_days"],
         backlog_depth_target=defn["backlog_count"] + 10,
-        working_hours_start=0,
-        working_hours_end=23,
+        working_hours_start=9,
+        working_hours_end=18,
         timezone="UTC",
     )
     session.add(team)
