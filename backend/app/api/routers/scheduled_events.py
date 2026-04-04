@@ -1,11 +1,15 @@
 """API router for scheduled events, audit, and precomputation."""
 
+from collections import defaultdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.models.issue import Issue
 from app.models.scheduled_event import ScheduledEvent
+from app.models.sprint import Sprint
 from app.schemas.scheduled_event import (
     AuditSummary,
     EventAuditRead,
@@ -260,3 +264,212 @@ async def get_audit_summary(
         EventAuditRead.model_validate(f) for f in summary.pop("failures", [])
     ]
     return AuditSummary(**summary, failures=failures)
+
+
+# ── Sprint items (per-item view) ─────────────────────────────────────────
+
+@router.get("/teams/{team_id}/sprints/{sprint_id}/items")
+def list_sprint_items(
+    team_id: int,
+    sprint_id: int,
+    request: Request,
+):
+    """List all issues in a sprint with their event counts."""
+    session: Session = request.app.state.session_factory()
+    try:
+        issues = (
+            session.query(Issue)
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .order_by(Issue.backlog_priority.asc())
+            .all()
+        )
+
+        # Count events per issue
+        event_counts = dict(
+            session.query(
+                ScheduledEvent.issue_id,
+                func.count(ScheduledEvent.id),
+            )
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .filter(ScheduledEvent.issue_id.isnot(None))
+            .group_by(ScheduledEvent.issue_id)
+            .all()
+        )
+
+        return [
+            {
+                "id": i.id,
+                "jira_issue_key": i.jira_issue_key,
+                "summary": i.summary,
+                "issue_type": i.issue_type,
+                "story_points": i.story_points,
+                "status": i.status,
+                "completed_at": (
+                    i.completed_at.isoformat() if i.completed_at else None
+                ),
+                "event_count": event_counts.get(i.id, 0),
+            }
+            for i in issues
+        ]
+    finally:
+        session.close()
+
+
+@router.get(
+    "/teams/{team_id}/sprints/{sprint_id}/items/{issue_id}/events",
+)
+def list_item_events(
+    team_id: int,
+    sprint_id: int,
+    issue_id: int,
+    request: Request,
+):
+    """List all scheduled events for a specific issue in a sprint."""
+    session: Session = request.app.state.session_factory()
+    try:
+        events = (
+            session.query(ScheduledEvent)
+            .filter_by(
+                team_id=team_id,
+                sprint_id=sprint_id,
+                issue_id=issue_id,
+            )
+            .order_by(
+                ScheduledEvent.scheduled_at,
+                ScheduledEvent.sequence_order,
+            )
+            .all()
+        )
+        return [
+            ScheduledEventRead.model_validate(e) for e in events
+        ]
+    finally:
+        session.close()
+
+
+# ── Flow matrix ──────────────────────────────────────────────────────────
+
+@router.get("/teams/{team_id}/sprints/{sprint_id}/flow-matrix")
+def get_flow_matrix(
+    team_id: int,
+    sprint_id: int,
+    request: Request,
+):
+    """Build a status × day flow matrix from scheduled events.
+
+    Walks through TRANSITION_ISSUE events in order, tracks each
+    issue's status at end-of-day boundaries, returns item counts
+    and story-point sums per (status, day).
+    """
+    session: Session = request.app.state.session_factory()
+    try:
+        sprint = session.get(Sprint, sprint_id)
+        if sprint is None:
+            raise HTTPException(
+                status_code=404, detail="Sprint not found",
+            )
+
+        # Load all sprint issues for initial state
+        issues = (
+            session.query(Issue)
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .all()
+        )
+        if not issues:
+            return {"days": [], "statuses": [], "items": [], "points": []}
+
+        # Issue id → (current_status, story_points)
+        issue_state: dict[int, str] = {}
+        issue_points: dict[int, int] = {}
+        for issue in issues:
+            issue_state[issue.id] = "Backlog"
+            issue_points[issue.id] = issue.story_points or 0
+
+        # Load transition events ordered by time
+        events = (
+            session.query(ScheduledEvent)
+            .filter_by(team_id=team_id, sprint_id=sprint_id)
+            .filter(
+                ScheduledEvent.event_type == "TRANSITION_ISSUE",
+            )
+            .order_by(
+                ScheduledEvent.scheduled_at,
+                ScheduledEvent.sequence_order,
+            )
+            .all()
+        )
+
+        if not events:
+            return {"days": [], "statuses": [], "items": [], "points": []}
+
+        # Determine day boundaries from sprint dates
+        start_date = sprint.start_date.date()
+        end_date = sprint.end_date.date()
+        from datetime import timedelta
+        days: list[str] = []
+        day_boundaries: list[datetime] = []
+        current_day = start_date
+        while current_day <= end_date:
+            days.append(current_day.strftime("%b %d"))
+            # End of day = start of next day
+            next_day = current_day + timedelta(days=1)
+            day_boundaries.append(
+                datetime(
+                    next_day.year, next_day.month, next_day.day,
+                    tzinfo=UTC,
+                ),
+            )
+            current_day = next_day
+
+        # Walk events and snapshot status at each day boundary
+        event_idx = 0
+        all_statuses: set[str] = set()
+
+        # day_index → {status → (item_count, point_sum)}
+        matrix: dict[int, dict[str, list[int]]] = {}
+
+        for day_idx, boundary in enumerate(day_boundaries):
+            # Apply all events before this boundary
+            while (
+                event_idx < len(events)
+                and events[event_idx].scheduled_at < boundary
+            ):
+                ev = events[event_idx]
+                target = ev.payload.get("target_status")
+                if target and ev.issue_id:
+                    issue_state[ev.issue_id] = target
+                event_idx += 1
+
+            # Snapshot: count items per status
+            status_counts: dict[str, list[int]] = defaultdict(
+                lambda: [0, 0],
+            )
+            for iid, status in issue_state.items():
+                status_counts[status][0] += 1
+                status_counts[status][1] += issue_points.get(iid, 0)
+                all_statuses.add(status)
+
+            matrix[day_idx] = dict(status_counts)
+
+        # Build response in order
+        ordered_statuses = sorted(all_statuses)
+        items_grid = []
+        points_grid = []
+        for status in ordered_statuses:
+            item_row = []
+            point_row = []
+            for day_idx in range(len(days)):
+                cell = matrix.get(day_idx, {}).get(status, [0, 0])
+                item_row.append(cell[0])
+                point_row.append(cell[1])
+            items_grid.append(item_row)
+            points_grid.append(point_row)
+
+        return {
+            "days": days,
+            "statuses": ordered_statuses,
+            "items": items_grid,
+            "points": points_grid,
+        }
+    finally:
+        session.close()

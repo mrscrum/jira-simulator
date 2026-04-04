@@ -577,76 +577,43 @@ class SimulationEngine:
         return results
 
     async def _tick_team(self, session, team) -> TeamTickResult:
-        """Process a single team within a tick.
+        """Lifecycle check for a single team.
 
-        Simplified flow:
-        1. Calendar check — skip if outside working hours
-        2. Build member tick states
-        3. Sprint phase dispatch (PLANNING → ACTIVE → COMPLETED)
-        4. Process active sprint items via workflow engine
-        5. Backlog maintenance
-        6. Enqueue Jira actions
+        The tick no longer runs real-time simulation. Instead it:
+        1. Checks if a completed sprint needs carryover
+        2. Triggers precompute for new sprints when needed
+        3. Maintains backlog depth
+        The event_dispatcher handles sending precomputed events to Jira.
         """
         from app.engine.backlog import (
             TemplateContentGenerator,
             check_backlog_depth,
             generate_issues,
         )
-        from app.engine.calendar import is_working_time
-        from app.engine.capacity import build_member_states
         from app.engine.sprint_lifecycle import (
             SprintPhase,
             calculate_velocity,
-            check_sprint_end,
             handle_carryover,
-            plan_sprint,
-        )
-        from app.engine.workflow_engine import (
-            enter_status,
-            get_touch_time_config,
-            process_item_tick,
         )
         from app.models.issue import Issue
-        from app.models.member import Member
-        from app.models.move_left_config import MoveLeftConfig
-        from app.models.touch_time_config import TouchTimeConfig
+        from app.models.scheduled_event import ScheduledEvent
         from app.models.workflow import Workflow
         from app.models.workflow_step import WorkflowStep
 
         jira_actions: list[JiraWriteAction] = []
-        now = self._clock.now()
-        tick_hours = team.tick_duration_hours or 1.0
 
-        story_points_field_id = _get_config_value(session, "field_id_story_points")
-        _get_config_value(session, "field_id_sim_assignee")
-        sim_reporter_field_id = _get_config_value(session, "field_id_sim_reporter")
+        story_points_field_id = _get_config_value(
+            session, "field_id_story_points",
+        )
+        sim_reporter_field_id = _get_config_value(
+            session, "field_id_sim_reporter",
+        )
 
         try:
-            holidays = _parse_holidays(team.holidays)
-
-            # --- Step 1: Calendar check ---
-            if self._clock.speed <= 1.0 and not is_working_time(
-                team.timezone, team.working_hours_start,
-                team.working_hours_end, holidays,
-                [0, 1, 2, 3, 4], now,
-            ):
-                return TeamTickResult(
-                    team_id=team.id, jira_actions_count=0,
-                    events_fired=[], error=None,
-                )
-
-            # --- Step 2: Build member tick states ---
-            members = session.query(Member).filter_by(
-                team_id=team.id, is_active=True,
-            ).all()
-            member_dicts = [
-                {"id": m.id, "role": m.role, "assigned_issue_id": None}
-                for m in members
-            ]
-            member_states = build_member_states(member_dicts)
-
-            # --- Load team workflow ---
-            workflow = session.query(Workflow).filter_by(team_id=team.id).first()
+            # --- Load workflow (needed for final_step) ---
+            workflow = session.query(Workflow).filter_by(
+                team_id=team.id,
+            ).first()
             if workflow is None:
                 return TeamTickResult(
                     team_id=team.id, jira_actions_count=0,
@@ -662,39 +629,24 @@ class SimulationEngine:
             if not workflow_steps:
                 return TeamTickResult(
                     team_id=team.id, jira_actions_count=0,
-                    events_fired=[], error="No workflow steps configured",
+                    events_fired=[],
+                    error="No workflow steps configured",
                 )
 
             final_step = workflow_steps[-1]
 
-            # --- Load touch time configs (keyed by step_id, issue_type, story_points) ---
-            step_ids = [s.id for s in workflow_steps]
-            all_ttcs = (
-                session.query(TouchTimeConfig)
-                .filter(TouchTimeConfig.workflow_step_id.in_(step_ids))
-                .all()
-            )
-            touch_time_configs = {
-                (t.workflow_step_id, t.issue_type, t.story_points): t
-                for t in all_ttcs
-            }
-
-            # --- Load move-left configs ---
-            move_left_configs = (
-                session.query(MoveLeftConfig)
-                .filter_by(team_id=team.id)
-                .all()
-            )
-
-            # --- Step 3: Get or create sprint ---
+            # --- Check sprint lifecycle ---
             sprint = _get_active_or_planning_sprint(session, team.id)
 
-            # Handle completed sprint → carryover + new sprint
-            if sprint is not None and sprint.phase == SprintPhase.COMPLETED.value:
-                # Carryover incomplete items
+            # Handle completed sprint → carryover
+            if (
+                sprint is not None
+                and sprint.phase == SprintPhase.COMPLETED.value
+            ):
                 incomplete = [
                     i for i in sprint.issues
-                    if i.completed_at is None and i.status != final_step.jira_status
+                    if i.completed_at is None
+                    and i.status != final_step.jira_status
                 ]
                 if incomplete:
                     carryover_dicts = [
@@ -711,142 +663,104 @@ class SimulationEngine:
                         for i in incomplete
                     ]
                     handle_carryover(carryover_dicts)
-                    # Apply back to ORM objects
                     for cd in carryover_dicts:
                         issue_obj = session.get(Issue, cd["id"])
                         if issue_obj:
-                            issue_obj.sampled_work_time = cd["sampled_work_time"]
-                            issue_obj.sampled_full_time = cd["sampled_full_time"]
+                            issue_obj.sampled_work_time = (
+                                cd["sampled_work_time"]
+                            )
+                            issue_obj.sampled_full_time = (
+                                cd["sampled_full_time"]
+                            )
                             issue_obj.work_started = cd["work_started"]
-                            issue_obj.current_worker_id = cd["current_worker_id"]
+                            issue_obj.current_worker_id = (
+                                cd["current_worker_id"]
+                            )
                             issue_obj.carried_over = True
-                            issue_obj.sprint_id = None  # will be re-assigned in planning
+                            issue_obj.sprint_id = None
 
-                # Calculate velocity for completed sprint
                 completed_pts = sprint.completed_points or 0
                 committed_pts = sprint.committed_points or 0
-                sprint.velocity = calculate_velocity(completed_pts, committed_pts)
+                sprint.velocity = calculate_velocity(
+                    completed_pts, committed_pts,
+                )
+                sprint = None
 
-                sprint = None  # trigger new sprint creation below
-
+            # If no active sprint, precompute a new one
             if sprint is None:
-                sprint = _create_next_sprint(session, team, now)
-                if team.jira_board_id:
-                    jira_actions.append(JiraWriteAction(
-                        operation_type="CREATE_SPRINT",
-                        payload={
-                            "board_id": team.jira_board_id,
-                            "name": sprint.name,
-                            "start_date": now.isoformat(),
-                            "end_date": sprint.end_date.isoformat(),
-                            "_sprint_db_id": sprint.id,
-                        },
-                    ))
-
-            # --- Phase dispatch ---
-            if sprint.phase == SprintPhase.PLANNING.value:
-                # Get prioritized backlog (carryover items + regular backlog)
-                backlog_issues = _get_prioritized_backlog(session, team.id, final_step.jira_status)
-
-                backlog_dicts = [
-                    {
-                        "id": i.id,
-                        "story_points": i.story_points or 0,
-                        "backlog_priority": i.backlog_priority,
-                    }
-                    for i in backlog_issues
-                ]
-                selected, capacity_target = plan_sprint(
-                    backlog_dicts, team.sprint_capacity_min,
-                    team.sprint_capacity_max, team.priority_randomization,
-                    self._rng,
-                )
-
-                sprint.capacity_target = capacity_target
-                committed = 0
-                for sel in selected:
-                    issue = session.get(Issue, sel["id"])
-                    if issue is None:
-                        continue
-                    issue.sprint_id = sprint.id
-                    committed += issue.story_points or 0
-
-                    # Enter first workflow step
-                    first_step = workflow_steps[0]
-                    ttc = get_touch_time_config(
-                        touch_time_configs, first_step.id,
-                        issue.issue_type, issue.story_points or 0,
-                    )
-                    actions = enter_status(issue, first_step, ttc, self._rng)
-                    jira_actions.extend(actions)
-
-                    # Add to sprint in Jira
-                    if issue.jira_issue_key and sprint.jira_sprint_id:
-                        jira_actions.append(JiraWriteAction(
-                            operation_type="ADD_TO_SPRINT",
-                            payload={
-                                "sprint_id": sprint.jira_sprint_id,
-                                "issue_keys": [issue.jira_issue_key],
-                            },
-                            issue_id=issue.id,
-                        ))
-
-                sprint.committed_points = committed
-                sprint.phase = SprintPhase.ACTIVE.value
-                sprint.status = "active"
-
-                # Start sprint in Jira
-                if sprint.jira_sprint_id:
-                    jira_actions.append(JiraWriteAction(
-                        operation_type="UPDATE_SPRINT",
-                        payload={"sprint_id": sprint.jira_sprint_id},
-                    ))
-
-                logger.info(
-                    "Team %d: planned %d issues (%d pts) for %s",
-                    team.id, len(selected), committed, sprint.name,
-                )
-
-            elif sprint.phase == SprintPhase.ACTIVE.value:
-                # Process each item in the sprint
-                sprint_issues = (
+                # Check backlog availability first
+                backlog_count = (
                     session.query(Issue)
-                    .filter_by(sprint_id=sprint.id)
-                    .all()
-                )
-
-                for issue in sprint_issues:
-                    if issue.completed_at is not None:
-                        continue
-
-                    result = process_item_tick(
-                        issue, workflow_steps, touch_time_configs,
-                        move_left_configs, member_states, tick_hours, self._rng,
+                    .filter_by(team_id=team.id)
+                    .filter(
+                        Issue.sprint_id.is_(None),
+                        Issue.completed_at.is_(None),
+                        Issue.issue_type != "Epic",
+                        Issue.status != final_step.jira_status,
                     )
-                    jira_actions.extend(result.jira_actions)
-                    member_states = result.member_states
-
-                    if result.completed:
-                        issue.completed_at = now
-                        issue.status = final_step.jira_status
-                        sprint.completed_points = (
-                            (sprint.completed_points or 0) + (issue.story_points or 0)
+                    .count()
+                )
+                if backlog_count > 0:
+                    session.commit()  # commit carryover before precompute
+                    try:
+                        result = (
+                            await self.compute_and_schedule_sprint(
+                                team.id,
+                            )
+                        )
+                        logger.info(
+                            "Team %d: precomputed sprint %d "
+                            "(%d events, %d ticks)",
+                            team.id, result["sprint_id"],
+                            result["total_events"],
+                            result["total_ticks"],
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Team %d: precompute failed: %s",
+                            team.id, e,
+                        )
+                else:
+                    logger.info(
+                        "Team %d: no backlog, skipping precompute",
+                        team.id,
+                    )
+            elif sprint.phase == SprintPhase.ACTIVE.value:
+                # Check if all events have been dispatched →
+                # mark sprint complete
+                pending_count = (
+                    session.query(ScheduledEvent)
+                    .filter_by(
+                        team_id=team.id,
+                        sprint_id=sprint.id,
+                    )
+                    .filter(
+                        ScheduledEvent.status.in_(
+                            ["PENDING", "MODIFIED"],
+                        ),
+                    )
+                    .count()
+                )
+                if pending_count == 0:
+                    dispatched_count = (
+                        session.query(ScheduledEvent)
+                        .filter_by(
+                            team_id=team.id,
+                            sprint_id=sprint.id,
+                            status="DISPATCHED",
+                        )
+                        .count()
+                    )
+                    if dispatched_count > 0:
+                        sprint.phase = SprintPhase.COMPLETED.value
+                        sprint.status = "closed"
+                        logger.info(
+                            "Team %d: sprint %d completed "
+                            "(all events dispatched)",
+                            team.id, sprint.id,
                         )
 
-                # Check sprint end
-                sprint_start = sprint.start_date
-                if sprint_start.tzinfo is None:
-                    sprint_start = sprint_start.replace(tzinfo=UTC)
-                if check_sprint_end(sprint_start, team.sprint_length_days, now):
-                    sprint.phase = SprintPhase.COMPLETED.value
-                    sprint.status = "closed"
-                    if sprint.jira_sprint_id:
-                        jira_actions.append(JiraWriteAction(
-                            operation_type="COMPLETE_SPRINT",
-                            payload={"sprint_id": sprint.jira_sprint_id},
-                        ))
-
-            # --- Step 5: Backlog maintenance ---
+            # --- Backlog maintenance ---
             all_backlog = (
                 session.query(Issue)
                 .filter_by(team_id=team.id)
@@ -857,20 +771,25 @@ class SimulationEngine:
                 )
                 .all()
             )
-            deficit = check_backlog_depth(len(all_backlog), team.backlog_depth_target)
+            deficit = check_backlog_depth(
+                len(all_backlog), team.backlog_depth_target,
+            )
             if deficit > 0:
                 generated = await generate_issues(
                     count=min(deficit, 5),
                     team_name=team.name,
-                    content_generator=TemplateContentGenerator(rng=self._rng),
+                    content_generator=TemplateContentGenerator(
+                        rng=self._rng,
+                    ),
                     rng=self._rng,
                 )
 
                 from app.engine.backlog import _EPIC_THEMES
+
                 current_epic = _get_or_create_epic(
                     session, team, all_backlog, _EPIC_THEMES,
-                    jira_actions, story_points_field_id, sim_reporter_field_id,
-                    self._rng,
+                    jira_actions, story_points_field_id,
+                    sim_reporter_field_id, self._rng,
                 )
 
                 for gen_issue in generated:
@@ -882,7 +801,9 @@ class SimulationEngine:
                         story_points=gen_issue["story_points"],
                         status="backlog",
                         backlog_priority=len(all_backlog) + 1,
-                        epic_id=current_epic.id if current_epic else None,
+                        epic_id=(
+                            current_epic.id if current_epic else None
+                        ),
                     )
                     session.add(new_issue)
                     session.flush()
@@ -900,19 +821,30 @@ class SimulationEngine:
                             }],
                         },
                     }
-                    if story_points_field_id and gen_issue["story_points"]:
-                        issue_fields[story_points_field_id] = gen_issue["story_points"]
+                    if (
+                        story_points_field_id
+                        and gen_issue["story_points"]
+                    ):
+                        issue_fields[story_points_field_id] = (
+                            gen_issue["story_points"]
+                        )
                     if sim_reporter_field_id:
-                        issue_fields[sim_reporter_field_id] = f"[SIM] {team.name}"
+                        issue_fields[sim_reporter_field_id] = (
+                            f"[SIM] {team.name}"
+                        )
                     if current_epic and current_epic.jira_issue_key:
-                        issue_fields["parent"] = {"key": current_epic.jira_issue_key}
+                        issue_fields["parent"] = {
+                            "key": current_epic.jira_issue_key,
+                        }
 
                     jira_actions.append(JiraWriteAction(
                         operation_type="CREATE_ISSUE",
                         payload={
                             "project_key": team.jira_project_key,
                             "issue_type": gen_issue["issue_type"],
-                            "summary": f"[SIM] {gen_issue['summary']}",
+                            "summary": (
+                                f"[SIM] {gen_issue['summary']}"
+                            ),
                             "fields": issue_fields,
                             "_board_id": team.jira_board_id,
                             "_sp_field_id": story_points_field_id,
@@ -920,8 +852,11 @@ class SimulationEngine:
                         issue_id=new_issue.id,
                     ))
 
-            # --- Step 6: Enqueue Jira actions ---
-            self.enqueue_actions(team.id, jira_actions, session=session)
+            # Enqueue backlog-related Jira actions directly
+            if jira_actions:
+                self.enqueue_actions(
+                    team.id, jira_actions, session=session,
+                )
 
             return TeamTickResult(
                 team_id=team.id,

@@ -3,7 +3,10 @@ import {
   cancelAllPendingEvents,
   cancelScheduledEvent,
   fetchAuditSummary,
+  fetchFlowMatrix,
+  fetchItemEvents,
   fetchScheduledEvents,
+  fetchSprintItems,
   fetchTeamSprints,
   modifyScheduledEvent,
   recomputeSprint,
@@ -125,6 +128,36 @@ export function useRecompute() {
       qc.invalidateQueries({ queryKey: ["audit-summary"] });
       qc.invalidateQueries({ queryKey: ["team-sprints"] });
     },
+  });
+}
+
+export function useSprintItems(teamId: number | null, sprintId: number | null) {
+  return useQuery({
+    queryKey: ["sprint-items", teamId, sprintId],
+    queryFn: () => fetchSprintItems(teamId!, sprintId!),
+    enabled: !!teamId && !!sprintId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useItemEvents(
+  teamId: number | null,
+  sprintId: number | null,
+  issueId: number | null,
+) {
+  return useQuery({
+    queryKey: ["item-events", teamId, sprintId, issueId],
+    queryFn: () => fetchItemEvents(teamId!, sprintId!, issueId!),
+    enabled: !!teamId && !!sprintId && !!issueId,
+  });
+}
+
+export function useFlowMatrix(teamId: number | null, sprintId: number | null) {
+  return useQuery({
+    queryKey: ["flow-matrix", teamId, sprintId],
+    queryFn: () => fetchFlowMatrix(teamId!, sprintId!),
+    enabled: !!teamId && !!sprintId,
+    refetchInterval: 30_000,
   });
 }
 

@@ -260,3 +260,17 @@ export const triggerManualDispatch = () =>
 
 export const fetchAuditSummary = (teamId: number, sprintId: number) =>
   request<AuditSummary>(`/teams/${teamId}/sprints/${sprintId}/audit`);
+
+// Sprint Items
+import type { SprintItem, FlowMatrixData } from "./types";
+
+export const fetchSprintItems = (teamId: number, sprintId: number) =>
+  request<SprintItem[]>(`/teams/${teamId}/sprints/${sprintId}/items`);
+
+export const fetchItemEvents = (teamId: number, sprintId: number, issueId: number) =>
+  request<ScheduledEvent[]>(
+    `/teams/${teamId}/sprints/${sprintId}/items/${issueId}/events`,
+  );
+
+export const fetchFlowMatrix = (teamId: number, sprintId: number) =>
+  request<FlowMatrixData>(`/teams/${teamId}/sprints/${sprintId}/flow-matrix`);

@@ -365,3 +365,23 @@ export interface PrecomputeResponse {
   total_ticks: number;
   sprint_id: number;
 }
+
+// Sprint Items
+export interface SprintItem {
+  id: number;
+  jira_issue_key: string | null;
+  summary: string;
+  issue_type: string;
+  story_points: number | null;
+  status: string;
+  completed_at: string | null;
+  event_count: number;
+}
+
+// Flow Matrix
+export interface FlowMatrixData {
+  days: string[];
+  statuses: string[];
+  items: number[][];   // statuses × days
+  points: number[][];  // statuses × days
+}

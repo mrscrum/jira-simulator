@@ -11,15 +11,18 @@ import {
 } from "@/hooks/useScheduledEvents";
 import { EventDetail } from "./EventDetail";
 import { AuditDashboard } from "./AuditDashboard";
+import { SprintItemList } from "./SprintItemList";
+import { FlowMatrix } from "./FlowMatrix";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   MODIFIED: "bg-blue-100 text-blue-800",
   DISPATCHED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-gray-100 text-gray-600",
   FAILED: "bg-red-100 text-red-800",
   SKIPPED: "bg-gray-100 text-gray-500",
 };
+
+type TabView = "items" | "timeline" | "flow" | "audit";
 
 interface EventScheduleProps {
   teamId: number;
@@ -30,7 +33,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<ScheduledEvent | null>(null);
-  const [showAudit, setShowAudit] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabView>("items");
 
   const { data: sprints } = useTeamSprints(teamId);
   const { data, isLoading } = useScheduledEvents(teamId, sprintId, {
@@ -48,8 +51,16 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 50);
 
+  const tabs: { key: TabView; label: string }[] = [
+    { key: "items", label: "Sprint Items" },
+    { key: "flow", label: "Flow Matrix" },
+    { key: "timeline", label: "Event Timeline" },
+    { key: "audit", label: "Audit" },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Header with actions */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Event Schedule</h2>
         <div className="flex gap-2">
@@ -76,16 +87,10 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           >
             {dispatch.isPending ? "Dispatching..." : "Manual Dispatch"}
           </button>
-          <button
-            onClick={() => setShowAudit(!showAudit)}
-            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-          >
-            {showAudit ? "Hide Audit" : "Show Audit"}
-          </button>
         </div>
       </div>
 
-      {/* Precomputation result feedback */}
+      {/* Feedback banners */}
       {precompute.isSuccess && (
         <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
           Sprint pre-computed: {precompute.data.total_events} events across{" "}
@@ -108,12 +113,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
         </div>
       )}
 
-      {/* Audit summary */}
-      {showAudit && sprintId && (
-        <AuditDashboard teamId={teamId} sprintId={sprintId} />
-      )}
-
-      {/* Sprint selector + filters */}
+      {/* Sprint selector */}
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-muted-foreground">Sprint:</label>
         <select
@@ -123,7 +123,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
             setSprintId(val);
             setPage(1);
           }}
-          className="min-w-[240px] rounded-md border px-2 py-1 text-sm"
+          className="min-w-[280px] rounded-md border px-2 py-1 text-sm"
         >
           <option value="">Select a sprint...</option>
           {(sprints ?? []).map((s) => (
@@ -131,20 +131,6 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
               {s.name} ({s.phase}{s.committed_points != null ? ` \u2022 ${s.committed_points} pts` : ""})
             </option>
           ))}
-        </select>
-
-        <select
-          value={statusFilter ?? ""}
-          onChange={(e) => {
-            setStatusFilter(e.target.value || undefined);
-            setPage(1);
-          }}
-          className="rounded-md border px-2 py-1 text-sm"
-        >
-          <option value="">All statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="MODIFIED">Modified</option>
-          <option value="DISPATCHED">Dispatched</option>
         </select>
 
         {sprintId && (
@@ -162,110 +148,148 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
         )}
       </div>
 
-      {/* Events table */}
-      {isLoading ? (
-        <div className="py-8 text-center text-muted-foreground">Loading events...</div>
-      ) : !sprintId ? (
+      {/* Tabs */}
+      {sprintId && (
+        <div className="flex gap-1 border-b">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                activeTab === tab.key
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Tab content */}
+      {!sprintId ? (
         <div className="py-8 text-center text-muted-foreground">
           Select a sprint or pre-compute a new one to see events
         </div>
-      ) : events.length === 0 ? (
-        <div className="py-8 text-center text-muted-foreground">No events found for this sprint</div>
+      ) : activeTab === "items" ? (
+        <SprintItemList teamId={teamId} sprintId={sprintId} />
+      ) : activeTab === "flow" ? (
+        <FlowMatrix teamId={teamId} sprintId={sprintId} />
+      ) : activeTab === "audit" ? (
+        <AuditDashboard teamId={teamId} sprintId={sprintId} />
       ) : (
+        /* Event Timeline tab */
         <>
-          <div className="overflow-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-3 py-2 text-left font-medium">Tick</th>
-                  <th className="px-3 py-2 text-left font-medium">Scheduled At</th>
-                  <th className="px-3 py-2 text-left font-medium">Type</th>
-                  <th className="px-3 py-2 text-left font-medium">Issue</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
-                  <th className="px-3 py-2 text-left font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event) => (
-                  <tr key={event.id} className="border-b hover:bg-muted/30">
-                    <td className="px-3 py-2 tabular-nums">{event.sim_tick}</td>
-                    <td className="px-3 py-2 tabular-nums">
-                      {new Date(event.scheduled_at).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs">{event.event_type}</td>
-                    <td className="px-3 py-2">
-                      {String(event.payload?.issue_key ?? event.issue_id ?? "\u2014")}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          STATUS_COLORS[event.status] ?? "bg-gray-100"
-                        }`}
-                      >
-                        {event.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setSelectedEvent(event)}
-                          className="rounded px-2 py-0.5 text-xs hover:bg-accent"
-                        >
-                          View
-                        </button>
-                        {(event.status === "PENDING" || event.status === "MODIFIED") && (
-                          <button
-                            onClick={() => cancelEvent.mutate({ eventId: event.id })}
-                            disabled={cancelEvent.isPending}
-                            className="rounded px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-3">
+            <select
+              value={statusFilter ?? ""}
+              onChange={(e) => {
+                setStatusFilter(e.target.value || undefined);
+                setPage(1);
+              }}
+              className="rounded-md border px-2 py-1 text-sm"
+            >
+              <option value="">All statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="MODIFIED">Modified</option>
+              <option value="DISPATCHED">Dispatched</option>
+            </select>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {total} events total
-              </span>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="rounded-md border px-2 py-1 text-sm disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                <span className="px-2 py-1 text-sm">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="rounded-md border px-2 py-1 text-sm disabled:opacity-50"
-                >
-                  Next
-                </button>
+          {isLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading events...</div>
+          ) : events.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">No events found</div>
+          ) : (
+            <>
+              <div className="overflow-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="px-3 py-2 text-left font-medium">Tick</th>
+                      <th className="px-3 py-2 text-left font-medium">Scheduled At</th>
+                      <th className="px-3 py-2 text-left font-medium">Type</th>
+                      <th className="px-3 py-2 text-left font-medium">Issue</th>
+                      <th className="px-3 py-2 text-left font-medium">Status</th>
+                      <th className="px-3 py-2 text-left font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {events.map((event) => (
+                      <tr key={event.id} className="border-b hover:bg-muted/30">
+                        <td className="px-3 py-2 tabular-nums">{event.sim_tick}</td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {new Date(event.scheduled_at).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs">{event.event_type}</td>
+                        <td className="px-3 py-2">
+                          {String(event.payload?.issue_key ?? event.issue_id ?? "\u2014")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                              STATUS_COLORS[event.status] ?? "bg-gray-100"
+                            }`}
+                          >
+                            {event.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setSelectedEvent(event)}
+                              className="rounded px-2 py-0.5 text-xs hover:bg-accent"
+                            >
+                              View
+                            </button>
+                            {(event.status === "PENDING" || event.status === "MODIFIED") && (
+                              <button
+                                onClick={() => cancelEvent.mutate({ eventId: event.id })}
+                                disabled={cancelEvent.isPending}
+                                className="rounded px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{total} events total</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="rounded-md border px-2 py-1 text-sm disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-2 py-1 text-sm">{page} / {totalPages}</span>
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="rounded-md border px-2 py-1 text-sm disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
 
       {/* Event detail modal */}
       {selectedEvent && (
-        <EventDetail
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-        />
+        <EventDetail event={selectedEvent} onClose={() => setSelectedEvent(null)} />
       )}
     </div>
   );

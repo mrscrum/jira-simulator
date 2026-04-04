@@ -51,27 +51,26 @@ def _get_engine(request: Request) -> SimulationEngine:
 
 
 def _resume_scheduler_jobs(request: Request) -> None:
-    """Resume the simulation tick + queue scheduler jobs."""
+    """Resume the simulation tick + queue + dispatch scheduler jobs."""
     from datetime import UTC, datetime
 
     scheduler = getattr(request.app.state, "scheduler", None)
     if scheduler is None:
         return
-    for job_id in ("simulation_tick", "queue_process"):
+    for job_id in ("simulation_tick", "queue_process", "event_dispatch"):
         job = scheduler.get_job(job_id)
         if job:
             job.resume()
-            # Ensure next_run_time is set so the job actually fires.
             if job.next_run_time is None:
                 job.modify(next_run_time=datetime.now(UTC))
 
 
 def _pause_scheduler_jobs(request: Request) -> None:
-    """Pause the simulation tick + queue scheduler jobs."""
+    """Pause the simulation tick + queue + dispatch scheduler jobs."""
     scheduler = getattr(request.app.state, "scheduler", None)
     if scheduler is None:
         return
-    for job_id in ("simulation_tick", "queue_process"):
+    for job_id in ("simulation_tick", "queue_process", "event_dispatch"):
         job = scheduler.get_job(job_id)
         if job:
             job.pause()
