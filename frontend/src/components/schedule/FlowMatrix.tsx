@@ -31,11 +31,19 @@ function getChangeColor(current: number, previous: number | undefined): string {
 }
 
 export function FlowMatrix({ teamId, sprintId }: FlowMatrixProps) {
-  const { data, isLoading } = useFlowMatrix(teamId, sprintId);
+  const { data, isLoading, error } = useFlowMatrix(teamId, sprintId);
   const [viewMode, setViewMode] = useState<ViewMode>("items");
 
   if (isLoading) {
     return <div className="py-8 text-center text-muted-foreground">Loading flow matrix...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="py-8 text-center text-red-600">
+        Failed to load flow matrix: {(error as Error)?.message ?? "Unknown error"}
+      </div>
+    );
   }
 
   if (!data || data.days.length === 0 || data.statuses.length === 0) {

@@ -402,21 +402,36 @@ def get_flow_matrix(
         if not events:
             return {"days": [], "statuses": [], "items": [], "points": []}
 
+        # Normalize datetimes: ensure all are naive (strip tzinfo)
+        # PostgreSQL DateTime columns return naive datetimes
+        def _naive(dt: datetime) -> datetime:
+            """Strip timezone info for consistent comparison."""
+            if dt.tzinfo is not None:
+                return dt.replace(tzinfo=None)
+            return dt
+
         # Determine day boundaries from sprint dates
-        start_date = sprint.start_date.date()
-        end_date = sprint.end_date.date()
+        sprint_start = _naive(sprint.start_date)
+        sprint_end = _naive(sprint.end_date)
+
+        # Use the actual event time range (not just sprint dates)
+        # to ensure we cover all days with events
+        first_event_date = _naive(events[0].scheduled_at).date()
+        last_event_date = _naive(events[-1].scheduled_at).date()
+        start_date = min(sprint_start.date(), first_event_date)
+        end_date = max(sprint_end.date(), last_event_date)
+
         from datetime import timedelta
         days: list[str] = []
         day_boundaries: list[datetime] = []
         current_day = start_date
         while current_day <= end_date:
             days.append(current_day.strftime("%b %d"))
-            # End of day = start of next day
+            # End of day = start of next day (naive)
             next_day = current_day + timedelta(days=1)
             day_boundaries.append(
                 datetime(
                     next_day.year, next_day.month, next_day.day,
-                    tzinfo=UTC,
                 ),
             )
             current_day = next_day
@@ -432,7 +447,7 @@ def get_flow_matrix(
             # Apply all events before this boundary
             while (
                 event_idx < len(events)
-                and events[event_idx].scheduled_at < boundary
+                and _naive(events[event_idx].scheduled_at) < boundary
             ):
                 ev = events[event_idx]
                 target = ev.payload.get("target_status")
