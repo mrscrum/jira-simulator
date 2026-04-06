@@ -123,6 +123,8 @@ class SimulationEngine:
 
     async def compute_and_schedule_sprint(
         self, team_id: int, rng_seed: int | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> dict:
         """Pre-compute a full sprint and store events as a schedule.
 
@@ -233,7 +235,11 @@ class SimulationEngine:
 
             # Create sprint record
             now = datetime.now(UTC)
-            sprint = _create_next_sprint(session, team, now)
+            sprint = _create_next_sprint(
+                session, team, now,
+                start_date=start_date,
+                end_date=end_date,
+            )
 
             # Build snapshots
             team_snap = team_to_snapshot(team)
@@ -918,8 +924,21 @@ def _get_prioritized_backlog(session, team_id, final_status):
     )
 
 
-def _create_next_sprint(session, team, now: datetime):
-    """Create the next sprint for a team."""
+def _create_next_sprint(
+    session,
+    team,
+    now: datetime,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    name: str | None = None,
+):
+    """Create the next sprint for a team.
+
+    Args:
+        start_date: explicit start (overrides default logic)
+        end_date: explicit end (overrides computed end)
+        name: explicit sprint name (overrides default)
+    """
     from app.engine.precompute import _compute_sprint_end, _parse_holidays
     from app.engine.sprint_lifecycle import SprintPhase
     from app.models.sprint import Sprint
@@ -933,24 +952,35 @@ def _create_next_sprint(session, team, now: datetime):
     )
     next_number = ((last_sprint.sprint_number or 0) + 1) if last_sprint else 1
 
-    start_date = now
-    if next_number == 1 and team.first_sprint_start_date:
-        start_date = team.first_sprint_start_date
+    # Determine start date
+    if start_date is None:
+        start_date = now
+        if next_number == 1 and team.first_sprint_start_date:
+            start_date = team.first_sprint_start_date
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=UTC)
+    else:
         if start_date.tzinfo is None:
             start_date = start_date.replace(tzinfo=UTC)
 
-    # Compute end date using working days (not calendar days)
-    holidays = _parse_holidays(team.holidays)
-    working_days = [0, 1, 2, 3, 4]  # Mon-Fri
-    end_date = _compute_sprint_end(
-        start_date, team.sprint_length_days,
-        team.timezone, team.working_hours_start,
-        team.working_hours_end, holidays, working_days,
-    )
+    # Determine end date
+    if end_date is None:
+        holidays = _parse_holidays(team.holidays)
+        working_days = [0, 1, 2, 3, 4]  # Mon-Fri
+        end_date = _compute_sprint_end(
+            start_date, team.sprint_length_days,
+            team.timezone, team.working_hours_start,
+            team.working_hours_end, holidays, working_days,
+        )
+    else:
+        if end_date.tzinfo is None:
+            end_date = end_date.replace(tzinfo=UTC)
+
+    sprint_name = name or f"{team.name} Sprint {next_number}"
 
     sprint = Sprint(
         team_id=team.id,
-        name=f"{team.name} Sprint {next_number}",
+        name=sprint_name,
         start_date=start_date,
         end_date=end_date,
         status="future",

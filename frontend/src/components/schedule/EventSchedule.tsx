@@ -10,6 +10,10 @@ import {
   useActivateSprint,
   useDeleteSprint,
   useManualDispatch,
+  useSuggestedStart,
+  useCreateSprint,
+  useCreateSprintBatch,
+  useUpdateSprint,
 } from "@/hooks/useScheduledEvents";
 import { EventDetail } from "./EventDetail";
 import { AuditDashboard } from "./AuditDashboard";
@@ -37,12 +41,38 @@ interface EventScheduleProps {
   teamId: number;
 }
 
+function formatDateForInput(iso: string | undefined | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  // Format as YYYY-MM-DDTHH:mm for datetime-local input
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function EventSchedule({ teamId }: EventScheduleProps) {
   const [sprintId, setSprintId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [page, setPage] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<ScheduledEvent | null>(null);
   const [activeTab, setActiveTab] = useState<TabView>("items");
+  const [showCreatePanel, setShowCreatePanel] = useState(false);
+  const [createMode, setCreateMode] = useState<"single" | "batch">("single");
+
+  // Single sprint create form
+  const [createStartDate, setCreateStartDate] = useState("");
+  const [createEndDate, setCreateEndDate] = useState("");
+  const [createSimulate, setCreateSimulate] = useState(true);
+
+  // Batch create form
+  const [batchStartDate, setBatchStartDate] = useState("");
+  const [batchCount, setBatchCount] = useState(3);
+
+  // Edit sprint form
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editGoal, setEditGoal] = useState("");
 
   const { data: sprints } = useTeamSprints(teamId);
   const { data, isLoading } = useScheduledEvents(teamId, sprintId, {
@@ -57,6 +87,10 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
   const activate = useActivateSprint();
   const deleteSpr = useDeleteSprint();
   const dispatch = useManualDispatch();
+  const { data: suggestion } = useSuggestedStart(teamId);
+  const createSprint = useCreateSprint();
+  const createBatch = useCreateSprintBatch();
+  const updateSprint = useUpdateSprint();
 
   const events = data?.events ?? [];
   const total = data?.total ?? 0;
@@ -73,25 +107,102 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
     { key: "audit", label: "Audit" },
   ];
 
+  const canEdit = selectedSprint && (selectedSprint.phase === "PLANNING" || selectedSprint.phase === "SIMULATED");
+
+  function openEditPanel() {
+    if (!selectedSprint) return;
+    setEditName(selectedSprint.name);
+    setEditStartDate(formatDateForInput(selectedSprint.start_date));
+    setEditEndDate(formatDateForInput(selectedSprint.end_date));
+    setEditGoal("");
+    setShowEditPanel(true);
+  }
+
+  function handleCreateSingle() {
+    const startDate = createStartDate || (suggestion?.suggested_start ?? null);
+    const endDate = createEndDate || null;
+    createSprint.mutate(
+      {
+        teamId,
+        data: {
+          start_date: startDate,
+          end_date: endDate,
+          simulate: createSimulate,
+        },
+      },
+      {
+        onSuccess: (result: Record<string, unknown>) => {
+          if (result.sprint_id) {
+            setSprintId(result.sprint_id as number);
+          }
+          setShowCreatePanel(false);
+        },
+      },
+    );
+  }
+
+  function handleCreateBatch() {
+    const startDate = batchStartDate || (suggestion?.suggested_start ?? null);
+    createBatch.mutate(
+      {
+        teamId,
+        data: {
+          start_date: startDate,
+          count: batchCount,
+          simulate: false,
+        },
+      },
+      {
+        onSuccess: () => {
+          setShowCreatePanel(false);
+        },
+      },
+    );
+  }
+
+  function handleEditSave() {
+    if (!sprintId) return;
+    updateSprint.mutate(
+      {
+        teamId,
+        sprintId,
+        data: {
+          start_date: editStartDate ? new Date(editStartDate).toISOString() : null,
+          end_date: editEndDate ? new Date(editEndDate).toISOString() : null,
+          name: editName || null,
+          goal: editGoal || null,
+        },
+      },
+      { onSuccess: () => setShowEditPanel(false) },
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <h2 className="text-xl font-semibold">Event Schedule</h2>
 
-      {/* Sprint Actions — clear lifecycle separation */}
+      {/* Sprint Actions */}
       <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 p-4">
         <span className="text-sm font-medium text-muted-foreground mr-1">Actions:</span>
 
-        {/* 1. Create & Simulate Sprint */}
+        {/* Create Sprint */}
         <button
-          onClick={() => precompute.mutate({ teamId })}
-          disabled={precompute.isPending}
-          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          onClick={() => {
+            // Pre-fill dates from suggestion
+            if (suggestion) {
+              setCreateStartDate(formatDateForInput(suggestion.suggested_start));
+              setCreateEndDate(formatDateForInput(suggestion.suggested_end));
+              setBatchStartDate(formatDateForInput(suggestion.suggested_start));
+            }
+            setShowCreatePanel(!showCreatePanel);
+          }}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
         >
-          {precompute.isPending ? "Computing..." : "Create & Simulate Sprint"}
+          Create Sprint
         </button>
 
-        {/* 2. Activate Sprint (only for SIMULATED sprints) */}
+        {/* Activate Sprint */}
         {sprintId && selectedSprint?.phase === "SIMULATED" && (
           <button
             onClick={() => activate.mutate({ teamId, sprintId })}
@@ -102,7 +213,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           </button>
         )}
 
-        {/* 3. Re-simulate (only for SIMULATED sprints — re-run simulation) */}
+        {/* Re-simulate */}
         {sprintId && selectedSprint?.phase === "SIMULATED" && (
           <button
             onClick={() => recompute.mutate({ teamId, sprintId })}
@@ -113,31 +224,39 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           </button>
         )}
 
-        {/* 4. Delete Sprint */}
-        {sprintId && selectedSprint && (
-            <button
-              onClick={() => {
-                if (
-                  confirm(
-                    `Delete sprint "${selectedSprint.name}" and all its events? This cannot be undone.`,
-                  )
-                ) {
-                  deleteSpr.mutate(
-                    { teamId, sprintId },
-                    {
-                      onSuccess: () => setSprintId(null),
-                    },
-                  );
-                }
-              }}
-              disabled={deleteSpr.isPending}
-              className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
-            >
-              {deleteSpr.isPending ? "Deleting..." : "Delete Sprint"}
-            </button>
-          )}
+        {/* Edit Sprint */}
+        {sprintId && canEdit && (
+          <button
+            onClick={openEditPanel}
+            className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+          >
+            Edit Sprint
+          </button>
+        )}
 
-        {/* Manual dispatch (for ACTIVE sprints) */}
+        {/* Delete Sprint */}
+        {sprintId && selectedSprint && (
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  `Delete sprint "${selectedSprint.name}" and all its events? This cannot be undone.`,
+                )
+              ) {
+                deleteSpr.mutate(
+                  { teamId, sprintId },
+                  { onSuccess: () => setSprintId(null) },
+                );
+              }
+            }}
+            disabled={deleteSpr.isPending}
+            className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleteSpr.isPending ? "Deleting..." : "Delete Sprint"}
+          </button>
+        )}
+
+        {/* Manual dispatch */}
         {sprintId && selectedSprint?.phase === "ACTIVE" && (
           <button
             onClick={() => dispatch.mutate()}
@@ -149,7 +268,226 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
         )}
       </div>
 
+      {/* Create Sprint Panel */}
+      {showCreatePanel && (
+        <div className="rounded-lg border bg-white p-4 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2 border-b pb-2">
+            <button
+              onClick={() => setCreateMode("single")}
+              className={`px-3 py-1 text-sm rounded-md ${createMode === "single" ? "bg-blue-100 text-blue-800 font-medium" : "text-muted-foreground hover:bg-accent"}`}
+            >
+              Single Sprint
+            </button>
+            <button
+              onClick={() => setCreateMode("batch")}
+              className={`px-3 py-1 text-sm rounded-md ${createMode === "batch" ? "bg-blue-100 text-blue-800 font-medium" : "text-muted-foreground hover:bg-accent"}`}
+            >
+              Batch Create
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowCreatePanel(false)}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+
+          {createMode === "single" ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={createStartDate}
+                    onChange={(e) => setCreateStartDate(e.target.value)}
+                    className="w-full rounded-md border px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">End Date (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={createEndDate}
+                    onChange={(e) => setCreateEndDate(e.target.value)}
+                    className="w-full rounded-md border px-2 py-1.5 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Defaults to {suggestion?.sprint_length_days ?? "?"} working days
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={createSimulate}
+                    onChange={(e) => setCreateSimulate(e.target.checked)}
+                    className="rounded"
+                  />
+                  Simulate immediately
+                </label>
+                <button
+                  onClick={handleCreateSingle}
+                  disabled={createSprint.isPending}
+                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {createSprint.isPending ? "Creating..." : "Create Sprint"}
+                </button>
+              </div>
+              {suggestion && (
+                <p className="text-xs text-muted-foreground">
+                  Suggested: Sprint #{suggestion.sprint_number}, {new Date(suggestion.suggested_start).toLocaleDateString()} - {new Date(suggestion.suggested_end).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={batchStartDate}
+                    onChange={(e) => setBatchStartDate(e.target.value)}
+                    className="w-full rounded-md border px-2 py-1.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Number of Sprints</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={batchCount}
+                    onChange={(e) => setBatchCount(Number(e.target.value))}
+                    className="w-full rounded-md border px-2 py-1.5 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleCreateBatch}
+                  disabled={createBatch.isPending}
+                  className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {createBatch.isPending ? "Creating..." : `Create ${batchCount} Sprints`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error messages */}
+          {createSprint.isError && (
+            <div className="rounded-md bg-red-50 p-2 text-sm text-red-800">
+              {(createSprint.error as Error)?.message ?? "Failed to create sprint"}
+            </div>
+          )}
+          {createBatch.isError && (
+            <div className="rounded-md bg-red-50 p-2 text-sm text-red-800">
+              {(createBatch.error as Error)?.message ?? "Failed to create sprints"}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Sprint Panel */}
+      {showEditPanel && selectedSprint && (
+        <div className="rounded-lg border bg-white p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between border-b pb-2">
+            <span className="text-sm font-medium">Edit Sprint: {selectedSprint.name}</span>
+            <button
+              onClick={() => setShowEditPanel(false)}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Goal</label>
+              <input
+                type="text"
+                value={editGoal}
+                onChange={(e) => setEditGoal(e.target.value)}
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+                placeholder="Sprint goal..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Start Date</label>
+              <input
+                type="datetime-local"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">End Date</label>
+              <input
+                type="datetime-local"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="w-full rounded-md border px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleEditSave}
+              disabled={updateSprint.isPending}
+              className="rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updateSprint.isPending ? "Saving..." : "Save Changes"}
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Changing dates will clear existing simulation events. Re-simulate after saving.
+            </span>
+          </div>
+          {updateSprint.isError && (
+            <div className="rounded-md bg-red-50 p-2 text-sm text-red-800">
+              {(updateSprint.error as Error)?.message ?? "Failed to update sprint"}
+            </div>
+          )}
+          {updateSprint.isSuccess && (
+            <div className="rounded-md bg-green-50 p-2 text-sm text-green-800">
+              Sprint updated.
+              <button onClick={() => { updateSprint.reset(); setShowEditPanel(false); }} className="ml-2 underline">
+                Dismiss
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Feedback banners */}
+      {createSprint.isSuccess && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Sprint created successfully.
+          <button onClick={() => createSprint.reset()} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {createBatch.isSuccess && (
+        <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
+          Sprints created successfully.
+          <button onClick={() => createBatch.reset()} className="ml-2 underline">
+            Dismiss
+          </button>
+        </div>
+      )}
       {precompute.isSuccess && (
         <div className="rounded-md bg-green-50 p-3 text-sm text-green-800">
           Sprint pre-computed: {precompute.data.total_events} events across{" "}
@@ -215,6 +553,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
             const val = e.target.value ? parseInt(e.target.value, 10) : null;
             setSprintId(val);
             setPage(1);
+            setShowEditPanel(false);
           }}
           className="min-w-[320px] rounded-md border px-2 py-1 text-sm"
         >
@@ -238,7 +577,14 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
           </span>
         )}
 
-        {/* Cancel all pending (available for any sprint with events) */}
+        {/* Date range display */}
+        {selectedSprint?.start_date && selectedSprint?.end_date && (
+          <span className="text-xs text-muted-foreground">
+            {new Date(selectedSprint.start_date).toLocaleDateString()} — {new Date(selectedSprint.end_date).toLocaleDateString()}
+          </span>
+        )}
+
+        {/* Cancel all pending */}
         {sprintId && selectedSprint?.phase !== "COMPLETED" && (
           <button
             onClick={() => {
@@ -276,7 +622,7 @@ export function EventSchedule({ teamId }: EventScheduleProps) {
       {/* Tab content */}
       {!sprintId ? (
         <div className="py-8 text-center text-muted-foreground">
-          Select a sprint or create & simulate a new one to see events
+          Select a sprint or create a new one to see events
         </div>
       ) : activeTab === "items" ? (
         <SprintItemList teamId={teamId} sprintId={sprintId} />

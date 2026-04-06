@@ -87,6 +87,35 @@ class PrecomputeResponse(BaseModel):
     sprint_id: int
 
 
+# -- Sprint creation / edit schemas --
+
+class SprintCreateRequest(BaseModel):
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    rng_seed: int | None = None
+    simulate: bool = True
+
+
+class BatchSprintCreateRequest(BaseModel):
+    start_date: datetime | None = None
+    count: int = 1
+    simulate: bool = False
+
+
+class SprintEditRequest(BaseModel):
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    name: str | None = None
+    goal: str | None = None
+
+
+class SprintSuggestResponse(BaseModel):
+    suggested_start: str
+    suggested_end: str
+    sprint_number: int
+    sprint_length_days: int
+
+
 # -- Sprint cadence schemas --
 
 class SprintCadenceUpdate(BaseModel):

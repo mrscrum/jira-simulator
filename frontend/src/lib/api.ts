@@ -286,3 +286,32 @@ export const deleteSprint = (teamId: number, sprintId: number) =>
     `/teams/${teamId}/sprints/${sprintId}`,
     { method: "DELETE" },
   );
+
+// Sprint management
+import type {
+  SprintCreateRequest,
+  BatchSprintCreateRequest,
+  SprintEditRequest,
+  SprintSuggestResponse,
+} from "./types";
+
+export const fetchSuggestedStart = (teamId: number) =>
+  request<SprintSuggestResponse>(`/teams/${teamId}/sprints/suggest-start`);
+
+export const createSprint = (teamId: number, data: SprintCreateRequest) =>
+  request<Record<string, unknown>>(`/teams/${teamId}/sprints`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const createSprintBatch = (teamId: number, data: BatchSprintCreateRequest) =>
+  request<Record<string, unknown>>(`/teams/${teamId}/sprints/batch`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateSprint = (teamId: number, sprintId: number, data: SprintEditRequest) =>
+  request<Record<string, unknown>>(`/teams/${teamId}/sprints/${sprintId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });

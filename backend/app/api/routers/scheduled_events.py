@@ -12,6 +12,7 @@ from app.models.scheduled_event import ScheduledEvent
 from app.models.sprint import Sprint
 from app.schemas.scheduled_event import (
     AuditSummary,
+    BatchSprintCreateRequest,
     EventAuditRead,
     PrecomputeRequest,
     PrecomputeResponse,
@@ -19,6 +20,9 @@ from app.schemas.scheduled_event import (
     ScheduledEventListResponse,
     ScheduledEventRead,
     ScheduledEventUpdate,
+    SprintCreateRequest,
+    SprintEditRequest,
+    SprintSuggestResponse,
 )
 
 router = APIRouter(tags=["scheduled-events"])
@@ -276,6 +280,325 @@ def activate_sprint(
         session.close()
 
 
+# ── Suggest next sprint start ────────────────────────────────────────────
+
+@router.get(
+    "/teams/{team_id}/sprints/suggest-start",
+    response_model=SprintSuggestResponse,
+)
+def suggest_sprint_start(team_id: int, request: Request):
+    """Return suggested start/end dates for the next sprint."""
+    from app.engine.sprint_overlap import suggest_next_start
+    from app.models.team import Team
+
+    session: Session = request.app.state.session_factory()
+    try:
+        team = session.get(Team, team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+        return suggest_next_start(session, team_id, team)
+    finally:
+        session.close()
+
+
+# ── Create single sprint ────────────────────────────────────────────────
+
+@router.post("/teams/{team_id}/sprints")
+async def create_sprint(
+    team_id: int,
+    body: SprintCreateRequest,
+    request: Request,
+):
+    """Create a single sprint with optional explicit dates.
+
+    Defaults start_date via suggest_next_start(), end_date via sprint_length_days.
+    If simulate=True, runs precompute immediately.
+    """
+    from app.engine.sprint_overlap import check_sprint_overlap, suggest_next_start
+    from app.models.team import Team
+
+    session: Session = request.app.state.session_factory()
+    try:
+        team = session.get(Team, team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        # Default dates from suggestion
+        start_date = body.start_date
+        end_date = body.end_date
+
+        if start_date is None or end_date is None:
+            suggestion = suggest_next_start(session, team_id, team)
+            if start_date is None:
+                start_date = datetime.fromisoformat(suggestion["suggested_start"])
+            if end_date is None:
+                from app.engine.calendar import DEFAULT_WORKING_DAYS
+                from app.engine.precompute import _compute_sprint_end, _parse_holidays
+
+                holidays = _parse_holidays(team.holidays)
+                end_date = _compute_sprint_end(
+                    start_date, team.sprint_length_days,
+                    team.timezone, team.working_hours_start,
+                    team.working_hours_end, holidays, DEFAULT_WORKING_DAYS,
+                )
+
+        # Check overlap
+        overlap = check_sprint_overlap(session, team_id, start_date, end_date)
+        if overlap:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Overlaps with sprint '{overlap['name']}' "
+                       f"({overlap['start_date']} — {overlap['end_date']})",
+            )
+    finally:
+        session.close()
+
+    # Create sprint (and optionally simulate) via the engine
+    if body.simulate:
+        engine = request.app.state.simulation_engine
+        result = await engine.compute_and_schedule_sprint(
+            team_id=team_id,
+            rng_seed=body.rng_seed,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return {
+            "sprint_id": result["sprint_id"],
+            "batch_id": result["batch_id"],
+            "total_events": result["total_events"],
+            "total_ticks": result["total_ticks"],
+            "simulated": True,
+        }
+    else:
+        # Create sprint shell without simulation
+        from app.engine.simulation import _create_next_sprint
+        from app.models.team import Team
+
+        session = request.app.state.session_factory()
+        try:
+            team = session.get(Team, team_id)
+            sprint = _create_next_sprint(
+                session, team, datetime.now(UTC),
+                start_date=start_date,
+                end_date=end_date,
+            )
+            session.commit()
+            return {
+                "sprint_id": sprint.id,
+                "name": sprint.name,
+                "start_date": sprint.start_date.isoformat(),
+                "end_date": sprint.end_date.isoformat(),
+                "simulated": False,
+            }
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+
+# ── Create batch of sprints ─────────────────────────────────────────────
+
+@router.post("/teams/{team_id}/sprints/batch")
+async def create_sprint_batch(
+    team_id: int,
+    body: BatchSprintCreateRequest,
+    request: Request,
+):
+    """Create multiple sequential sprints.
+
+    Each sprint starts on the next business day after the previous one ends.
+    """
+    from app.engine.calendar import DEFAULT_WORKING_DAYS, next_working_moment
+    from app.engine.precompute import _compute_sprint_end, _parse_holidays
+    from app.engine.simulation import _create_next_sprint
+    from app.engine.sprint_overlap import check_sprint_overlap, suggest_next_start
+    from app.models.team import Team
+
+    if body.count < 1 or body.count > 12:
+        raise HTTPException(
+            status_code=400, detail="count must be between 1 and 12",
+        )
+
+    session: Session = request.app.state.session_factory()
+    try:
+        team = session.get(Team, team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+
+        holidays = _parse_holidays(team.holidays)
+        working_days = DEFAULT_WORKING_DAYS
+
+        # Determine starting date
+        if body.start_date is not None:
+            current_start = body.start_date
+            if current_start.tzinfo is None:
+                current_start = current_start.replace(tzinfo=UTC)
+        else:
+            suggestion = suggest_next_start(session, team_id, team)
+            current_start = datetime.fromisoformat(suggestion["suggested_start"])
+
+        created = []
+        for i in range(body.count):
+            current_end = _compute_sprint_end(
+                current_start, team.sprint_length_days,
+                team.timezone, team.working_hours_start,
+                team.working_hours_end, holidays, working_days,
+            )
+
+            # Check overlap with existing sprints
+            overlap = check_sprint_overlap(
+                session, team_id, current_start, current_end,
+            )
+            if overlap:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Sprint {i + 1} overlaps with '{overlap['name']}' "
+                           f"({overlap['start_date']} — {overlap['end_date']})",
+                )
+
+            sprint = _create_next_sprint(
+                session, team, current_start,
+                start_date=current_start,
+                end_date=current_end,
+            )
+            created.append({
+                "sprint_id": sprint.id,
+                "name": sprint.name,
+                "start_date": sprint.start_date.isoformat(),
+                "end_date": sprint.end_date.isoformat(),
+            })
+
+            # Next sprint starts on next business day after this one ends
+            current_start = next_working_moment(
+                team.timezone, team.working_hours_start,
+                team.working_hours_end, holidays, working_days,
+                current_end,
+            )
+
+        session.commit()
+        return {"created": created, "count": len(created)}
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+# ── Edit sprint ─────────────────────────────────────────────────────────
+
+@router.patch("/teams/{team_id}/sprints/{sprint_id}")
+def edit_sprint(
+    team_id: int,
+    sprint_id: int,
+    body: SprintEditRequest,
+    request: Request,
+):
+    """Edit sprint dates, name, or goal. Only for PLANNING/SIMULATED sprints."""
+    from app.engine.sprint_overlap import check_sprint_overlap
+    from app.models.precomputation_run import PrecomputationRun
+
+    session: Session = request.app.state.session_factory()
+    try:
+        sprint = session.get(Sprint, sprint_id)
+        if sprint is None:
+            raise HTTPException(status_code=404, detail="Sprint not found")
+        if sprint.team_id != team_id:
+            raise HTTPException(status_code=400, detail="Sprint/team mismatch")
+        if sprint.phase not in ("PLANNING", "SIMULATED"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot edit sprint in {sprint.phase} phase",
+            )
+
+        dates_changed = False
+        if body.start_date is not None:
+            sprint.start_date = body.start_date
+            dates_changed = True
+        if body.end_date is not None:
+            sprint.end_date = body.end_date
+            dates_changed = True
+        if body.name is not None:
+            sprint.name = body.name
+        if body.goal is not None:
+            sprint.goal = body.goal
+
+        # Overlap check if dates changed
+        if dates_changed:
+            overlap = check_sprint_overlap(
+                session, team_id,
+                sprint.start_date, sprint.end_date,
+                exclude_id=sprint_id,
+            )
+            if overlap:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Overlaps with sprint '{overlap['name']}' "
+                           f"({overlap['start_date']} — {overlap['end_date']})",
+                )
+
+            # Delete existing events — user should re-simulate
+            (
+                session.query(ScheduledEvent)
+                .filter_by(sprint_id=sprint_id)
+                .filter(ScheduledEvent.status.in_(["PENDING", "MODIFIED"]))
+                .delete(synchronize_session="fetch")
+            )
+
+            # Unassign issues
+            issues = session.query(Issue).filter_by(sprint_id=sprint_id).all()
+            for issue in issues:
+                issue.sprint_id = None
+
+            # Delete precomputation runs
+            (
+                session.query(PrecomputationRun)
+                .filter_by(sprint_id=sprint_id)
+                .delete(synchronize_session="fetch")
+            )
+
+            sprint.phase = "PLANNING"
+            sprint.committed_points = 0
+
+        # Enqueue Jira update if connected
+        if sprint.jira_sprint_id:
+            write_queue = request.app.state.jira_write_queue
+            update_payload = {"sprint_id": sprint.jira_sprint_id}
+            if body.name is not None:
+                update_payload["name"] = body.name
+            if body.start_date is not None:
+                update_payload["start_date"] = body.start_date.isoformat()
+            if body.end_date is not None:
+                update_payload["end_date"] = body.end_date.isoformat()
+            if body.goal is not None:
+                update_payload["goal"] = body.goal
+            write_queue.enqueue(
+                team_id=team_id,
+                operation_type="UPDATE_SPRINT_DETAILS",
+                payload=update_payload,
+                session=session,
+            )
+
+        session.commit()
+        return {
+            "id": sprint.id,
+            "name": sprint.name,
+            "phase": sprint.phase,
+            "start_date": sprint.start_date.isoformat(),
+            "end_date": sprint.end_date.isoformat(),
+            "dates_changed": dates_changed,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 # ── Delete sprint and all its events ─────────────────────────────────────
 
 @router.delete("/teams/{team_id}/sprints/{sprint_id}")
@@ -284,7 +607,11 @@ def delete_sprint(
     sprint_id: int,
     request: Request,
 ):
-    """Delete a sprint, its events, and unassign its issues."""
+    """Delete a sprint, its events, and unassign its issues.
+
+    If the sprint has a Jira sprint ID, enqueues MOVE_TO_BACKLOG and
+    DELETE_SPRINT operations for Jira cleanup.
+    """
     session: Session = request.app.state.session_factory()
     try:
         sprint = session.get(Sprint, sprint_id)
@@ -292,6 +619,32 @@ def delete_sprint(
             raise HTTPException(status_code=404, detail="Sprint not found")
         if sprint.team_id != team_id:
             raise HTTPException(status_code=400, detail="Sprint/team mismatch")
+
+        # Jira cleanup: move issues to backlog, then delete sprint
+        if sprint.jira_sprint_id:
+            # Collect issue keys
+            issues_with_keys = (
+                session.query(Issue)
+                .filter_by(sprint_id=sprint_id)
+                .filter(Issue.jira_issue_key.isnot(None))
+                .all()
+            )
+            issue_keys = [i.jira_issue_key for i in issues_with_keys]
+
+            write_queue = request.app.state.jira_write_queue
+            if issue_keys:
+                write_queue.enqueue(
+                    team_id=team_id,
+                    operation_type="MOVE_TO_BACKLOG",
+                    payload={"issue_keys": issue_keys},
+                    session=session,
+                )
+            write_queue.enqueue(
+                team_id=team_id,
+                operation_type="DELETE_SPRINT",
+                payload={"sprint_id": sprint.jira_sprint_id},
+                session=session,
+            )
 
         # Delete all scheduled events
         (

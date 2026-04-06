@@ -305,6 +305,34 @@ export interface SprintSummary {
   completed_points: number | null;
 }
 
+// Sprint creation / edit
+export interface SprintCreateRequest {
+  start_date?: string | null;
+  end_date?: string | null;
+  rng_seed?: number | null;
+  simulate?: boolean;
+}
+
+export interface BatchSprintCreateRequest {
+  start_date?: string | null;
+  count: number;
+  simulate?: boolean;
+}
+
+export interface SprintEditRequest {
+  start_date?: string | null;
+  end_date?: string | null;
+  name?: string | null;
+  goal?: string | null;
+}
+
+export interface SprintSuggestResponse {
+  suggested_start: string;
+  suggested_end: string;
+  sprint_number: number;
+  sprint_length_days: number;
+}
+
 // Scheduled Events
 export interface ScheduledEvent {
   id: number;

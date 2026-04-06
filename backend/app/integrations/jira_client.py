@@ -405,6 +405,32 @@ class JiraClient:
             json={"issues": issue_keys},
         )
 
+    async def delete_sprint(self, sprint_id: int) -> None:
+        """Delete a sprint in Jira."""
+        await self._request(
+            "DELETE", f"/rest/agile/1.0/sprint/{sprint_id}"
+        )
+
+    async def update_sprint_details(
+        self, sprint_id: int, **fields
+    ) -> dict:
+        """Update sprint fields (name, startDate, endDate, goal)."""
+        payload = {}
+        if "name" in fields:
+            payload["name"] = fields["name"]
+        if "start_date" in fields:
+            payload["startDate"] = fields["start_date"]
+        if "end_date" in fields:
+            payload["endDate"] = fields["end_date"]
+        if "goal" in fields:
+            payload["goal"] = fields["goal"]
+        response = await self._request(
+            "PUT",
+            f"/rest/agile/1.0/sprint/{sprint_id}",
+            json=payload,
+        )
+        return response.json()
+
     async def get_board_sprints(
         self, board_id: int, state: str | None = None
     ) -> list[dict]:

@@ -3,18 +3,23 @@ import {
   activateSprint,
   cancelAllPendingEvents,
   cancelScheduledEvent,
+  createSprint,
+  createSprintBatch,
   deleteSprint,
   fetchAuditSummary,
   fetchFlowMatrix,
   fetchItemEvents,
   fetchScheduledEvents,
   fetchSprintItems,
+  fetchSuggestedStart,
   fetchTeamSprints,
   modifyScheduledEvent,
   recomputeSprint,
   triggerManualDispatch,
   triggerPrecomputation,
+  updateSprint,
 } from "@/lib/api";
+import type { SprintCreateRequest, BatchSprintCreateRequest, SprintEditRequest } from "@/lib/types";
 
 export function useTeamSprints(teamId: number | null) {
   return useQuery({
@@ -197,6 +202,54 @@ export function useManualDispatch() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["scheduled-events"] });
       qc.invalidateQueries({ queryKey: ["audit-summary"] });
+    },
+  });
+}
+
+export function useSuggestedStart(teamId: number | null) {
+  return useQuery({
+    queryKey: ["suggested-start", teamId],
+    queryFn: () => fetchSuggestedStart(teamId!),
+    enabled: !!teamId,
+  });
+}
+
+export function useCreateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, data }: { teamId: number; data: SprintCreateRequest }) =>
+      createSprint(teamId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-events"] });
+      qc.invalidateQueries({ queryKey: ["suggested-start"] });
+      qc.invalidateQueries({ queryKey: ["sprint-items"] });
+    },
+  });
+}
+
+export function useCreateSprintBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, data }: { teamId: number; data: BatchSprintCreateRequest }) =>
+      createSprintBatch(teamId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
+      qc.invalidateQueries({ queryKey: ["suggested-start"] });
+    },
+  });
+}
+
+export function useUpdateSprint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, sprintId, data }: { teamId: number; sprintId: number; data: SprintEditRequest }) =>
+      updateSprint(teamId, sprintId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team-sprints"] });
+      qc.invalidateQueries({ queryKey: ["scheduled-events"] });
+      qc.invalidateQueries({ queryKey: ["sprint-items"] });
+      qc.invalidateQueries({ queryKey: ["flow-matrix"] });
     },
   });
 }

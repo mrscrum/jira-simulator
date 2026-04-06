@@ -14,12 +14,15 @@ OPERATION_PRIORITY = {
     "CREATE_SPRINT": 0,
     "CREATE_ISSUE": 1,
     "ADD_TO_SPRINT": 2,
+    "MOVE_TO_BACKLOG": 2,
     "TRANSITION_ISSUE": 3,
     "ADD_COMMENT": 4,
     "CREATE_LINK": 5,
     "UPDATE_ISSUE": 6,
+    "UPDATE_SPRINT_DETAILS": 7,
     "UPDATE_SPRINT": 7,
     "COMPLETE_SPRINT": 7,
+    "DELETE_SPRINT": 8,
 }
 
 MIN_DELAY_SECONDS = 0.2
@@ -194,6 +197,12 @@ class JiraWriteQueue:
             await self._jira_client.start_sprint(**payload)
         elif op == "COMPLETE_SPRINT":
             await self._jira_client.complete_sprint(**payload)
+        elif op == "DELETE_SPRINT":
+            await self._jira_client.delete_sprint(**payload)
+        elif op == "MOVE_TO_BACKLOG":
+            await self._jira_client.move_issues_to_backlog(**payload)
+        elif op == "UPDATE_SPRINT_DETAILS":
+            await self._jira_client.update_sprint_details(**payload)
         else:
             raise ValueError(f"Unknown operation: {op}")
         return None
