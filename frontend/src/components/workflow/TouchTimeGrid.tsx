@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import type { TouchTimeConfigInput } from "@/lib/types";
 
 const ISSUE_TYPES = ["Story", "Bug", "Task", "Spike", "Enabler"];
-const STORY_POINTS = [0, 1, 2, 3, 5, 8, 13];
+const STORY_POINTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 type ConfigField = keyof Pick<
   TouchTimeConfigInput,

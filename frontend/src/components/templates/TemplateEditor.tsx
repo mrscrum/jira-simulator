@@ -6,8 +6,8 @@ import { useTemplate, useUpdateTemplate } from "@/hooks/useTemplates";
 import { CycleTimeBoxPlot } from "./CycleTimeBoxPlot";
 import type { TimingTemplateEntryInput } from "@/lib/types";
 
-const COMMON_TYPES = ["Story", "Bug", "Task"];
-const COMMON_SIZES = [1, 2, 3, 5, 8, 13];
+const COMMON_TYPES = ["Story", "Bug", "Task", "Enabler", "Spike"];
+const COMMON_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 interface TemplateEditorProps {
   templateId: number;

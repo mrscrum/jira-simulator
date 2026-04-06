@@ -264,7 +264,11 @@ def precompute_sprint(
 
     # CREATE_SPRINT event
     if jira_board_id:
-        sprint_end = sprint_start + timedelta(days=sprint_length_days)
+        sprint_end = _compute_sprint_end(
+            sprint_start, sprint_length_days, team.timezone,
+            team.working_hours_start, team.working_hours_end,
+            holidays, working_days,
+        )
         _add_event(0, planning_time, JiraWriteAction(
             operation_type="CREATE_SPRINT",
             payload={

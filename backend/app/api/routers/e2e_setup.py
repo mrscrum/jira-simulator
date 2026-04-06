@@ -189,7 +189,7 @@ async def _generate_backlog(
         count=count,
         team_name=team.name,
         content_generator=gen,
-        issue_types=["Story", "Bug", "Task"],
+        issue_types=["Story", "Bug", "Task", "Spike", "Enabler"],
         rng=rng,
     )
 
@@ -362,34 +362,70 @@ async def _sync_issues_to_jira(
 
 
 # ── Default timing template ──
-# Realistic cycle-time distributions (in hours) for Story issues by SP.
-# Based on typical Scrum team data: ct_min, ct_q1, ct_median, ct_q3, ct_max.
-_CYCLE_TIME_BY_SP = {
-    1:  (1.0,  2.0,  4.0,  6.0,  12.0),
-    2:  (2.0,  4.0,  8.0,  12.0, 24.0),
-    3:  (3.0,  6.0,  12.0, 18.0, 36.0),
-    5:  (5.0,  10.0, 20.0, 30.0, 60.0),
-    8:  (8.0,  16.0, 32.0, 48.0, 96.0),
-    13: (12.0, 24.0, 48.0, 72.0, 144.0),
+# Story base cycle-time distributions (hours): ct_min, ct_q1, ct_median, ct_q3, ct_max.
+# SP 2-8: overflow P(>80h) progresses ~3% → ~30%.
+# SP 9-12: transition toward SP 13's narrow distribution.
+_STORY_CYCLE_TIME = {
+    1:  (4.0,   7.0,   9.5,   12.0,  20.0),
+    2:  (5.0,   10.0,  17.0,  30.0,  45.0),
+    3:  (6.0,   15.0,  25.0,  42.0,  60.0),
+    4:  (8.0,   20.0,  33.0,  54.0,  72.0),
+    5:  (10.0,  27.0,  41.0,  63.0,  82.0),
+    6:  (12.0,  34.0,  49.0,  71.0,  90.0),
+    7:  (14.0,  41.0,  57.0,  79.0,  96.0),
+    8:  (16.0,  50.0,  65.0,  85.0,  100.0),
+    9:  (25.0,  59.0,  72.0,  88.0,  102.0),
+    10: (30.0,  67.0,  78.0,  90.0,  104.0),
+    11: (33.0,  76.0,  83.0,  91.0,  106.0),
+    12: (35.0,  83.0,  88.0,  93.0,  108.0),
+    13: (35.0,  90.0,  92.0,  95.0,  100.0),
 }
 
-DEFAULT_TEMPLATE_ENTRIES = [
-    {
-        "issue_type": issue_type,
-        "story_points": sp,
-        "ct_min": vals[0] * scale,
-        "ct_q1": vals[1] * scale,
-        "ct_median": vals[2] * scale,
-        "ct_q3": vals[3] * scale,
-        "ct_max": vals[4] * scale,
-    }
-    for issue_type, scale in [
-        ("Story", 1.0),
-        ("Bug", 0.7),    # bugs are typically faster to fix
-        ("Task", 0.8),   # tasks are slightly faster than stories
-    ]
-    for sp, vals in _CYCLE_TIME_BY_SP.items()
-]
+# Issue-type transforms: (median_factor, iqr_spread_factor, max_factor)
+_ISSUE_TYPE_TRANSFORMS = {
+    "Story":   (1.0,  1.0,  1.0),     # base distribution
+    "Bug":     (1.15, 1.3,  1.2),     # wider distribution, higher overflow
+    "Task":    (0.85, 0.7,  0.8),     # narrower distribution, lower overflow
+    "Enabler": (1.0,  1.0,  1.0),    # same as Story
+    "Spike":   (0.85, 0.65, 0.75),   # like Task, ~1% overflow
+}
+
+
+def _apply_transform(base, median_f, iqr_f, max_f):
+    """Transform Story base values for a different issue type."""
+    ct_min, ct_q1, ct_median, ct_q3, ct_max = base
+    new_med = ct_median * median_f
+    iqr = ct_q3 - ct_q1
+    new_iqr = iqr * iqr_f
+    new_q1 = new_med - new_iqr / 2
+    new_q3 = new_med + new_iqr / 2
+    new_min = ct_min * median_f
+    new_max = ct_max * max_f
+    # Clamp: ensure min <= q1 <= median <= q3 <= max
+    new_min = min(new_min, new_q1)
+    new_q1 = max(new_q1, new_min)
+    new_q3 = max(new_q3, new_q1 + 0.1)
+    new_max = max(new_max, new_q3)
+    return (round(new_min, 1), round(new_q1, 1), round(new_med, 1),
+            round(new_q3, 1), round(new_max, 1))
+
+
+DEFAULT_TEMPLATE_ENTRIES = []
+for _issue_type, (_mf, _if, _xf) in _ISSUE_TYPE_TRANSFORMS.items():
+    for _sp, _base in _STORY_CYCLE_TIME.items():
+        if _mf == 1.0 and _if == 1.0 and _xf == 1.0:
+            _vals = _base
+        else:
+            _vals = _apply_transform(_base, _mf, _if, _xf)
+        DEFAULT_TEMPLATE_ENTRIES.append({
+            "issue_type": _issue_type,
+            "story_points": _sp,
+            "ct_min": _vals[0],
+            "ct_q1": _vals[1],
+            "ct_median": _vals[2],
+            "ct_q3": _vals[3],
+            "ct_max": _vals[4],
+        })
 
 
 def _create_default_template(session: Session) -> TimingTemplate:

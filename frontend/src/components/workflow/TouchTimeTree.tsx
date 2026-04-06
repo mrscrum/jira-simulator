@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { TouchTimeConfigInput, WorkflowStep } from "@/lib/types";
 
-const COMMON_SIZES = [0, 1, 2, 3, 5, 8, 13];
+const COMMON_SIZES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
 
 interface TouchTimeTreeProps {
   steps: WorkflowStep[];
@@ -558,8 +558,8 @@ export function TouchTimeTree({ steps, touchTimes, onChange }: TouchTimeTreeProp
             className="h-8"
             onClick={() => {
               // Quick-start: add Story, Bug, Task with all steps and common sizes
-              const types = ["Story", "Bug", "Task"];
-              const sizes = [0, 1, 2, 3, 5, 8, 13];
+              const types = ["Story", "Bug", "Task", "Enabler", "Spike"];
+              const sizes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
               const next = { ...touchTimes };
               for (const step of steps) {
                 const existing = next[step.id] ?? [];
