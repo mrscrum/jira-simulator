@@ -539,19 +539,23 @@ def get_flow_matrix(
         end_date = max(sprint_end_date, first_event_date)
 
         from datetime import timedelta
+        from app.engine.calendar import DEFAULT_WORKING_DAYS
+
         days: list[str] = []
         day_boundaries: list[datetime] = []
         current_day = start_date
         while current_day <= end_date:
-            days.append(current_day.strftime("%b %d"))
-            # End of day = start of next day (naive)
-            next_day = current_day + timedelta(days=1)
-            day_boundaries.append(
-                datetime(
-                    next_day.year, next_day.month, next_day.day,
-                ),
-            )
-            current_day = next_day
+            # Skip weekends (non-working days)
+            if current_day.weekday() in DEFAULT_WORKING_DAYS:
+                days.append(current_day.strftime("%b %d"))
+                # End of day = start of next day (naive)
+                next_day = current_day + timedelta(days=1)
+                day_boundaries.append(
+                    datetime(
+                        next_day.year, next_day.month, next_day.day,
+                    ),
+                )
+            current_day = current_day + timedelta(days=1)
 
         # Walk events and snapshot status at each day boundary
         event_idx = 0

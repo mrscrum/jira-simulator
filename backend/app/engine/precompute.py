@@ -92,7 +92,15 @@ def _compute_sprint_end(
     tz = ZoneInfo(tz_name)
     local_start = sprint_start.astimezone(tz)
     current_date = local_start.date()
-    working_counted = 0
+
+    # Count the start date itself if it's a working day
+    if (
+        current_date.weekday() in working_days
+        and current_date not in holidays
+    ):
+        working_counted = 1
+    else:
+        working_counted = 0
 
     while working_counted < sprint_length_days:
         current_date += timedelta(days=1)
