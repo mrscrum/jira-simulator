@@ -539,6 +539,7 @@ def get_flow_matrix(
         end_date = max(sprint_end_date, first_event_date)
 
         from datetime import timedelta
+
         from app.engine.calendar import DEFAULT_WORKING_DAYS
 
         days: list[str] = []
