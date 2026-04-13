@@ -1,0 +1,26 @@
+{
+  "name": "cc_jira_modelling",
+  "version": "1.0.0",
+  "description": "A multi-team Jira activity simulator that emulates how real engineering teams work, including realistic dysfunctions, handoffs, and cross-team dependencies. Generates authentic Jira data patterns for stress-testing a Sprint Risk Analyzer tool.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrscrum/jira-simulator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mrscrum/jira-simulator/issues"
+  },
+  "homepage": "https://github.com/mrscrum/jira-simulator#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

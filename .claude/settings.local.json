@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /Users/pavel.ozolin/PycharmProjects/CC_jira_modelling/ -not -path */.*)"
+      "Bash(find /Users/pavel.ozolin/PycharmProjects/CC_jira_modelling/ -not -path */.*)",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

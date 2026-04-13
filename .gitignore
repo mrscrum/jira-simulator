@@ -27,6 +27,7 @@ venv/
 node_modules/
 frontend/dist/
 frontend/.vite/
+.vite/
 
 # IDE
 .idea/
@@ -37,6 +38,9 @@ frontend/.vite/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test results
+test-results/
 
 # Docker
 *.log

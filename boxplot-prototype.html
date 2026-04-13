@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycle Time Distribution — Boxplot Prototype</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fb;
+    color: #1a1a2e;
+    padding: 32px;
+    display: flex;
+    justify-content: center;
+  }
+  .card {
+    width: 100%;
+    max-width: 1100px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .header h2 { font-size: 14px; font-weight: 600; }
+  .header .hint { font-size: 10px; color: #9ca3af; }
+  .btn-group { margin-left: auto; display: flex; gap: 4px; }
+  .btn {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn:hover { background: #f3f4f6; }
+  .btn.active {
+    background: #18181b;
+    color: #fff;
+    border-color: #18181b;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+  .chart-wrap svg {
+    display: block;
+    width: 100%;
+    user-select: none;
+    touch-action: none;
+  }
+  .tooltip {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    background: #18181b;
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,.18);
+    display: none;
+  }
+  .values-table {
+    margin-top: 16px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .values-table th {
+    text-align: center;
+    font-weight: 500;
+    color: #6b7280;
+    padding: 4px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 10px;
+  }
+  .values-table th:first-child { text-align: left; }
+  .values-table td {
+    text-align: center;
+    padding: 4px 8px;
+    border-bottom: 1px solid #f3f4f6;
+    font-variant-numeric: tabular-nums;
+  }
+  .values-table td:first-child { text-align: left; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <h2>Cycle Time Distribution</h2>
+    <span class="hint">Drag handles to edit</span>
+    <div class="btn-group" id="btnGroup"></div>
+  </div>
+  <div class="chart-wrap" id="chartWrap">
+    <svg id="chart"></svg>
+  </div>
+  <div class="tooltip" id="tooltip"></div>
+  <table class="values-table" id="valuesTable"></table>
+</div>
+
+<script>
+// ── Sample data ──────────────────────────────────────────────────
+const SIZES = [1, 2, 3, 5, 8, 13];
+const TYPES = ['Story', 'Bug', 'Task'];
+
+const sampleData = {
+  Story: [
+    { sp: 1,  min: 1,   q1: 2,   med: 3,   q3: 4,   max: 6   },
+    { sp: 2,  min: 1.5, q1: 3,   med: 4.5, q3: 6,   max: 8   },
+    { sp: 3,  min: 2,   q1: 4,   med: 6,   q3: 8.5, max: 11  },
+    { sp: 5,  min: 3,   q1: 5.5, med: 8,   q3: 11,  max: 15  },
+    { sp: 8,  min: 4,   q1: 7,   med: 11,  q3: 15,  max: 20  },
+    { sp: 13, min: 6,   q1: 10,  med: 15,  q3: 20,  max: 28  },
+  ],
+  Bug: [
+    { sp: 1,  min: 0.5, q1: 1,   med: 2,   q3: 3,   max: 5   },
+    { sp: 2,  min: 1,   q1: 2,   med: 3,   q3: 4.5, max: 6   },
+    { sp: 3,  min: 1.5, q1: 3,   med: 5,   q3: 7,   max: 9   },
+    { sp: 5,  min: 2,   q1: 4,   med: 6.5, q3: 9,   max: 13  },
+    { sp: 8,  min: 3,   q1: 6,   med: 9,   q3: 13,  max: 18  },
+    { sp: 13, min: 5,   q1: 8,   med: 12,  q3: 17,  max: 24  },
+  ],
+  Task: [
+    { sp: 1,  min: 0.5, q1: 1,   med: 1.5, q3: 2.5, max: 4   },
+    { sp: 2,  min: 1,   q1: 1.5, med: 2.5, q3: 3.5, max: 5   },
+    { sp: 3,  min: 1.5, q1: 2.5, med: 4,   q3: 5.5, max: 7   },
+    { sp: 5,  min: 2,   q1: 3.5, med: 5.5, q3: 8,   max: 11  },
+    { sp: 8,  min: 3,   q1: 5,   med: 8,   q3: 11,  max: 16  },
+    { sp: 13, min: 4,   q1: 7,   med: 11,  q3: 15,  max: 22  },
+  ],
+};
+
+// Deep-clone so drags mutate a working copy
+const data = {};
+for (const t of TYPES) data[t] = sampleData[t].map(r => ({ ...r }));
+
+// ── Constants ────────────────────────────────────────────────────
+const MARGIN = { top: 12, right: 30, bottom: 42, left: 72 };
+const ROW_H = 48;
+const ROW_GAP = 8;
+const BOX_RATIO = 0.55;
+const HANDLE_R = 7;
+const COLORS = ['#60a5fa','#fb923c','#4ade80','#f87171','#a78bfa','#fbbf24'];
+const FIELD_KEYS = ['min','q1','med','q3','max'];
+const FIELD_LABELS = ['Min','Q1','Median','Q3','Max'];
+
+// ── State ────────────────────────────────────────────────────────
+let activeType = 'Story';
+let chartWidth = 0;
+let dragState = null; // { rowIdx, fieldIdx, startVal }
+
+const svg = document.getElementById('chart');
+const wrap = document.getElementById('chartWrap');
+const tip = document.getElementById('tooltip');
+
+// ── Axis helpers ─────────────────────────────────────────────────
+function niceStep(range, target) {
+  const raw = range / target;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / mag;
+  const nice = n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10;
+  return nice * mag;
+}
+function makeTicks(lo, hi, target = 8) {
+  if (hi <= lo) return [0];
+  const step = niceStep(hi - lo, target);
+  const start = Math.floor(lo / step) * step;
+  const ticks = [];
+  for (let v = start; v <= hi + step * 0.01; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+  return ticks;
+}
+
+// ── Rendering ────────────────────────────────────────────────────
+function render() {
+  const rows = data[activeType];
+  const plotW = Math.max(1, chartWidth - MARGIN.left - MARGIN.right);
+  const plotH = rows.length * (ROW_H + ROW_GAP);
+  const totalH = plotH + MARGIN.top + MARGIN.bottom;
+  const boxHalf = (ROW_H * BOX_RATIO) / 2;
+
+  // x extent
+  let hi = 25;
+  for (const r of rows) if (r.max > hi) hi = r.max;
+  const xMin = 0, xMax = Math.max(25, hi);
+  const xScale = v => ((v - xMin) / (xMax - xMin)) * plotW;
+  const xInv = px => xMin + (px / plotW) * (xMax - xMin);
+  const yCenter = i => i * (ROW_H + ROW_GAP) + ROW_H / 2;
+  const ticks = makeTicks(xMin, xMax);
+
+  svg.setAttribute('height', totalH);
+
+  let html = `<g transform="translate(${MARGIN.left},${MARGIN.top})">`;
+
+  // grid + ticks
+  for (const t of ticks) {
+    const x = xScale(t);
+    html += `<line x1="${x}" y1="0" x2="${x}" y2="${plotH}" stroke="#e5e7eb"/>`;
+    html += `<text x="${x}" y="${plotH + 16}" text-anchor="middle" font-size="10" fill="#6b7280">${t}</text>`;
+  }
+  // axis label
+  html += `<text x="${plotW/2}" y="${plotH + 34}" text-anchor="middle" font-size="11" fill="#6b7280">Business Hours</text>`;
+
+  // rows
+  rows.forEach((r, i) => {
+    const cy = yCenter(i);
+    const col = COLORS[i % COLORS.length];
+    const vMin = r.min, vQ1 = r.q1, vMed = r.med, vQ3 = r.q3, vMax = r.max;
+    const label = `${r.sp} SP`;
+
+    // row label
+    html += `<text x="-10" y="${cy}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="#374151">${label}</text>`;
+    // row bg
+    html += `<rect x="0" y="${cy - ROW_H/2}" width="${plotW}" height="${ROW_H}" fill="${col}" fill-opacity="0.04" rx="4"/>`;
+    // whisker
+    html += `<line x1="${xScale(vMin)}" y1="${cy}" x2="${xScale(vMax)}" y2="${cy}" stroke="${col}" stroke-width="1.5"/>`;
+    // min cap
+    html += `<line x1="${xScale(vMin)}" y1="${cy - boxHalf*.5}" x2="${xScale(vMin)}" y2="${cy + boxHalf*.5}" stroke="${col}" stroke-width="1.5"/>`;
+    // max cap
+    html += `<line x1="${xScale(vMax)}" y1="${cy - boxHalf*.5}" x2="${xScale(vMax)}" y2="${cy + boxHalf*.5}" stroke="${col}" stroke-width="1.5"/>`;
+    // box q1→q3
+    const bx = xScale(vQ1), bw = xScale(vQ3) - xScale(vQ1);
+    html += `<rect x="${bx}" y="${cy - boxHalf}" width="${Math.max(0,bw)}" height="${boxHalf*2}" fill="${col}" fill-opacity="0.22" stroke="${col}" stroke-width="1.5" rx="3"/>`;
+    // median
+    html += `<line x1="${xScale(vMed)}" y1="${cy - boxHalf}" x2="${xScale(vMed)}" y2="${cy + boxHalf}" stroke="${col}" stroke-width="2.5"/>`;
+
+    // handles
+    FIELD_KEYS.forEach((fk, fi) => {
+      const v = r[fk];
+      const dragging = dragState && dragState.rowIdx === i && dragState.fieldIdx === fi;
+      const rad = dragging ? HANDLE_R + 2 : HANDLE_R;
+      const fillOp = dragging ? 1 : 0.35;
+      const sw = dragging ? 2.5 : 1.5;
+      html += `<circle cx="${xScale(v)}" cy="${cy}" r="${rad}" fill="${col}" fill-opacity="${fillOp}" stroke="${col}" stroke-width="${sw}" cursor="ew-resize" data-row="${i}" data-field="${fi}"/>`;
+    });
+  });
+
+  html += `</g>`;
+  svg.innerHTML = html;
+
+  // values table
+  renderTable(rows);
+
+  // store inverse for drag
+  svg._xInv = xInv;
+}
+
+function renderTable(rows) {
+  let h = '<thead><tr><th>Size</th><th>Min</th><th>Q1</th><th>Median</th><th>Q3</th><th>Max</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    h += `<tr><td>${r.sp} SP</td>`;
+    FIELD_KEYS.forEach(k => { h += `<td>${r[k]}</td>`; });
+    h += '</tr>';
+  });
+  h += '</tbody>';
+  document.getElementById('valuesTable').innerHTML = h;
+}
+
+// ── Buttons ──────────────────────────────────────────────────────
+function buildButtons() {
+  const grp = document.getElementById('btnGroup');
+  grp.innerHTML = '';
+  TYPES.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (t === activeType ? ' active' : '');
+    b.textContent = t;
+    b.onclick = () => { activeType = t; buildButtons(); render(); };
+    grp.appendChild(b);
+  });
+}
+
+// ── Drag handling ────────────────────────────────────────────────
+svg.addEventListener('pointerdown', e => {
+  const el = e.target;
+  if (el.tagName !== 'circle') return;
+  const rowIdx = +el.dataset.row;
+  const fieldIdx = +el.dataset.field;
+  el.setPointerCapture(e.pointerId);
+  const row = data[activeType][rowIdx];
+  dragState = { rowIdx, fieldIdx, pointerId: e.pointerId };
+  showTip(e.clientX, e.clientY, fieldIdx, row[FIELD_KEYS[fieldIdx]]);
+  e.preventDefault();
+});
+
+svg.addEventListener('pointermove', e => {
+  if (!dragState) return;
+  const rect = svg.getBoundingClientRect();
+  const localX = e.clientX - rect.left - MARGIN.left;
+  const raw = svg._xInv(localX);
+  const clamped = Math.max(0, Math.round(raw * 10) / 10);
+
+  const row = data[activeType][dragState.rowIdx];
+  row[FIELD_KEYS[dragState.fieldIdx]] = clamped;
+
+  // enforce ordering
+  const vals = FIELD_KEYS.map(k => row[k]);
+  const fi = dragState.fieldIdx;
+  vals[fi] = clamped;
+  for (let i = fi - 1; i >= 0; i--) if (vals[i] > vals[i+1]) vals[i] = vals[i+1];
+  for (let i = fi + 1; i < vals.length; i++) if (vals[i] < vals[i-1]) vals[i] = vals[i-1];
+  FIELD_KEYS.forEach((k,i) => row[k] = vals[i]);
+
+  showTip(e.clientX, e.clientY, dragState.fieldIdx, clamped);
+  render();
+});
+
+svg.addEventListener('pointerup', () => {
+  dragState = null;
+  tip.style.display = 'none';
+});
+svg.addEventListener('pointercancel', () => {
+  dragState = null;
+  tip.style.display = 'none';
+});
+
+function showTip(x, y, fieldIdx, val) {
+  tip.textContent = `${FIELD_LABELS[fieldIdx]}: ${val}h`;
+  tip.style.display = 'block';
+  tip.style.left = (x + 14) + 'px';
+  tip.style.top = (y - 30) + 'px';
+}
+
+// ── Resize observer ──────────────────────────────────────────────
+const ro = new ResizeObserver(() => {
+  const w = wrap.clientWidth;
+  if (w > 0 && w !== chartWidth) { chartWidth = w; render(); }
+});
+ro.observe(wrap);
+
+// ── Init ─────────────────────────────────────────────────────────
+buildButtons();
+</script>
+</body>
+</html>
