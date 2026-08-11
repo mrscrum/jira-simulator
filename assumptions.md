@@ -239,3 +239,15 @@
   year rather than first converting it to UTC, preserving the caller's explicit local-date anchor.
 - No next M1 implementation slice was assumed. Work/sprint/status-visit persistence now requires a
   separate plan decision; M1 remains in progress.
+
+## [2026-08-11] M1 — Harden calendar horizon contracts
+- Superseded the earlier represented-datetime-year assumption: starter materialization now requires
+  the resolved team's IANA timezone and derives the calendar year after converting the instant into
+  that zone, because resolved blueprints normalize instants to UTC.
+- Chose the review's preferred stale-request behavior: extend repeatedly in exact ten-year blocks
+  until at least two complete local years remain, rather than rejecting a far-stale request.
+- Treated a canonical `US_FEDERAL_V1` horizon as full January-through-December bounds plus the exact
+  generated ordered holiday tuple; authentication occurs even when the extension would be a no-op.
+- Used `zoneinfo.available_timezones()` as the acceptance boundary and explicitly excluded its
+  non-geographic pseudo keys `Factory`, `localtime`, and `posixrules`.
+- Kept M1 in progress and did not infer the next persistence or engine slice.

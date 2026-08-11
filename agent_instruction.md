@@ -44,6 +44,15 @@ not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 4 review fix round 1 hardened the pure calendar/horizon boundary. Federal
+starter materialization now requires the resolved team IANA timezone, so UTC-normalized blueprint
+instants still select the correct team-local year and equivalent offset representations agree.
+Only keys exposed by `zoneinfo.available_timezones()` are accepted after pseudo-zone exclusion.
+Extension authenticates full-year bounds and the exact generated `US_FEDERAL_V1` holiday tuple,
+then catches far-stale requests up in ten-year blocks; replay preserves identity. Business-calendar
+horizon exhaustion, including `date.max`, now raises a stable domain `ValueError`. This review fix
+added no schema, persistence, scheduler, engine, external call, deployment, UAT, or M1 completion.
+
 On 2026-08-11, deterministic-kernel Task 4 added the pure dual-clock calendar boundary.
 `BusinessCalendar` is constructed only from a resolved `CalendarBlueprint` and explicit IANA zone;
 it provides exact UTC/calendar and business elapsed time, business-duration addition, working
@@ -117,11 +126,11 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 4:
+Current local evidence after Task 4 review fix round 1:
 
-- Backend: 1049 passed, 43 skipped, 15 baseline warnings.
-- V2: 531 passed, 1 baseline warning.
-- Task 4 focused: 117 passed.
+- Backend: 1068 passed, 43 skipped, 15 baseline warnings.
+- V2: 550 passed, 1 baseline warning.
+- Task 4 focused: 136 passed.
 - Task 3 focused: 247 passed.
 - Task 1 focused: 52 passed, 1 baseline warning.
 - Task 2 focused: 148 passed.
@@ -163,8 +172,11 @@ Current local evidence after Task 4:
   bounded duration samples whose retained result is formula-validated.
 - `backend/app/v2/domain/business_calendar.py` — resolved immutable business calendar, strict
   aware-UTC inputs, dual elapsed/addition queries, and fixed unadjusted local cadence.
+- `backend/app/v2/domain/iana_timezone.py` — shared available-IANA-key boundary that excludes
+  loadable pseudo-zones before resolving a pure domain timezone.
 - `backend/app/v2/domain/us_federal_calendar.py` — exact observed `US_FEDERAL_V1` rules plus pure
-  starter-horizon materialization and idempotent ten-year extension.
+  team-zone-derived starter materialization, canonical-horizon authentication, and idempotent
+  ten-year-block catch-up.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
   message/digest/U53/unit literals, including Unicode NFC equivalence.
 - `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.

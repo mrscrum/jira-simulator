@@ -1,0 +1,519 @@
+........................F.............................F........F........ [ 52%]
+F...........................FFF...FFFFFFFFFFFFF.....F.......FFF.         [100%]
+=================================== FAILURES ===================================
+___________ test_calendar_rejects_loadable_non_iana_posixrules_zone ____________
+
+    def test_calendar_rejects_loadable_non_iana_posixrules_zone():
+        ZoneInfo("posixrules")
+
+>       with pytest.raises(ValueError, match="IANA timezone"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_business_calendar.py:145: Failed
+____ test_next_working_instant_reports_stable_horizon_exhaustion[last_day1] ____
+
+last_day = datetime.date(9999, 12, 31)
+
+    @pytest.mark.parametrize("last_day", [date(2027, 12, 31), date.max])
+    def test_next_working_instant_reports_stable_horizon_exhaustion(last_day: date):
+        calendar = _calendar_for_zone(
+            UTC_TIMEZONE, holiday_horizon_end=last_day, holidays=()
+        )
+        after_close = datetime.combine(last_day, time(18), UTC)
+
+        with pytest.raises(ValueError, match="holiday horizon"):
+>           calendar.next_working_instant(after_close)
+
+tests/v2/unit/test_business_calendar.py:254:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='Etc/UTC', timezone=zoneinfo.ZoneInfo(key='Etc/UT...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+instant = datetime.datetime(9999, 12, 31, 18, 0, tzinfo=datetime.timezone.utc)
+
+    def next_working_instant(self, instant: datetime) -> datetime:
+        normalized = _aware_utc(instant, "instant")
+        day = self.business_date(normalized)
+        while True:
+            interval = self.working_interval(day)
+            if interval is not None:
+                if normalized < interval.start:
+                    return interval.start
+                if normalized < interval.end:
+                    return normalized
+>           day += ONE_DAY
+E           OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:256: OverflowError
+________ test_elapsed_on_date_max_does_not_overflow_after_the_final_day ________
+
+    def test_elapsed_on_date_max_does_not_overflow_after_the_final_day():
+        interval = UtcInterval(
+            datetime.combine(date.max, time(18), UTC),
+            datetime.max.replace(tzinfo=UTC),
+        )
+
+>       assert _calendar_for_zone(
+            UTC_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+        ).elapsed(interval) == DualElapsed(interval.end - interval.start, timedelta())
+
+tests/v2/unit/test_business_calendar.py:327:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='Etc/UTC', timezone=zoneinfo.ZoneInfo(key='Etc/UT...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+interval = UtcInterval(start=datetime.datetime(9999, 12, 31, 18, 0, tzinfo=datetime.timezone.utc), end=datetime.datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc))
+
+    def elapsed(self, interval: UtcInterval) -> DualElapsed:
+        if type(interval) is not UtcInterval:
+            raise TypeError("interval must be a UtcInterval")
+        calendar_elapsed = interval.end - interval.start
+        if calendar_elapsed == ZERO_DURATION:
+            return DualElapsed(ZERO_DURATION, ZERO_DURATION)
+        business_elapsed = ZERO_DURATION
+        day = self.business_date(interval.start)
+        final_day = self.business_date(interval.end - DATETIME_RESOLUTION)
+        while day <= final_day:
+            working = self.working_interval(day)
+            if working is not None:
+                business_elapsed += _intersection(interval, working)
+>           day += ONE_DAY
+E           OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:271: OverflowError
+____________ test_add_reports_stable_horizon_exhaustion[last_day1] _____________
+
+last_day = datetime.date(9999, 12, 31)
+
+    @pytest.mark.parametrize("last_day", [date(2027, 12, 31), date.max])
+    def test_add_reports_stable_horizon_exhaustion(last_day: date):
+        calendar = _calendar_for_zone(
+            UTC_TIMEZONE, holiday_horizon_end=last_day, holidays=()
+        )
+        request = BusinessTimeAddition(
+            datetime.combine(last_day, time(16), UTC), timedelta(hours=2)
+        )
+
+        with pytest.raises(ValueError, match="holiday horizon"):
+>           calendar.add(request)
+
+tests/v2/unit/test_business_calendar.py:366:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:289: in add
+    cursor = self.next_working_instant(interval.end)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='Etc/UTC', timezone=zoneinfo.ZoneInfo(key='Etc/UT...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+instant = datetime.datetime(9999, 12, 31, 17, 0, tzinfo=datetime.timezone.utc)
+
+    def next_working_instant(self, instant: datetime) -> datetime:
+        normalized = _aware_utc(instant, "instant")
+        day = self.business_date(normalized)
+        while True:
+            interval = self.working_interval(day)
+            if interval is not None:
+                if normalized < interval.start:
+                    return interval.start
+                if normalized < interval.end:
+                    return normalized
+>           day += ONE_DAY
+E           OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:256: OverflowError
+__________ test_materialization_uses_the_resolved_team_timezone_year ___________
+
+    def test_materialization_uses_the_resolved_team_timezone_year():
+        canonical_boundary = datetime(2026, 1, 1, 7, 30, tzinfo=UTC)
+
+>       los_angeles = materialize_us_federal_horizon(canonical_boundary, LOS_ANGELES)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:92: TypeError
+___ test_resolved_kiritimati_boundary_uses_team_zone_after_utc_normalization ___
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def test_resolved_kiritimati_boundary_uses_team_zone_after_utc_normalization(
+        blueprint_document: dict[str, object],
+    ):
+        document = deepcopy(blueprint_document)
+        document["team"]["timezone"] = KIRITIMATI
+        document["scrum"]["first_boundary"] = "2026-01-01T00:30:00+14:00"
+        blueprint = ResolvedTeamBlueprint.from_canonical_json(canonical_json(document))
+
+        assert blueprint.scrum.first_boundary == datetime(2025, 12, 31, 10, 30, tzinfo=UTC)
+>       horizon = materialize_us_federal_horizon(
+            blueprint.scrum.first_boundary, blueprint.team.timezone
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:114: TypeError
+_ test_materialization_is_independent_of_equivalent_input_offset_representation _
+
+    def test_materialization_is_independent_of_equivalent_input_offset_representation():
+        canonical_boundary = datetime(2025, 12, 31, 10, 30, tzinfo=UTC)
+        positive_offset = datetime(
+            2026, 1, 1, 0, 30, tzinfo=timezone(timedelta(hours=14))
+        )
+
+>       assert materialize_us_federal_horizon(
+            canonical_boundary, KIRITIMATI
+        ) == materialize_us_federal_horizon(positive_offset, KIRITIMATI)
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:129: TypeError
+________ test_materialization_rejects_loadable_non_iana_posixrules_zone ________
+
+    def test_materialization_rejects_loadable_non_iana_posixrules_zone():
+        ZoneInfo("posixrules")
+
+        with pytest.raises(ValueError, match="IANA timezone"):
+>           materialize_us_federal_horizon(datetime(2026, 1, 1, tzinfo=UTC), "posixrules")
+E           TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:144: TypeError
+_ test_materialization_accepts_real_available_iana_timezone_keys[America/Los_Angeles] _
+
+timezone_name = 'America/Los_Angeles'
+
+    @pytest.mark.parametrize("timezone_name", [LOS_ANGELES, KIRITIMATI, UTC_TIMEZONE])
+    def test_materialization_accepts_real_available_iana_timezone_keys(timezone_name: str):
+>       horizon = materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), timezone_name
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:149: TypeError
+_ test_materialization_accepts_real_available_iana_timezone_keys[Pacific/Kiritimati] _
+
+timezone_name = 'Pacific/Kiritimati'
+
+    @pytest.mark.parametrize("timezone_name", [LOS_ANGELES, KIRITIMATI, UTC_TIMEZONE])
+    def test_materialization_accepts_real_available_iana_timezone_keys(timezone_name: str):
+>       horizon = materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), timezone_name
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:149: TypeError
+___ test_materialization_accepts_real_available_iana_timezone_keys[Etc/UTC] ____
+
+timezone_name = 'Etc/UTC'
+
+    @pytest.mark.parametrize("timezone_name", [LOS_ANGELES, KIRITIMATI, UTC_TIMEZONE])
+    def test_materialization_accepts_real_available_iana_timezone_keys(timezone_name: str):
+>       horizon = materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), timezone_name
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:149: TypeError
+_________ test_materialization_contains_every_exact_2026_federal_rule __________
+
+    def test_materialization_contains_every_exact_2026_federal_rule():
+        expected = (
+            date(2026, 1, 1),
+            date(2026, 1, 19),
+            date(2026, 2, 16),
+            date(2026, 5, 25),
+            date(2026, 6, 19),
+            date(2026, 7, 3),
+            date(2026, 9, 7),
+            date(2026, 10, 12),
+            date(2026, 11, 11),
+            date(2026, 11, 26),
+            date(2026, 12, 25),
+        )
+
+>       actual = tuple(day for day in _horizon().holidays if day.year == 2026)
+                                      ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:171:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+________ test_fixed_holidays_observe_saturday_friday_and_sunday_monday _________
+
+    def test_fixed_holidays_observe_saturday_friday_and_sunday_monday():
+>       holidays = _observation_horizon().holidays
+                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:177:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _observation_horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2022, 1, 1, tzinfo=UTC), UTC_TIMEZONE
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:40: TypeError
+_ test_cross_year_new_year_observation_is_included_and_inauguration_is_excluded _
+
+    def test_cross_year_new_year_observation_is_included_and_inauguration_is_excluded():
+>       holidays = _observation_horizon().holidays
+                   ^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:186:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _observation_horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2022, 1, 1, tzinfo=UTC), UTC_TIMEZONE
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:40: TypeError
+__________ test_materialized_holidays_are_unique_ordered_and_bounded ___________
+
+    def test_materialized_holidays_are_unique_ordered_and_bounded():
+>       horizon = _horizon()
+                  ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:194:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+__ test_federal_rules_match_independent_calendar_reference_from_1900_to_2100 ___
+
+    def test_federal_rules_match_independent_calendar_reference_from_1900_to_2100():
+>       horizon = materialize_us_federal_horizon(
+            datetime(1901, 6, 1, tzinfo=UTC), UTC_TIMEZONE
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:232: TypeError
+_______ test_extension_is_a_noop_when_exactly_two_complete_years_remain ________
+
+    def test_extension_is_a_noop_when_exactly_two_complete_years_remain():
+>       horizon = _horizon()
+                  ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:248:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+______ test_extension_appends_ten_years_after_threshold_and_is_idempotent ______
+
+    def test_extension_appends_ten_years_after_threshold_and_is_idempotent():
+>       horizon = _horizon()
+                  ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:254:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+_______ test_far_stale_extension_catches_up_once_and_replay_is_identity ________
+
+    def test_far_stale_extension_catches_up_once_and_replay_is_identity():
+>       horizon = _horizon()
+                  ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:265:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+___ test_extension_rejects_unauthenticated_us_horizon_before_threshold_check ___
+
+    def test_extension_rejects_unauthenticated_us_horizon_before_threshold_check():
+>       for horizon in _invalid_canonical_us_horizons():
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:305:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_us_federal_calendar.py:276: in _invalid_canonical_us_horizons
+    canonical = _horizon()
+                ^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+_____ test_holiday_horizon_is_slotted_frozen_copy_stable_and_not_picklable _____
+
+    def test_holiday_horizon_is_slotted_frozen_copy_stable_and_not_picklable():
+>       horizon = _horizon()
+                  ^^^^^^^^^^
+
+tests/v2/unit/test_us_federal_calendar.py:333:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def _horizon() -> HolidayHorizon:
+>       return materialize_us_federal_horizon(
+            datetime(2026, 8, 13, 9, tzinfo=UTC), LOS_ANGELES
+        )
+E       TypeError: materialize_us_federal_horizon() takes 1 positional argument but 2 were given
+
+tests/v2/unit/test_us_federal_calendar.py:34: TypeError
+________ test_task4_modules_import_only_pure_local_domain_dependencies _________
+
+    def test_task4_modules_import_only_pure_local_domain_dependencies():
+        prohibited_prefixes = (
+            "aiohttp", "app.database", "app.engine", "app.integrations", "app.models",
+            "app.v2.persistence", "httpx", "requests", "socket", "sqlalchemy", "urllib",
+        )
+
+>       for tree in _task4_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:143:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:127: in _task4_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:128: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+_________ test_task4_modules_do_not_read_host_clock_locale_or_timezone _________
+
+    def test_task4_modules_do_not_read_host_clock_locale_or_timezone():
+        prohibited_calls = {"now", "today", "utcnow"}
+
+>       for tree in _task4_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:158:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:127: in _task4_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:128: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+____________ test_task4_modules_have_no_mutable_module_level_state _____________
+
+    def test_task4_modules_have_no_mutable_module_level_state():
+        mutable_nodes = (ast.Dict, ast.List, ast.Set)
+
+>       for tree in _task4_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:175:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:127: in _task4_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:128: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/iana_timezone.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_business_calendar.py::test_calendar_rejects_loadable_non_iana_posixrules_zone
+FAILED tests/v2/unit/test_business_calendar.py::test_next_working_instant_reports_stable_horizon_exhaustion[last_day1]
+FAILED tests/v2/unit/test_business_calendar.py::test_elapsed_on_date_max_does_not_overflow_after_the_final_day
+FAILED tests/v2/unit/test_business_calendar.py::test_add_reports_stable_horizon_exhaustion[last_day1]
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_uses_the_resolved_team_timezone_year
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_resolved_kiritimati_boundary_uses_team_zone_after_utc_normalization
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_is_independent_of_equivalent_input_offset_representation
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_rejects_loadable_non_iana_posixrules_zone
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_accepts_real_available_iana_timezone_keys[America/Los_Angeles]
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_accepts_real_available_iana_timezone_keys[Pacific/Kiritimati]
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_accepts_real_available_iana_timezone_keys[Etc/UTC]
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialization_contains_every_exact_2026_federal_rule
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_fixed_holidays_observe_saturday_friday_and_sunday_monday
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_cross_year_new_year_observation_is_included_and_inauguration_is_excluded
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_materialized_holidays_are_unique_ordered_and_bounded
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_federal_rules_match_independent_calendar_reference_from_1900_to_2100
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_extension_is_a_noop_when_exactly_two_complete_years_remain
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_extension_appends_ten_years_after_threshold_and_is_idempotent
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_far_stale_extension_catches_up_once_and_replay_is_identity
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_extension_rejects_unauthenticated_us_horizon_before_threshold_check
+FAILED tests/v2/unit/test_us_federal_calendar.py::test_holiday_horizon_is_slotted_frozen_copy_stable_and_not_picklable
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task4_modules_import_only_pure_local_domain_dependencies
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task4_modules_do_not_read_host_clock_locale_or_timezone
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task4_modules_have_no_mutable_module_level_state
+24 failed, 112 passed in 0.37s

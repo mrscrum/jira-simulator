@@ -126,7 +126,11 @@ def _task4_source_trees() -> tuple[ast.Module, ...]:
     domain_root = Path(__file__).parents[3] / "app" / "v2" / "domain"
     return tuple(
         ast.parse((domain_root / filename).read_text(encoding="utf-8"))
-        for filename in ("business_calendar.py", "us_federal_calendar.py")
+        for filename in (
+            "business_calendar.py",
+            "iana_timezone.py",
+            "us_federal_calendar.py",
+        )
     )
 
 

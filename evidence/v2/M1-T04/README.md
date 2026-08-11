@@ -254,3 +254,207 @@ git diff --check 2>&1 | tee evidence/v2/M1-T04/diff-check.txt
 Result: exit `0` with empty output. The explicitly staged scope was then checked with
 `git diff --cached --check` before commit. No secret, live credential, external provider call,
 deployment, push, or UAT occurred.
+
+## Review fix round 1 — harden calendar horizon contracts
+
+Review-fix base: `59be24c66063b82405a8c8978b60edda3cf776e7`.
+
+All review regressions were added before production edits. Exact focused RED from `backend/`:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_business_calendar.py tests/v2/unit/test_us_federal_calendar.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-red.txt
+```
+
+Result: exit `1`, `24 failed, 112 passed in 0.37s`. Expected failures proved the old boundary
+accepted `posixrules`, raised raw `OverflowError` at `date.max`, derived the starter year from the
+datetime representation, required no resolved-team zone, extended a far-stale horizon only one
+block per call, trusted incomplete/forged federal horizons, and lacked the shared timezone module.
+Existing DST, cadence, ordinary horizon, holiday, immutable-value, and isolation cases remained
+green.
+
+The minimum implementation introduced a shared available-IANA-key resolver, team-zone year
+derivation, canonical horizon authentication, ten-year-block catch-up, and stable exhaustion
+errors. After an import-order-only Ruff refactor, the identical focused command produced:
+
+```text
+136 passed in 0.28s
+```
+
+The complete output is retained in `fix-round-1-green.txt`. The new cases prove:
+
+- a canonical resolved Kiritimati `+14:00` boundary is typed as UTC but materializes from its
+  Kiritimati local year; equivalent UTC and offset representations produce equal horizons;
+- `America/Los_Angeles`, `Pacific/Kiritimati`, and `Etc/UTC` accept, while the separately loadable
+  pseudo-zone `posixrules` rejects;
+- exact independent `calendar.monthcalendar` reference dates agree for 1900–2100;
+- normal threshold extension adds one block, a `2045-01-02` stale request catches the original
+  horizon through `2056-12-31`, and identical replay returns the same object;
+- missing, extra, non-observed, partial-start, and partial-end federal horizons reject before the
+  extension/no-op decision without mutating input;
+- `next_working_instant`, `add`, and final-day elapsed calculations do not leak `OverflowError` at
+  horizon exhaustion or `date.max`; and the actual `BusinessCalendar._configuration` field remains
+  frozen and identity-stable.
+
+### Regression and static verification
+
+All commands used pipeline failure propagation and ran from `backend/`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_utc_datetime.py tests/v2/unit/test_create_team.py tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_team_repository.py tests/v2/integration/test_migration_013.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-task1-focused.txt
+```
+
+Result: `52 passed, 1 warning in 1.67s`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_live_slice.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/integration/test_migration_014.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-task2-focused.txt
+```
+
+Result: `148 passed in 3.51s`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_deterministic_rng.py tests/v2/unit/test_sampling.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-task3-focused.txt
+```
+
+Result: `247 passed in 0.54s`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2 -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-v2-suite.txt
+```
+
+Result: `550 passed, 1 warning in 4.86s`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-full-suite.txt
+```
+
+Result: `1068 passed, 43 skipped, 15 warnings in 30.86s`. The warning categories remain exactly
+the documented baseline: one Starlette/httpx deprecation, 13 Jira-bootstrapper
+unawaited-`AsyncMock` warnings, and one SQLAlchemy identity-map warning.
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m ruff check --no-cache . 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-ruff.txt
+```
+
+Result: exit `0`, `All checks passed!`.
+
+The first graph attempt used the environment-sensitive `../.venv/bin/alembic` entrypoint instead
+of the repository's established module form. It exited `1` because revision 013 could not import
+`app.v2`; the exact tooling error is retained in `fix-round-1-alembic.txt` and is not represented as
+a migration defect. The corrected exact commands were:
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m alembic heads --verbose 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-alembic-corrected.txt
+../.venv/bin/python -B -m alembic branches --verbose 2>&1 | tee -a ../evidence/v2/M1-T04/fix-round-1-alembic-corrected.txt
+../.venv/bin/python -B -m alembic history 2>&1 | tee -a ../evidence/v2/M1-T04/fix-round-1-alembic-corrected.txt
+```
+
+Result: sole `Rev: 014 (head)` with parent `013`; branches output was empty and history remained
+linear from `001` through `014`. No migration or schema file changed.
+
+The touched-code scan used base `59be24c66063b82405a8c8978b60edda3cf776e7`, parsed the five
+changed and one new Python file, and included `business_calendar.py`, `iana_timezone.py`, and
+`us_federal_calendar.py` in the prohibited-import/call/mutable-state AST checks. Exact command:
+
+```bash
+set -o pipefail
+../.venv/bin/python -B - <<'PY' 2>&1 | tee ../evidence/v2/M1-T04/fix-round-1-code-shape.txt
+import ast
+import subprocess
+from pathlib import Path
+
+repository = Path('..').resolve()
+base = '59be24c66063b82405a8c8978b60edda3cf776e7'
+tracked = subprocess.check_output(
+    ['git', '-C', str(repository), 'diff', '--name-only', base, '--', ':(glob)**/*.py'],
+    text=True,
+).splitlines()
+untracked = subprocess.check_output(
+    ['git', '-C', str(repository), 'ls-files', '--others', '--exclude-standard', '--', '*.py'],
+    text=True,
+).splitlines()
+files = sorted(set(tracked + untracked))
+over_length = []
+over_arguments = []
+for relative_path in files:
+    tree = ast.parse((repository / relative_path).read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            length = node.end_lineno - node.lineno + 1
+            arguments = len(node.args.posonlyargs) + len(node.args.args) + len(node.args.kwonlyargs)
+            if length > 30:
+                over_length.append(f'{relative_path}:{node.lineno}:{node.name}:{length}')
+            if arguments > 3:
+                over_arguments.append(f'{relative_path}:{node.lineno}:{node.name}:{arguments}')
+print(f'Touched Python files: {files}')
+print(f'Functions over 30 lines: {over_length}')
+print(f'Functions over 3 arguments: {over_arguments}')
+
+forbidden_imports = (
+    'aiohttp', 'app.database', 'app.engine', 'app.integrations', 'app.models',
+    'app.v2.persistence', 'httpx', 'requests', 'socket', 'sqlalchemy', 'urllib',
+)
+forbidden_calls = {'now', 'today', 'utcnow'}
+architecture_violations = []
+for relative_path in (
+    'backend/app/v2/domain/business_calendar.py',
+    'backend/app/v2/domain/iana_timezone.py',
+    'backend/app/v2/domain/us_federal_calendar.py',
+):
+    tree = ast.parse((repository / relative_path).read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith(forbidden_imports):
+            architecture_violations.append(f'{relative_path}:import:{node.module}')
+        if isinstance(node, ast.Import):
+            architecture_violations.extend(
+                f'{relative_path}:import:{alias.name}'
+                for alias in node.names
+                if alias.name.startswith(forbidden_imports)
+            )
+        if isinstance(node, ast.Call):
+            call_name = getattr(node.func, 'id', None) or getattr(node.func, 'attr', None)
+            if call_name in forbidden_calls:
+                architecture_violations.append(f'{relative_path}:call:{call_name}')
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr == 'astimezone'
+                and not node.args
+                and not node.keywords
+            ):
+                architecture_violations.append(f'{relative_path}:host-local-astimezone')
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and isinstance(node.value, (ast.Dict, ast.List, ast.Set)):
+            architecture_violations.append(f'{relative_path}:mutable-module-state:{node.lineno}')
+print(f'Architecture violations: {architecture_violations}')
+if over_length or over_arguments or architecture_violations:
+    raise SystemExit(1)
+PY
+```
+
+Exact output in `fix-round-1-code-shape.txt` is:
+
+```text
+Functions over 30 lines: []
+Functions over 3 arguments: []
+Architecture violations: []
+```
+
+No migration, persistence, UOW, Task 3 algorithm/vector, v1, scheduler, engine, Jira/OpenAI,
+frontend, infrastructure, deployment, push, UAT, or M1-completion boundary changed.
+
+Final tracked whitespace check after documentation:
+
+```bash
+set -o pipefail
+git diff --check 2>&1 | tee evidence/v2/M1-T04/fix-round-1-diff-check.txt
+```
+
+Result: exit `0` with empty output. The final cached diff is checked separately after explicit
+staging and before the exact-subject commit.

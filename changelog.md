@@ -292,3 +292,18 @@
   holidays, and DST changes cannot shift the original local boundary clock.
 - No persistence, schema, scheduler, engine, v1, Jira/OpenAI, frontend, or deployment behavior was
   changed.
+
+## [2026-08-11] M1 — Harden calendar horizon contracts
+### Changed
+- Made federal starter-horizon materialization derive its year from the resolved team's explicit
+  IANA timezone, independent of the input datetime's offset representation.
+- Added one shared available-IANA-key validator, full canonical federal-horizon authentication,
+  and ten-year-block catch-up for stale extension requests.
+- Added 1900–2100 independent federal-rule coverage, deterministic randomized business-elapsed
+  comparison, and exact review-fix verification evidence.
+### Fixed
+- Rejects loadable pseudo-zone `posixrules`, partial or forged federal horizons, and raw date-range
+  overflow from business-calendar horizon exhaustion.
+- Far-stale extension now catches up in one call and identical replay preserves object identity.
+- No persistence, schema, scheduler, engine, v1, Jira/OpenAI, frontend, or deployment behavior was
+  changed.

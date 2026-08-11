@@ -79,10 +79,13 @@ instead of silently choosing a fold.
 
 Fixed sprint cadence remains independent of business-calendar adjustment: each ordinal retains the
 original local anchor clock across DST and is never shifted for a weekend or holiday. Pure
-`US_FEDERAL_V1` helpers materialize the documented observed federal holidays over a bounded starter
-horizon and extend that immutable data by ten years only after fewer than two complete local years
-remain. These helpers persist nothing and do not implement sprint lifecycle, capacity, scheduling,
-or external delivery.
+`US_FEDERAL_V1` helpers derive the starter year from the resolved team's explicit IANA timezone,
+then materialize the documented observed federal holidays over a bounded full-year horizon. Before
+extension, the complete horizon bounds and exact ordered holiday tuple are authenticated against
+the frozen policy. A stale request catches up in ten-year blocks until at least two complete local
+years remain; replay is an identity-preserving no-op. Timezone inputs must be keys exposed by the
+runtime IANA database, and loadable pseudo-zones such as `posixrules` reject. These helpers persist
+nothing and do not implement sprint lifecycle, capacity, scheduling, or external delivery.
 
 ## Prerequisites
 

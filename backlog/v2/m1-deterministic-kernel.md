@@ -29,7 +29,8 @@ Status: COMPLETE
 ## Task Checklist
 
 - [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fixes round 1 and 2 completed 2026-08-11
-- [x] Task 4 — Add dual-clock, DST-safe business-calendar primitives — completed 2026-08-11
+- [x] Task 4 — Add dual-clock, DST-safe business-calendar primitives — completed 2026-08-11;
+  review fix round 1 completed 2026-08-11
 
 ## Deferred Non-Blocking Validation Hardening
 
@@ -196,11 +197,12 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 - `BusinessCalendar.from_blueprint(timezone_name: str, blueprint: CalendarBlueprint) -> BusinessCalendar` is the only public construction path.
 - `BusinessCalendar.elapsed(interval: UtcInterval) -> DualElapsed`, `BusinessCalendar.add(request: BusinessTimeAddition) -> datetime`, `BusinessCalendar.next_working_instant(instant: datetime) -> datetime`, `BusinessCalendar.working_interval(day: date) -> UtcInterval | None`, `BusinessCalendar.business_date(instant: datetime) -> date`, and `BusinessCalendar.business_day_end(day: date) -> datetime | None` are pure queries/calculations.
 - `cadence_boundary(calendar: BusinessCalendar, rule: CadenceRule, ordinal: int) -> datetime` returns the fixed ordinal boundary without consulting workdays/holidays.
-- `materialize_us_federal_horizon(first_start: datetime) -> HolidayHorizon` and `extend_us_federal_horizon(horizon: HolidayHorizon, as_of: date) -> HolidayHorizon` are pure data functions. They accept/return only `US_FEDERAL_V1` horizons and never persist a revision.
+- `materialize_us_federal_horizon(first_start: datetime, timezone_name: str) -> HolidayHorizon` and `extend_us_federal_horizon(horizon: HolidayHorizon, as_of: date) -> HolidayHorizon` are pure data functions. Starter materialization derives the year in the resolved team's explicit IANA zone. They accept/return only authenticated `US_FEDERAL_V1` horizons and never persist a revision.
 
 **Files:**
 
 - Create `backend/app/v2/domain/business_calendar.py` for aware interval contracts, resolved-calendar validation, dual-clock arithmetic, working-instant/date helpers, and fixed cadence only.
+- Create `backend/app/v2/domain/iana_timezone.py` for the shared available-IANA-key validation boundary used by both Task 4 modules.
 - Create `backend/app/v2/domain/us_federal_calendar.py` for `US_FEDERAL_V1` date rules, observed dates, immutable holiday horizon, and pure idempotent extension only.
 - Modify `backend/app/v2/domain/__init__.py` only for additive public exports.
 - Create `backend/tests/v2/unit/test_business_calendar.py`.
@@ -213,7 +215,7 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 **Exact calendar contract:**
 
 - All public instant inputs must be aware. Normalize typed results to UTC. Calendar elapsed time is exact UTC elapsed duration; business elapsed time is the exact intersection with resolved working intervals after weekdays and explicit full-day holidays are applied.
-- The MVP calendar is one local daily interval with strictly ordered `HH:MM` endpoints, a non-empty unique ordered weekday set, a valid IANA timezone, unique ordered explicit holidays not beyond the horizon, and a named profile/version. Do not read host locale/timezone or the v1 calendar implementation.
+- The MVP calendar is one local daily interval with strictly ordered `HH:MM` endpoints, a non-empty unique ordered weekday set, a key exposed by `zoneinfo.available_timezones()` after pseudo-zone exclusion, unique ordered explicit holidays not beyond the horizon, and a named profile/version. Loadable pseudo-zone `posixrules` is invalid. Do not read host locale/timezone or the v1 calendar implementation.
 - Convert fixed UTC instants through `zoneinfo` for local comparison. When resolving a configured local work/cadence boundary, validate it by UTC round-trip; reject a nonexistent local time and reject an ambiguous local time without an explicit authority-approved fold rather than attaching a timezone silently.
 - A positive business-time addition begins at the supplied instant when it is inside a working interval, otherwise at the next working instant; it skips non-working portions exactly. Adding zero returns the normalized supplied instant unchanged. Negative duration is invalid.
 - `next_working_instant` returns the normalized input when it is inside `[workday_start, workday_end)`, otherwise the next valid workday start. A working interval is absent on a non-working weekday/holiday. Business date is the instant's team-local calendar date; business-day end is the aware UTC end for a working date or `None`.
@@ -224,7 +226,7 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 
 - Include New Year's Day, MLK Day (third Monday in January), Washington's Birthday (third Monday in February), Memorial Day (last Monday in May), Juneteenth, Independence Day, Labor Day (first Monday in September), Columbus Day (second Monday in October), Veterans Day, Thanksgiving (fourth Thursday in November), and Christmas.
 - A fixed-date holiday on Saturday is observed on Friday; one on Sunday is observed on Monday. Exclude Inauguration Day. Include cross-year observed dates correctly when materializing a bounded horizon.
-- The starter materialization spans January 1 of the year before first start through December 31 ten years after its year. When fewer than two complete local calendar years remain, pure extension appends another ten years using the same `US_FEDERAL_V1` version and returns a new immutable horizon; otherwise it returns the existing value unchanged. Reapplying extension after one extension is idempotent.
+- The starter materialization converts first start into the resolved team's explicit IANA zone, then spans January 1 of the year before that local year through December 31 ten years after it. Before extension, full-year bounds and the exact generated ordered `US_FEDERAL_V1` holiday tuple are authenticated. When fewer than two complete local calendar years remain, pure extension appends exact ten-year blocks until the invariant is restored and returns a new immutable horizon; otherwise it returns the existing value unchanged. Reapplying extension with the same `as_of` is identity-preserving and idempotent, including after far-stale catch-up.
 - This task returns data only. A future service/transaction must persist a new calendar-policy/ground-truth revision; do not add that persistence here.
 
 **RED command and required failures:**
@@ -269,3 +271,18 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 - [x] Inspect/stage only Task 4 files and commit exactly `feat(v2): add dual-clock business calendar`.
 
 **Done condition:** Pure tests prove exact calendar/business elapsed time, deterministic forward business-time addition, DST-safe local/UTC resolution, fixed unadjusted local cadence, and exact/idempotent `US_FEDERAL_V1` materialization; no persistence/schema/external boundary changed; Alembic remains sole head `014`; Task 3 plus focused/v2/full tests and Ruff pass with truthful evidence and the exact Task 4 commit; M1 remains in progress.
+
+### Task 4 review fix round 1 — completed 2026-08-11
+
+- [x] Derive starter horizon years from the resolved team's explicit available IANA timezone and
+  prove UTC-normalized Kiritimati boundaries plus equivalent offset representations.
+- [x] Reject loadable pseudo-zones through one shared `available_timezones()` validation boundary.
+- [x] Authenticate full-year bounds and the exact ordered `US_FEDERAL_V1` tuple before any no-op or
+  extension decision.
+- [x] Catch far-stale horizons up in exact ten-year blocks and preserve identity on identical replay.
+- [x] Raise stable domain `ValueError` at ordinary and `date.max` business-calendar exhaustion;
+  exercise the actual frozen `_configuration` field.
+- [x] Preserve the complete 1900–2100 federal rules, randomized calendar arithmetic, fixed cadence,
+  DST round trips, immutable-value policy, revision-014 graph, and all prior v2 regressions.
+- [x] Retain truthful RED/GREEN/full/Ruff/Alembic/shape evidence and commit separately as
+  `fix(v2): harden calendar horizon contracts`; M1 remains in progress.

@@ -1,8 +1,10 @@
 import pickle
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from functools import partial
+from random import Random
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -17,7 +19,10 @@ from app.v2.domain.business_calendar import (
 from app.v2.domain.team_blueprint import CalendarBlueprint, ResolvedTeamBlueprint
 
 TEAM_TIMEZONE = "America/Los_Angeles"
+UTC_TIMEZONE = "Etc/UTC"
 ONE_HOUR = timedelta(hours=1)
+HALF_HOUR = timedelta(minutes=30)
+RANDOM_CALENDAR_SEED = 20260811
 _utc = partial(datetime, tzinfo=UTC)
 
 
@@ -42,7 +47,11 @@ def _unchecked_blueprint(**changes: object) -> CalendarBlueprint:
 
 
 def _calendar(**changes: object) -> BusinessCalendar:
-    return BusinessCalendar.from_blueprint(TEAM_TIMEZONE, _calendar_blueprint(**changes))
+    return _calendar_for_zone(TEAM_TIMEZONE, **changes)
+
+
+def _calendar_for_zone(timezone_name: str, **changes: object) -> BusinessCalendar:
+    return BusinessCalendar.from_blueprint(timezone_name, _calendar_blueprint(**changes))
 
 
 def test_utc_interval_normalizes_aware_offsets_to_utc():
@@ -128,6 +137,24 @@ def test_cadence_rule_rejects_naive_anchor():
 def test_calendar_rejects_invalid_iana_timezone(timezone_name: object):
     with pytest.raises((TypeError, ValueError)):
         BusinessCalendar.from_blueprint(timezone_name, _calendar_blueprint())
+
+
+def test_calendar_rejects_loadable_non_iana_posixrules_zone():
+    ZoneInfo("posixrules")
+
+    with pytest.raises(ValueError, match="IANA timezone"):
+        BusinessCalendar.from_blueprint("posixrules", _calendar_blueprint())
+
+
+@pytest.mark.parametrize(
+    "timezone_name", [TEAM_TIMEZONE, "Pacific/Kiritimati", UTC_TIMEZONE]
+)
+def test_calendar_accepts_real_available_iana_timezone_keys(timezone_name: str):
+    calendar = _calendar_for_zone(timezone_name)
+
+    assert calendar.business_date(_utc(2026, 8, 10)) == _utc(
+        2026, 8, 10
+    ).astimezone(ZoneInfo(timezone_name)).date()
 
 
 @pytest.mark.parametrize(
@@ -216,6 +243,17 @@ def test_next_working_instant_skips_holiday_across_year_change():
     assert calendar.next_working_instant(_utc(2027, 1, 1, 19)) == _utc(2027, 1, 4, 17)
 
 
+@pytest.mark.parametrize("last_day", [date(2027, 12, 31), date.max])
+def test_next_working_instant_reports_stable_horizon_exhaustion(last_day: date):
+    calendar = _calendar_for_zone(
+        UTC_TIMEZONE, holiday_horizon_end=last_day, holidays=()
+    )
+    after_close = datetime.combine(last_day, time(18), UTC)
+
+    with pytest.raises(ValueError, match="holiday horizon"):
+        calendar.next_working_instant(after_close)
+
+
 def test_elapsed_counts_a_partial_workday_in_both_clocks():
     interval = UtcInterval(_utc(2026, 8, 10, 17, 30), _utc(2026, 8, 10, 19))
 
@@ -242,12 +280,53 @@ def test_elapsed_separates_calendar_and_business_time(
     )
 
 
+def _reference_business_elapsed(interval: UtcInterval) -> timedelta:
+    zone = ZoneInfo(TEAM_TIMEZONE)
+    cursor = interval.start
+    elapsed = timedelta()
+    while cursor < interval.end:
+        segment_end = min(cursor + HALF_HOUR, interval.end)
+        local = cursor.astimezone(zone)
+        local_clock = local.time()
+        is_working = (
+            local.weekday() < 5
+            and local.date() != date(2026, 12, 25)
+            and time(9) <= local_clock < time(17)
+        )
+        if is_working:
+            elapsed += segment_end - cursor
+        cursor = segment_end
+    return elapsed
+
+
+def test_randomized_elapsed_matches_independent_half_hour_reference():
+    randomizer = Random(RANDOM_CALENDAR_SEED)
+    year_start = _utc(2026, 1, 1)
+    for _case in range(48):
+        start = year_start + HALF_HOUR * randomizer.randrange(365 * 48)
+        end = start + HALF_HOUR * randomizer.randrange(97)
+        interval = UtcInterval(start, end)
+
+        assert _calendar().elapsed(interval).business == _reference_business_elapsed(interval)
+
+
 def test_elapsed_treats_midnight_after_horizon_as_an_exclusive_endpoint():
     interval = UtcInterval(_utc(2027, 12, 31, 17), _utc(2028, 1, 1, 8))
 
     assert _calendar(holidays=()).elapsed(interval) == DualElapsed(
         timedelta(hours=15), timedelta(hours=8)
     )
+
+
+def test_elapsed_on_date_max_does_not_overflow_after_the_final_day():
+    interval = UtcInterval(
+        datetime.combine(date.max, time(18), UTC),
+        datetime.max.replace(tzinfo=UTC),
+    )
+
+    assert _calendar_for_zone(
+        UTC_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+    ).elapsed(interval) == DualElapsed(interval.end - interval.start, timedelta())
 
 
 @pytest.mark.parametrize(
@@ -272,6 +351,19 @@ def test_add_zero_returns_normalized_input_without_calendar_adjustment():
     request = BusinessTimeAddition(datetime(2026, 8, 15, 12, tzinfo=offset), timedelta())
 
     assert _calendar().add(request) == _utc(2026, 8, 15, 19)
+
+
+@pytest.mark.parametrize("last_day", [date(2027, 12, 31), date.max])
+def test_add_reports_stable_horizon_exhaustion(last_day: date):
+    calendar = _calendar_for_zone(
+        UTC_TIMEZONE, holiday_horizon_end=last_day, holidays=()
+    )
+    request = BusinessTimeAddition(
+        datetime.combine(last_day, time(16), UTC), timedelta(hours=2)
+    )
+
+    with pytest.raises(ValueError, match="holiday horizon"):
+        calendar.add(request)
 
 
 @pytest.mark.parametrize(
@@ -373,12 +465,14 @@ def test_calendar_operations_do_not_shift_resolved_first_boundary(
 
 
 def test_calendar_value_objects_are_slotted_frozen_copy_stable_and_not_picklable():
+    calendar = _calendar()
+    configuration = calendar._configuration
     cases = (
         (UtcInterval(_utc(2026, 8, 10), _utc(2026, 8, 11)), "start"),
         (DualElapsed(timedelta(days=1), timedelta(hours=8)), "business"),
         (BusinessTimeAddition(_utc(2026, 8, 10), ONE_HOUR), "duration"),
         (CadenceRule(_utc(2026, 8, 10), 14), "cadence_days"),
-        (_calendar(), "_timezone_name"),
+        (calendar, "_configuration"),
     )
 
     for value, field in cases:
@@ -390,3 +484,4 @@ def test_calendar_value_objects_are_slotted_frozen_copy_stable_and_not_picklable
         assert deepcopy(value) is value
         with pytest.raises(TypeError, match="reconstructed"):
             pickle.dumps(value)
+    assert calendar._configuration is configuration

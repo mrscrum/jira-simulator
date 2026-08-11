@@ -26,7 +26,10 @@ The reviewed persistence spine is complete through revision 014. The
 [`m1-deterministic-kernel.md`](m1-deterministic-kernel.md) plan is also complete: Task 3 provides
 review-hardened slotted/reconstruction-resistant HMAC-U53 provenance, scoped safe-integer
 coordinates, and formula-bound dwell/touch samples; Task 4 provides pure dual-clock/DST-safe
-business-calendar, fixed-cadence, and `US_FEDERAL_V1` horizon primitives. M1 remains in progress.
+business-calendar, fixed-cadence, and review-hardened `US_FEDERAL_V1` horizon primitives. The
+starter year is team-zone-derived, only available IANA keys are accepted, canonical horizons are
+authenticated before use, and stale extensions catch up idempotently in ten-year blocks. M1
+remains in progress.
 Work/sprint/status-visit persistence is the next plan decision and must not be guessed from the
 historical detailed backlog.
 

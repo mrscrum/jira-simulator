@@ -2,8 +2,9 @@
 
 import re
 from datetime import UTC, date, datetime, time, timedelta
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
+from app.v2.domain.iana_timezone import resolve_iana_timezone
 from app.v2.domain.immutable_value import ImmutableValue, immutable_dataclass
 from app.v2.domain.team_blueprint import WEEKDAYS, CalendarBlueprint
 
@@ -105,20 +106,6 @@ class _CalendarConfiguration(ImmutableValue):
     holidays: frozenset[date]
 
 
-def _timezone(timezone_name: object) -> ZoneInfo:
-    invalid_name = (
-        type(timezone_name) is not str
-        or not timezone_name
-        or timezone_name.strip() != timezone_name
-    )
-    if invalid_name:
-        raise ValueError("timezone_name must name an IANA timezone")
-    try:
-        return ZoneInfo(timezone_name)
-    except ZoneInfoNotFoundError as error:
-        raise ValueError("timezone_name must name an IANA timezone") from error
-
-
 def _weekday_indices(values: object) -> tuple[int, ...]:
     if type(values) is not tuple or not values:
         raise ValueError("working weekdays must be a non-empty ordered tuple")
@@ -165,7 +152,7 @@ def _calendar_configuration(
         raise ValueError("workday interval must be ordered")
     return _CalendarConfiguration(
         timezone_name=_identifier(timezone_name, "timezone_name"),
-        timezone=_timezone(timezone_name),
+        timezone=resolve_iana_timezone(timezone_name),
         weekday_indices=_weekday_indices(blueprint.working_weekdays),
         workday_start=start,
         workday_end=end,
@@ -211,6 +198,12 @@ def _intersection(left: UtcInterval, right: UtcInterval) -> timedelta:
     return max(ZERO_DURATION, end - start)
 
 
+def _next_day_within_horizon(day: date, horizon_end: date) -> date:
+    if day >= horizon_end:
+        raise ValueError("no working instant exists within the holiday horizon")
+    return day + ONE_DAY
+
+
 @immutable_dataclass
 class BusinessCalendar(ImmutableValue):
     _configuration: _CalendarConfiguration
@@ -253,7 +246,7 @@ class BusinessCalendar(ImmutableValue):
                     return interval.start
                 if normalized < interval.end:
                     return normalized
-            day += ONE_DAY
+            day = _next_day_within_horizon(day, self._configuration.holiday_horizon_end)
 
     def elapsed(self, interval: UtcInterval) -> DualElapsed:
         if type(interval) is not UtcInterval:
@@ -268,6 +261,8 @@ class BusinessCalendar(ImmutableValue):
             working = self.working_interval(day)
             if working is not None:
                 business_elapsed += _intersection(interval, working)
+            if day == final_day:
+                break
             day += ONE_DAY
         return DualElapsed(calendar_elapsed, business_elapsed)
 
