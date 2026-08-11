@@ -108,9 +108,14 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
   visit.entered_at, work_item.id)`. Compare those fields directly in that order. Never order via a
   `SimulatorRank` object, whose item UUID precedes `visit.entered_at`, and never use the visit UUID
   as the final tie-break. Sticky eligible owners are retained before new assignment. An owner is
-  released only when touch is already complete or the member is ineligible or effectively
-  unavailable for the segment. Merely exhausting the current date's remaining capacity does not
-  erase ownership.
+  released at segment start with `PREEXISTING_TOUCH_COMPLETE` only when positive required touch was
+  already complete but still had an owner, or with the exact ineligible/unavailable cause. A visit
+  whose positive remaining touch reaches zero from this segment's credit releases at segment end
+  with `TOUCH_COMPLETED`. Merely exhausting the current date's remaining capacity does not erase
+  ownership.
+- When multiple start-release facts hold, the closed precedence is
+  `PREEXISTING_TOUCH_COMPLETE`, then `RESPONSIBILITY_INELIGIBLE`, then
+  `EFFECTIVELY_UNAVAILABLE`; Task 8 serializes the selected cause without re-evaluation.
 - WIP is the count of open positive-touch visits currently owned by a member across the complete
   run snapshot. New assignment requires `active_wip < max_concurrent_wip`. Among eligible members,
   compare `active_wip / max_wip` by integer cross-multiplication, then descending proficiency,
@@ -129,8 +134,10 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
   `round_half_even(L * p_num / p_den)` effective touch microseconds, capped at remaining touch.
   When that cap completes touch before the requested end, consume the smallest integer labor
   microseconds whose half-even credit reaches the remaining demand, end the segment there, set
-  remaining touch to zero, and release the member while leaving the visit `OPEN` with
-  `closed_at=None`.
+  remaining touch to zero, and release the member at that end with `TOUCH_COMPLETED` while leaving
+  the visit `OPEN` with `closed_at=None`. A preexisting complete positive-touch visit is normalized
+  ownerless at segment start with no labor or queue and remains open/status-unchanged. An owner on a
+  zero-required visit is invalid rather than normalized.
 - A retained sticky owner with zero remaining effective labor produces `CAPACITY` for that visit,
   based on the retained owner's capacity, even when another responsibility-eligible member has
   labor; sticky ownership forbids reassignment. For an unowned visit, queue-reason precedence is
@@ -248,7 +255,8 @@ class CapacityProcessedBoundaryCause(StrEnum):
 
 
 class OwnershipReleaseCause(StrEnum):
-    TOUCH_COMPLETE = "TOUCH_COMPLETE"
+    PREEXISTING_TOUCH_COMPLETE = "PREEXISTING_TOUCH_COMPLETE"
+    TOUCH_COMPLETED = "TOUCH_COMPLETED"
     RESPONSIBILITY_INELIGIBLE = "RESPONSIBILITY_INELIGIBLE"
     EFFECTIVELY_UNAVAILABLE = "EFFECTIVELY_UNAVAILABLE"
 
@@ -334,6 +342,8 @@ class CapacityLaborCredit(ImmutableValue):
     elapsed_after_microseconds: int
     remaining_before_microseconds: int
     remaining_after_microseconds: int
+    credited_labor_before_microseconds: int
+    credited_labor_after_microseconds: int
 
 
 @immutable_dataclass
@@ -358,6 +368,7 @@ class CapacityAllocationResult(ImmutableValue):
     processed_interval: UtcInterval
     processed_boundary_causes: tuple[CapacityProcessedBoundaryCause, ...]
     business_date: date
+    blueprint_canonical_sha256: str
     availability: tuple[AvailabilityResolution, ...]
     ownership: tuple[CapacityOwnershipDecision, ...]
     ownership_changes: tuple[CapacityOwnershipChange, ...]
@@ -397,14 +408,21 @@ Tasks 3-6. Contributor invariants are exact and closed:
   interval/provenance fields are explicitly `None`; direct/replace/mutation/reconstruction attacks
   revalidate these cross-field rules.
 
+`CapacityAllocationResult.blueprint_canonical_sha256` is derived only as
+`canonical_sha256(json.loads(request.blueprint.canonical_json()))`. Every blueprint contributor in
+the result must carry exactly that digest; a replaced/forged contributor SHA invalidates the complete
+result. Runtime contributors retain null blueprint SHA.
+
 `processed_boundary_causes` is a non-empty tuple of every tied cause at the selected strictly
 positive end, in the declaration order above; causes whose candidate is `<= start` are absent.
 Queue evidence uses only the three closed reasons and records business microseconds; no field or
 payload calls queue time dwell. Ownership changes are exact events: a release always has its exact
 `OwnershipReleaseCause`, assignment always has `release_cause=None`, invalid/unavailable prior-owner
-release and new assignment occur at the processed start, and touch-completion release occurs at the
-processed end. For the same visit/instant, release sorts before assignment. A newly assigned owner
-who completes touch within the segment therefore emits assignment at start and release at end while
+release, `PREEXISTING_TOUCH_COMPLETE` normalization, and new assignment occur at the processed start;
+only `TOUCH_COMPLETED` caused by positive credit in this segment occurs at the processed end. A
+preexisting-complete visit receives no assignment/labor/queue after its start release. For the same
+visit/instant, release sorts before assignment. A newly assigned owner who completes touch within the
+segment therefore emits assignment at start and `TOUCH_COMPLETED` release at end while
 `owner_after_member_id` is `None`. Task 8 serializes these typed facts and never reconstructs a cause.
 
 ### Self-contained shared capacity-credit contract and binding mechanics
@@ -422,8 +440,8 @@ who completes touch within the segment therefore emits assignment at start and r
 - Produce one `AvailabilityResolution` for every persisted `MemberIdentity`, in blueprint-index
   order. The active configured interval or default supplies fraction/cap; every active runtime
   overlay may only lower them. Compute the contributor authority SHA exactly as
-  `canonical_sha256(json.loads(blueprint.canonical_json()))`; Task 8 later requires it to equal the
-  coherent runtime's `blueprint_sha256`. Convert only the configured nominal/override hours through
+  `canonical_sha256(json.loads(blueprint.canonical_json()))`; Task 8 later recomputes the same digest
+  from its authenticated view blueprint. Convert only the configured nominal/override hours through
   `hours_to_microseconds` using the float's exact binary ratio and half-even once. Validate every
   non-null `MemberAvailabilityOverlay.daily_capacity_ceiling_microseconds` as an exact non-negative
   built-in integer within signed SQLite range and preserve it unchanged. Take the minimum of those
@@ -434,16 +452,22 @@ who completes touch within the segment therefore emits assignment at start and r
   `hours_to_microseconds(1.000000001, "daily capacity") == 3_600_000_004`, then fraction `0.95`
   produces `3_420_000_004`; `3_420_000_003` is forbidden. Order the contributor trace as the
   blueprint default/active interval first, then runtime overlays by ascending semantic overlay UUID.
-- Validate eligible IDs as a unique exact tuple of existing `OPEN`, positive-touch visits from one
-  team/run. Build and retain `CapacityWorkOrderKey` directly as
+- Validate eligible IDs as a unique exact tuple of existing `OPEN` visits from one team/run. A
+  labor-eligible visit has positive required and remaining touch. Also accept a positive-required,
+  zero-remaining visit only when it still has a member, solely to normalize that owner at start;
+  reject any owner-bearing zero-required visit, and never give a preexisting-complete visit labor or
+  queue. Build and retain `CapacityWorkOrderKey` directly as
   `(WORK_PRIORITY_ORDER.index(work_item.priority.value), work_item.relative_rank,
   visit.entered_at, work_item.id)` and sort only by those four fields. Never compare
   `work_item.simulator_rank`/`SimulatorRank`, and never append or substitute `visit.id`. A member is
   a candidate only when the blueprint responsibility matches `activity_key`; compare WIP fractions
   by integer cross-multiplication, then proficiency descending, remaining labor descending, and
   member UUID.
-- Preserve an eligible/effectively-available sticky owner. Release an ineligible/unavailable or
-  already-complete owner at segment start; daily exhaustion alone retains ownership. A retained
+- Preserve an eligible/effectively-available sticky owner. Release an ineligible/unavailable owner
+  at segment start with its typed cause. Release a positive-required owner whose remaining touch was
+  already zero at segment start with `PREEXISTING_TOUCH_COMPLETE`; daily exhaustion alone retains
+  ownership. Apply exact start-release precedence `PREEXISTING_TOUCH_COMPLETE`,
+  `RESPONSIBILITY_INELIGIBLE`, then `EFFECTIVELY_UNAVAILABLE`. A retained
   sticky owner with zero remaining effective labor is not replaced by another eligible member: it
   receives zero labor and exact `CAPACITY` queue denial based on that owner. Assign unowned visits in
   work order while WIP space remains, then give each member's labor to only their first owned visit
@@ -456,8 +480,9 @@ who completes touch within the segment therefore emits assignment at start and r
   member UUID. Never use float division or input order.
 - Choose one common strictly-positive processed end under the boundary rule above and retain every
   tied `CapacityProcessedBoundaryCause` in enum declaration order. Debit unadjusted labor, credit
-  exact capped proficiency work, and release a touch-complete owner at that end. Retain the exact
-  `OwnershipReleaseCause` on every release. Never close the visit or change status/lifecycle.
+  exact capped proficiency work, and release at that end with `TOUCH_COMPLETED` only when positive
+  remaining touch becomes zero from this segment's credit. Retain the exact `OwnershipReleaseCause`
+  on every release. Never close the visit or change status/lifecycle.
 - `PROFICIENCY_CREDIT_V1` computes
   `round_half_even(labor_microseconds * proficiency_numerator / proficiency_denominator)` and caps
   the result at remaining touch. When credit would complete touch early, consume the smallest
@@ -500,6 +525,11 @@ who completes touch within the segment therefore emits assignment at start and r
   byte-identical results. Assert every contributor's exact kind/ID, configured/runtime UTC interval,
   source/reason, fraction ratio, integer ceiling, and mutually exclusive blueprint canonical SHA or
   canonical overlay provenance JSON/SHA.
+- [ ] Add `test_blueprint_contributor_sha_is_derived_from_authenticated_canonical_blueprint` using
+  `backend/tests/v2/fixtures/resolved_scrum_blueprint.json`; assert exact digest
+  `830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276` on the result and each blueprint
+  contributor. Add `test_forged_blueprint_contributor_sha_invalidates_allocation_result` using direct,
+  `replace`, mutation, and reconstruction attempts; runtime contributor blueprint SHA remains null.
 
   ```python
   cap = hours_to_microseconds(1.000000001, "daily capacity")
@@ -527,11 +557,18 @@ who completes touch within the segment therefore emits assignment at start and r
   ("higher_owned_work", CONTENTION)]`. Add named tests
   `test_sticky_owner_is_released_only_for_binding_release_causes`,
   `test_lower_owned_visit_queues_contention_while_higher_owned_visit_uses_member_labor`,
-  `test_two_members_credit_in_parallel`, `test_touch_completion_shortens_common_segment`, and
+  `test_two_members_credit_in_parallel`,
+  `test_preexisting_touch_complete_owner_releases_at_start_without_labor_or_queue`,
+  `test_touch_completed_during_segment_releases_at_processed_end`,
+  `test_owner_bearing_zero_required_visit_rejects`,
+  `test_touch_completion_shortens_common_segment`, and
   `test_ineligible_closed_or_zero_touch_visits_never_accrue_queue` with exact before/after microsecond
   balances and assignment/release instants. The one-member/two-owned-visits vector gives the higher
   visit the only positive credit and gives the lower visit zero labor plus `CONTENTION` and the exact
-  full processed business microseconds in queue.
+  full processed business microseconds in queue. The preexisting-complete vector has positive
+  required/zero remaining touch and a member at start; assert start-time release, no labor/credit/
+  queue/consumption, and `OPEN`/same-status/ownerless output. The zero-required owner vector rejects
+  before result construction.
 - [ ] Parameterize `test_allocator_segment_boundaries` across configured/runtime boundaries, daily
   exhaustion, workday/date/DST boundaries, touch completion, and tied causes. Add named
   `test_exact_boundary_start_uses_new_half_open_state_and_next_positive_boundary`,
@@ -545,7 +582,8 @@ who completes touch within the segment therefore emits assignment at start and r
   mutation/reconstruction attacks, contributor interval/provenance exclusivity, release causes, and
   unchanged pause/dwell/lifecycle/status/sample/work/sprint/counter/natural collections.
 - [ ] Add `test_proficiency_credit_v1_segment_local_golden_vectors` with exact labor, credit, and
-  before/after balance equations for proficiency `0.25`, `1.0`, and `2.0`. Assert no fractional
+  before/after touch and credited-labor balance equations for proficiency `0.25`, `1.0`, and `2.0`.
+  Assert no fractional
   residue field exists and do not assert equality between one large segment and arbitrary
   subdivisions.
 - [ ] Run the focused command from `backend/` and retain the expected non-zero output caused only by
@@ -601,11 +639,13 @@ who completes touch within the segment therefore emits assignment at start and r
   `_exact_runtime_ceiling`, which accepts only exact built-in `int | None` in range and returns it
   unchanged; neither calls an hours helper. `_ordered_eligible_visits` constructs the exact four-
   field key. `_resolve_sticky_then_unowned` owns WIP/member ordering, sticky exhaustion, lower-owned-
-  visit contention, and closed denial precedence. `_typed_boundary_candidates` records typed causes;
+  visit contention, preexisting-complete owner normalization, and closed denial precedence.
+  `_typed_boundary_candidates` records typed causes;
   `_minimum_boundary_with_all_tied_causes` rejects an empty set and declaration-orders every cause
   tied at the strictly-positive minimum. `_apply_segment` delegates to small helpers for labor debit,
   segment-local credit, typed completion release, denial queue clocks, and sparse after-images; it
-  does not recompute a cause. Never mutate request/snapshot state or consult implicit time.
+  emits `TOUCH_COMPLETED` only for credit-driven completion and does not recompute a cause. Never
+  mutate request/snapshot state or consult implicit time.
 - [ ] Rerun the identical command to GREEN and save `green.txt`. Refactor only while the identical
   command remains GREEN; use small private request/result helpers rather than long functions.
 - [ ] Run Task 3, Task 4, Task 5, and Task 6 focused selections, then all `tests/v2 -q`, the full safe
@@ -625,7 +665,8 @@ who completes touch within the segment therefore emits assignment at start and r
 
 **Done condition:** One pure call deterministically returns a validated strictly-positive common
 capacity segment, sticky/WIP-safe ownership, exact daily consumption, proficiency-adjusted touch,
-eligible-denial queue-business after-images, and complete typed evidence inputs; no input is mutated,
+preexisting-complete owner normalization, eligible-denial queue-business after-images, and complete
+typed evidence inputs; no input is mutated,
 no I/O/nondeterminism/schema/lifecycle or dwell behavior is added, and focused/regression/static/review
 gates are clean under the exact Task 7 commit.
 
@@ -639,10 +680,10 @@ operation, without performing any visit or workflow transition.
 Task 6 command/UOW/replay tests, Task 5 mapper/read behavior, Task 7 public contracts/tests, and the
 existing live-ledger factories before writing tests. Revision 015 is frozen.
 
-**Inputs:** Semantic team UUID, an aware UTC desired target/horizon within the current active sprint
-and team business date, one aware recording instant, a coherent persisted blueprint/runtime/state
-view, and the Task 7 allocator. `through` may equal current runtime only to report the stable
-already-reached no-write outcome.
+**Inputs:** Semantic team UUID, an aware UTC desired target/horizon no later than the current positive
+working interval's end and within the current active sprint, one aware recording instant, a coherent
+persisted blueprint/runtime/state view, and the Task 7 allocator. `through` may equal current runtime
+only to report the stable already-reached no-write outcome, including at workday end.
 
 **Outputs:** Immutable read/command/result contracts; a one-session SQLAlchemy read adapter; an
 injected application service; deterministic owner-change activity, capacity-resolution/selection/
@@ -688,6 +729,14 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
   exhausted at start produces zero labor plus denial queue through the next positive structural or
   request boundary. Commit exactly that segment and never loop to the original target inside the
   transaction; a Task 8 commit can never bump runtime version without advancing the UTC cursor.
+- For an equal or later target, authenticate `BusinessCalendar.working_interval` from the coherent
+  view. Equality may report `CapacityCreditTargetReached` only when the cursor is inside the interval
+  or exactly at its end; this permits a terminal retry at workday end but rejects other non-working
+  equality. A later target requires the cursor in the half-open interval and `through <= working.end`.
+  A later same-date target beyond workday end raises exact type
+  `CapacityCreditTargetOutsideWorkingInterval` and message
+  `capacity credit target exceeds current working interval` without allocator, committer, DML,
+  commit, or rollback.
 - `CommitCapacityCreditCommand.through` is a desired target/horizon, never an idempotency key. Each
   invocation reads current runtime and can commit only its next contiguous segment. A response-loss
   retry below the target commits the following segment with the new expected version; equality raises
@@ -712,10 +761,16 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
   visits only: no responsibility-eligible/effectively-available labor is `CAPACITY`; labor with all
   candidates WIP-full is `WIP_LIMIT`; otherwise higher-ordered owned work is `CONTENTION`.
 - At most one owned visit per member receives labor in a segment. Labor is debited before exact
-  segment-local `PROFICIENCY_CREDIT_V1` credit. A completion shortens the common segment and releases
-  the owner but leaves the visit `OPEN`, status/lifecycle unchanged, `closed_at=None`, and remaining
+  segment-local `PROFICIENCY_CREDIT_V1` credit. Positive remaining touch completed by this segment
+  shortens the common segment and releases at end with `TOUCH_COMPLETED`; positive required touch
+  already complete but still owned releases at start with `PREEXISTING_TOUCH_COMPLETE` and receives
+  no labor/queue. Both remain `OPEN`, status/lifecycle unchanged, `closed_at=None`, and remaining
   touch zero. Eligible positive-touch zero-labor visits accrue only exact business-subsegment queue;
-  zero/non-business or ineligible/closed/complete visits accrue none and queue is never dwell.
+  zero/non-business or ineligible/closed/complete-normalization visits accrue none and queue is never
+  dwell. An owner-bearing zero-required visit is invalid.
+- Start-release cause precedence is exactly `PREEXISTING_TOUCH_COMPLETE`,
+  `RESPONSIBILITY_INELIGIBLE`, `EFFECTIVELY_UNAVAILABLE`; Task 8 emits the Task 7 cause without
+  recomputing it.
 - A lower-ordered eligible positive-touch visit owned by the same member serving higher-ordered owned
   work receives `CONTENTION` and exact queue-business accrual, not post-allocation `CAPACITY`.
 - Preserve Task 7's complete availability, four-field selection, ownership-change, labor/credit,
@@ -739,7 +794,9 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
 - Create `backend/tests/v2/unit/test_capacity_credit.py`.
 - Create `backend/tests/v2/fixtures/capacity_credit_v1_vectors.json` with independently reviewed
   literal canonical JSON and lower-case SHA-256 vectors for resolution, selection, progress,
-  assignment, and release payloads; production helpers must not generate the expected side.
+  assignment, and release payloads; derive all coordinates from the existing authenticated
+  `resolved_scrum_blueprint.json` fixture, which is read-only for Task 8. Production helpers must not
+  generate the expected side.
 - Create `backend/tests/v2/integration/test_authoritative_state_reader.py`.
 - Create `backend/tests/v2/integration/test_capacity_credit_service.py`.
 - Modify `backend/tests/v2/integration/test_authoritative_unit_of_work.py` only for exact Task 8
@@ -757,6 +814,10 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
 
 ```python
 class CapacityCreditTargetReached(ValueError):  # noqa: N818
+    pass
+
+
+class CapacityCreditTargetOutsideWorkingInterval(ValueError):  # noqa: N818
     pass
 
 
@@ -809,6 +870,12 @@ class CommitCapacityCreditService:
 identity. `CapacityCreditTargetReached` is the exact stable typed no-write signal and always uses
 message `capacity credit target is already reached`. A target before current runtime raises
 `ValueError("capacity credit target precedes current simulation time")`.
+`CapacityCreditTargetOutsideWorkingInterval` is the exact stable typed signal for a later target
+beyond the current work interval and always uses message
+`capacity credit target exceeds current working interval`. A later target requires the cursor in the
+positive half-open working interval; equality additionally permits the exact interval end. Every
+other cursor position raises exact
+`ValueError("capacity credit cursor is outside current working interval")`.
 
 `SqlAlchemyScrumStateMapper.load_authoritative` has this exact caller-owned-session signature:
 
@@ -829,15 +896,30 @@ a view made stale after the read.
 ### Binding application behavior
 
 - Validate absolute command types/UTC and the coherent team/run/blueprint view first. Compare desired
-  `through` with the freshly read runtime before allocator/committer calls. When equal, raise exact
-  `CapacityCreditTargetReached("capacity credit target is already reached")`; when earlier, raise
-  exact `ValueError("capacity credit target precedes current simulation time")`. Both paths call
-  neither allocator nor committer and write nothing. When later, require runtime state `RUNNING`, one
-  exact active sprint, `through <= planned_end_at`, one team business date, and authenticated holiday
-  horizon. Other invalid/stale/foreign inputs still fail before Task 7 or the commit port.
+  `through` with the freshly read runtime before allocator/committer calls. When earlier, raise exact
+  `ValueError("capacity credit target precedes current simulation time")`. For equality or later,
+  build `BusinessCalendar` from the authenticated view blueprint and obtain
+  `working = calendar.working_interval(calendar.business_date(runtime.simulation_time))`, and require
+  `working is not None`. Equality raises exact
+  `CapacityCreditTargetReached("capacity credit target is already reached")` only when
+  `working.start <= runtime.simulation_time <= working.end`; equality outside that closed terminal
+  range raises exact `ValueError("capacity credit cursor is outside current working interval")`.
+  When later, require `working.start <= runtime.simulation_time < working.end`; otherwise raise the
+  same cursor error. Require
+  `command.through <= working.end`; a later same-date after-hours target raises exact
+  `CapacityCreditTargetOutsideWorkingInterval` with message
+  `capacity credit target exceeds current working interval`. These invalid paths perform the one
+  read needed to authenticate calendar authority but call neither allocator nor committer, issue no
+  DML/commit/rollback, and leave runtime/state/ledgers unchanged. Also require runtime state `RUNNING`,
+  one exact active sprint, `through <= planned_end_at`, the working interval's one business date, and
+  authenticated holiday horizon. Other invalid/stale/foreign inputs still fail before Task 7 or the
+  commit port.
 - Eligible visits are derived, not supplied by an API: take non-removed scope entries in the exact
   active sprint, their `WorkItemLifecycle.ACTIVE` work items, and their exact open positive-touch
-  visits with remaining work. Order IDs only by Task 7's retained four fields:
+  visits when `remaining_work_microseconds > 0` or, solely for normalization,
+  `remaining_work_microseconds == 0 and member_id is not None`. The normalization case must have
+  `required_work_microseconds > 0`; reject an owner-bearing zero-required visit before allocation.
+  Unowned complete visits are omitted. Order IDs only by Task 7's retained four fields:
   `WORK_PRIORITY_ORDER` index, relative rank, visit entry instant, and semantic work-item UUID.
   Neither `SimulatorRank` nor visit UUID participates.
 - Call `allocate_capacity` once and commit at most one next segment per service call. Require
@@ -855,9 +937,13 @@ a view made stale after the read.
 - Task 8 consumes the reviewed Task 7 seam exactly as
   `allocate_capacity(CapacityAllocationRequest) -> CapacityAllocationResult`. It may serialize the
   result and place its sparse after-images into Task 6, but it must not reinterpret candidate order,
-  recompute availability/proficiency/queue, or manufacture an ownership change. Require every
-  blueprint contributor SHA to equal the coherent runtime `blueprint_sha256`; runtime contributors
-  already carry their authenticated canonical provenance JSON/SHA.
+  recompute availability/proficiency/queue, or manufacture an ownership change. Compute the one
+  authoritative blueprint digest exactly as
+  `canonical_sha256(json.loads(view.blueprint.canonical_json()))` after validating the authenticated
+  view. Require `allocation.blueprint_canonical_sha256` and every blueprint contributor SHA to equal
+  that digest; a forged/mismatched contributor or result SHA rejects before the commit port. Runtime
+  contributors already carry their authenticated canonical provenance JSON/SHA. No nonexistent
+  runtime digest field participates.
 - Build `ScrumStateWriteSet` from only Task 7 visit and business-date-consumption after-images. Visit
   after-images may change owner, touch clocks, credited labor, and the bounded queue-business clock.
   Do not include work, sprint, scope, sample, factor, overlay, counter, or natural-evaluation
@@ -886,9 +972,11 @@ a view made stale after the read.
   `record_type="STATUS_VISIT_PROGRESS"`, `provenance_type="PROFICIENCY_CREDIT_V1"`. The nullable
   `labor_member_id` and nullable proficiency ratio are `null` when labor is zero. A queue-only visit
   still records zero labor/credit, its exact `CAPACITY`/`WIP_LIMIT`/`CONTENTION` reason and balances,
-  typed processed-boundary causes, and unchanged touch balances. Every ground-truth payload contains
-  expected/proposed post-slice runtime versions; envelope `occurred_at` is the processed end and
-  ledger `recorded_at` is the command value.
+  typed processed-boundary causes, unchanged touch balances, and unchanged credited-labor balance. A
+  positive-credit visit records non-null member/proficiency, positive labor/effective credit,
+  `queue=null`, and exact before/after touch, queue, and credited-labor balances. Every ground-truth
+  payload contains expected/proposed post-slice runtime versions; envelope `occurred_at` is the
+  processed end and ledger `recorded_at` is the command value.
 - Freeze `live_slice.ground_truth` order as all resolution drafts in blueprint member-index order,
   then all selection drafts by `CapacityWorkOrderKey`, then exactly one progress draft per changed
   visit by `CapacityWorkOrderKey`. Task 7 contributor/candidate order is retained byte-for-byte;
@@ -903,9 +991,10 @@ a view made stale after the read.
   `aggregate_version=expected_runtime_version + 1`.
 - Freeze activity order by `(occurred_at, CapacityWorkOrderKey, event precedence, member UUID)`, with
   release before assignment at the same visit/instant. Assignment occurs at processed start,
-  invalid/unavailable-owner release at start, and touch-completion release at processed end. Distinct
-  assignment/release key prefixes guarantee that assign-then-complete in one segment yields two
-  unique drafts. No activity is emitted for retained ownership, queue, or ordinary credit.
+  invalid/unavailable-owner and `PREEXISTING_TOUCH_COMPLETE` release at start, and only
+  credit-caused `TOUCH_COMPLETED` release at processed end. Distinct assignment/release key prefixes
+  guarantee that assign-then-complete in one segment yields two unique drafts. No activity is emitted
+  for retained ownership, queue, or ordinary credit.
   `POST_SLICE_RUNTIME_VERSION_V1` remains the explicit temporary aggregate-version convention until
   later per-visit schema ownership; include it and both runtime versions in each canonical activity
   payload. The required catalogue `WORK_CREDITED` event belongs to the later full event-time/per-
@@ -914,7 +1003,9 @@ a view made stale after the read.
   Set `projection_intents=()` and never call an adapter.
 - Leave a touch-complete visit `OPEN`, `closed_at=None`, and at its unchanged status with
   `remaining_work_microseconds=0` and `member_id=None`. Task 8 must not inspect the next route step,
-  sample a visit, claim a visit ordinal, evaluate dwell, or change any lifecycle.
+  sample a visit, claim a visit ordinal, evaluate dwell, or change any lifecycle. This applies both
+  to start-normalized `PREEXISTING_TOUCH_COMPLETE` and end-released `TOUCH_COMPLETED`; the former has
+  no labor, credit, queue, or consumption effect.
 - Queue increments only by Task 7's exact business subsegment for an eligible positive-touch visit
   denied labor by `CAPACITY`, `WIP_LIMIT`, or `CONTENTION`. A retained sticky owner with zero
   remaining effective labor is `CAPACITY` based on that owner even if another eligible member is
@@ -934,9 +1025,19 @@ dates use `date.isoformat()`; enums use `.value`; ratios and microseconds are JS
 semantic values are JSON `null`. Serialize with existing `canonical_json` (`sort_keys=True`, compact
 separators, UTF-8, no NaN) and hash those exact bytes with lower-case SHA-256. Array order is policy
 order and is never re-sorted by JSON encoding. Selection/progress `queue` is the shown object when
-queue accrues and explicit `null` otherwise; progress `proficiency` and `labor_member_id` are both
+queue accrues and explicit `null` otherwise. Progress always carries separate exact
+`queue_balance` and `credited_labor` before/after objects; `proficiency` and `labor_member_id` are both
 explicit `null` exactly when labor is zero. Assignment `release_cause` is always `null`; release
 requires one closed `OwnershipReleaseCause`. Every envelope has exact `schema_version="1.0"`.
+
+Every literal UUID below is a real semantic coordinate derived from the one canonical fixture
+`backend/tests/v2/fixtures/resolved_scrum_blueprint.json`: its authenticated canonical digest is
+`830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276`; apply `team_rng_id(digest)`,
+`run_rng_id(team_id, 0)`, `member_rng_id(team_id, 1)`,
+`item_rng_id(team_id, CreationKind.INITIAL_BACKLOG, 0)`, and `visit_rng_id(item_id, 0)`. The runtime
+overlay coordinate is `semantic_uuid(f"overlay/{member_id}/0")`. The fixture test must validate the
+canonical blueprint and assert all six derived coordinates—including overlay—before comparing any
+builder payload, canonical string, or hash.
 
 The resolution golden also freezes the exact contributor union. `BLUEPRINT_INTERVAL` has the same
 keys as the shown blueprint contributor but uses its interval kind/ID, exact configured starts/ends
@@ -950,7 +1051,7 @@ rules from Task 7.
     "consumed_before_microseconds": 0,
     "contributors": [
       {
-        "blueprint_canonical_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "blueprint_canonical_sha256": "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276",
         "configured_ends_at": null,
         "configured_starts_at": null,
         "contributor_id": "BLUEPRINT_DEFAULT",
@@ -958,7 +1059,7 @@ rules from Task 7.
         "kind": "BLUEPRINT_DEFAULT",
         "overlay_provenance_json": null,
         "overlay_provenance_sha256": null,
-        "pre_fraction_cap_microseconds": 7200000000,
+        "pre_fraction_cap_microseconds": 21600000000,
         "reason": null,
         "runtime_ends_at": null,
         "runtime_starts_at": null,
@@ -968,7 +1069,7 @@ rules from Task 7.
         "blueprint_canonical_sha256": null,
         "configured_ends_at": null,
         "configured_starts_at": null,
-        "contributor_id": "RUNTIME_OVERLAY:00000000-0000-0000-0000-000000000006",
+        "contributor_id": "RUNTIME_OVERLAY:92c210b7-b5c7-5a6d-a469-4d6fc6b20b68",
         "fraction": {"denominator": 4503599627370496, "numerator": 4278419646001971},
         "kind": "RUNTIME_OVERLAY",
         "overlay_provenance_json": "{\"reason\":\"training\"}",
@@ -982,51 +1083,51 @@ rules from Task 7.
     ],
     "effective_cap_microseconds": 3420000003,
     "effective_fraction": {"denominator": 4503599627370496, "numerator": 4278419646001971},
-    "member_id": "00000000-0000-0000-0000-000000000003",
+    "member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
     "pre_fraction_cap_microseconds": 3600000003,
     "remaining_before_microseconds": 3420000003
   },
   "policy": {"availability": "AVAILABILITY_OVERLAY_V1"},
-  "run_id": "00000000-0000-0000-0000-000000000002",
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
   "runtime": {"expected_version": 7, "post_slice_version": 8},
-  "team_id": "00000000-0000-0000-0000-000000000001"
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
 }
 ```
 
 ```json
 {
   "policy": {"allocator": "CAPACITY_ALLOCATOR_V1"},
-  "run_id": "00000000-0000-0000-0000-000000000002",
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
   "runtime": {"expected_version": 7, "post_slice_version": 8},
   "selection": {
-    "activity_key": "DEVELOP",
+    "activity_key": "development",
     "candidates": [
       {
         "active_wip": 2,
         "max_wip": 2,
-        "member_id": "00000000-0000-0000-0000-000000000003",
+        "member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
         "proficiency": {"denominator": 1, "numerator": 1},
         "remaining_labor_microseconds": 3420000003
       }
     ],
     "labor_member_id": null,
-    "owner_after_member_id": "00000000-0000-0000-0000-000000000003",
-    "previous_member_id": "00000000-0000-0000-0000-000000000003",
+    "owner_after_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+    "previous_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
     "queue": {
       "accrued_microseconds": 1800000000,
       "after_microseconds": 1800000000,
       "before_microseconds": 0,
       "reason": "CONTENTION"
     },
-    "visit_id": "00000000-0000-0000-0000-000000000005",
+    "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43",
     "work_order": {
       "entered_at": "2026-08-11T15:00:00.000000Z",
       "relative_rank": 11,
-      "work_item_id": "00000000-0000-0000-0000-000000000004",
+      "work_item_id": "8f317d4f-8156-5b43-9571-6b3b32d32304",
       "work_priority_order_index": 1
     }
   },
-  "team_id": "00000000-0000-0000-0000-000000000001"
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
 }
 ```
 
@@ -1036,10 +1137,14 @@ rules from Task 7.
   "progress": {
     "boundary_causes": ["REQUEST_END"],
     "business_date": "2026-08-11",
+    "credited_labor": {
+      "after_microseconds": 0,
+      "before_microseconds": 0
+    },
     "labor_member_id": null,
     "labor_microseconds": 0,
-    "owner_after_member_id": "00000000-0000-0000-0000-000000000003",
-    "owner_before_member_id": "00000000-0000-0000-0000-000000000003",
+    "owner_after_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+    "owner_before_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
     "processed_interval": {
       "end": "2026-08-11T16:30:00.000000Z",
       "start": "2026-08-11T16:00:00.000000Z"
@@ -1047,9 +1152,11 @@ rules from Task 7.
     "proficiency": null,
     "queue": {
       "accrued_microseconds": 1800000000,
-      "after_microseconds": 1800000000,
-      "before_microseconds": 0,
       "reason": "CONTENTION"
+    },
+    "queue_balance": {
+      "after_microseconds": 1800000000,
+      "before_microseconds": 0
     },
     "requested_interval": {
       "end": "2026-08-11T16:30:00.000000Z",
@@ -1062,11 +1169,57 @@ rules from Task 7.
       "remaining_before_microseconds": 7200000000
     },
     "touch_credit_microseconds": 0,
-    "visit_id": "00000000-0000-0000-0000-000000000005"
+    "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43"
   },
-  "run_id": "00000000-0000-0000-0000-000000000002",
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
   "runtime": {"expected_version": 7, "post_slice_version": 8},
-  "team_id": "00000000-0000-0000-0000-000000000001"
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
+}
+```
+
+The second progress golden is a valid positive-credit segment with non-null labor/proficiency,
+`queue=null`, and explicit touch, queue, and credited-labor before/after balances:
+
+```json
+{
+  "policy": {"proficiency_credit": "PROFICIENCY_CREDIT_V1"},
+  "progress": {
+    "boundary_causes": ["REQUEST_END"],
+    "business_date": "2026-08-11",
+    "credited_labor": {
+      "after_microseconds": 1800000000,
+      "before_microseconds": 0
+    },
+    "labor_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+    "labor_microseconds": 1800000000,
+    "owner_after_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+    "owner_before_member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+    "processed_interval": {
+      "end": "2026-08-11T16:30:00.000000Z",
+      "start": "2026-08-11T16:00:00.000000Z"
+    },
+    "proficiency": {"denominator": 1, "numerator": 1},
+    "queue": null,
+    "queue_balance": {
+      "after_microseconds": 0,
+      "before_microseconds": 0
+    },
+    "requested_interval": {
+      "end": "2026-08-11T16:30:00.000000Z",
+      "start": "2026-08-11T16:00:00.000000Z"
+    },
+    "touch": {
+      "elapsed_after_microseconds": 1800000000,
+      "elapsed_before_microseconds": 0,
+      "remaining_after_microseconds": 5400000000,
+      "remaining_before_microseconds": 7200000000
+    },
+    "touch_credit_microseconds": 1800000000,
+    "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43"
+  },
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+  "runtime": {"expected_version": 7, "post_slice_version": 8},
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
 }
 ```
 
@@ -1078,17 +1231,17 @@ assignment golden is first and the release golden is second:
   "aggregate_version_convention": "POST_SLICE_RUNTIME_VERSION_V1",
   "event": {
     "event_type": "WORK_ITEM_ASSIGNED_INTERNAL",
-    "member_id": "00000000-0000-0000-0000-000000000003",
+    "member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
     "outcome": "ASSIGNED",
     "release_cause": null,
-    "visit_id": "00000000-0000-0000-0000-000000000005",
-    "work_item_id": "00000000-0000-0000-0000-000000000004"
+    "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43",
+    "work_item_id": "8f317d4f-8156-5b43-9571-6b3b32d32304"
   },
   "occurred_at": "2026-08-11T16:00:00.000000Z",
   "policy": {"allocator": "CAPACITY_ALLOCATOR_V1"},
-  "run_id": "00000000-0000-0000-0000-000000000002",
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
   "runtime": {"expected_version": 7, "post_slice_version": 8},
-  "team_id": "00000000-0000-0000-0000-000000000001"
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
 }
 ```
 
@@ -1097,17 +1250,17 @@ assignment golden is first and the release golden is second:
   "aggregate_version_convention": "POST_SLICE_RUNTIME_VERSION_V1",
   "event": {
     "event_type": "WORK_ITEM_RELEASED_INTERNAL",
-    "member_id": "00000000-0000-0000-0000-000000000003",
+    "member_id": "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
     "outcome": "RELEASED",
-    "release_cause": "TOUCH_COMPLETE",
-    "visit_id": "00000000-0000-0000-0000-000000000005",
-    "work_item_id": "00000000-0000-0000-0000-000000000004"
+    "release_cause": "TOUCH_COMPLETED",
+    "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43",
+    "work_item_id": "8f317d4f-8156-5b43-9571-6b3b32d32304"
   },
   "occurred_at": "2026-08-11T16:30:00.000000Z",
   "policy": {"allocator": "CAPACITY_ALLOCATOR_V1"},
-  "run_id": "00000000-0000-0000-0000-000000000002",
+  "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
   "runtime": {"expected_version": 7, "post_slice_version": 8},
-  "team_id": "00000000-0000-0000-0000-000000000001"
+  "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"
 }
 ```
 
@@ -1115,25 +1268,47 @@ assignment golden is first and the release golden is second:
 the literal compact canonical string and its fixed digest. The independent test parses the pretty
 source object, recomputes with only stdlib `json.dumps(..., sort_keys=True, separators=(",", ":"),
 ensure_ascii=False, allow_nan=False)` plus `hashlib.sha256`, and compares both literals without
-importing any production serializer/evidence builder. The progress shape above is the `CONTENTION`
-vector. The `CAPACITY` vector differs only by `queue.reason="CAPACITY"` and represents its retained
-sticky owner. The unowned `WIP_LIMIT` vector uses `queue.reason="WIP_LIMIT"` and exact JSON null for
-both owner IDs. This freezes all three queue-only variants independently and semantically.
+importing any production serializer/evidence builder. The first progress shape is the `CONTENTION`
+queue-only vector; the second progress shape is the positive-credit vector and must equal the builder
+output byte-for-byte. The `CAPACITY` vector differs from queue-only contention only by
+`queue.reason="CAPACITY"` and represents its retained sticky owner. The unowned `WIP_LIMIT` vector
+uses `queue.reason="WIP_LIMIT"` and exact JSON null for both owner IDs. This freezes all three queue-
+only variants independently and semantically. Fixture-coordinate coherence is asserted before any
+builder/canonical/hash comparison.
 The fixed digest table is:
 
 | Vector | SHA-256 |
 |---|---|
-| `capacity_resolution_runtime_overlay` | `23d65b4d8038df71f9b0b14ddd2ec20e300f58401c96830965921fd7b85afa65` |
-| `capacity_selection_contention` | `d3a6ec9a3cafeafbbd49aa3bb924660660b809fbea3b1fed14387569a596b795` |
-| `capacity_progress_queue_only_capacity` | `d25f701dfbd0569fcfc36f6d324248786de4169822eb45bdfb010e287221b12a` |
-| `capacity_progress_queue_only_wip_limit` | `1f858d12b75b280f597368fbbfbc65bad8f2c98fb43cc65769d6030122292566` |
-| `capacity_progress_queue_only_contention` | `7ef1bfdc07cfe10d2972de182d2f2b80fbfbcf146b200825de2c228ea883f689` |
-| `work_item_assigned_internal` | `cbc373a9f334fed9fba48c0c7448732ffdbbc3e556c3e5af8dc5eb2724141407` |
-| `work_item_released_internal` | `9426a87cc6bcd50506be012bbfd1a90c11249bacfc2ce59a31335715a240b54a` |
+| `capacity_resolution_runtime_overlay` | `18dda5e8cb74b828cfc200fd00d4901b4b3a11ddbb9a1b3941f90984c3058c4f` |
+| `capacity_selection_contention` | `d3f1d422f55be2c93b982e4defad7dc9064f6fafcaf856ddbb2966c0b146aef5` |
+| `capacity_progress_queue_only_capacity` | `d703f96b73eed234de0e6264bba95ef2e959f48ad0783150276ef0d4d6232d61` |
+| `capacity_progress_queue_only_wip_limit` | `8ec0a248b82f9735ca8d60362f6df7c227ec3b63fafad6db3054d1ecf50b28a3` |
+| `capacity_progress_queue_only_contention` | `bd0755593c9acaabfe6bf446d29dfb2f26a272a3a690498c7b4be1e17606c880` |
+| `capacity_progress_positive_credit` | `2f5d2a289dff1609e1746a6aaba9fb129290d96510cd11b4d31798251360b577` |
+| `work_item_assigned_internal` | `422c86cea2d64d28e80f235a2fb8f918711e6c1160c016d0fc1849ecdd336245` |
+| `work_item_released_internal` | `19899a58ec84b2287d153796d91a7c10b6df3c90e0a78d10d05ebc2ed34094d8` |
 
 ### TDD steps and exact cases
 
 - [ ] Write `test_capacity_credit.py` first with
+  `test_capacity_credit_fixture_coordinates_are_semantically_coherent`. Load and authenticate
+  `resolved_scrum_blueprint.json`, assert its canonical digest is exactly
+  `830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276`, then assert the fixture's
+  team/run/member/item/visit/overlay IDs equal the exact helper derivations specified above. This
+  coherence assertion runs before any evidence-builder, canonical-string, or hash comparison.
+
+  ```python
+  assert tuple(map(str, (team_id, run_id, member_id, item_id, visit_id, overlay_id))) == (
+      "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "e3410d9a-7955-59cf-9ef8-4b3b858ff9e8",
+      "8f317d4f-8156-5b43-9571-6b3b32d32304",
+      "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43",
+      "92c210b7-b5c7-5a6d-a469-4d6fc6b20b68",
+  )
+  ```
+
+- [ ] Add
   `test_ground_truth_envelopes_have_exact_schema_metadata_keys_and_order`. Use two members/two visits
   and assert `schema_version == "1.0"` for every draft; resolution drafts precede selection drafts,
   which precede progress drafts; and exact `(record_type, provenance_type)` pairs are
@@ -1162,7 +1337,7 @@ The fixed digest table is:
   `work-item-released-internal/<team>/<run>/<expected-version>/<visit>/<member>`,
   `schema_version="1.0"`, `aggregate_type="STATUS_VISIT"`, the semantic visit UUID,
   `aggregate_version == expected_version + 1`, start/end occurrence instants, and empty projection.
-  Assert assignment has `release_cause=null`, release has exact `TOUCH_COMPLETE`, and both match the
+  Assert assignment has `release_cause=null`, release has exact `TOUCH_COMPLETED`, and both match the
   frozen canonical hashes. Add `test_same_instant_replacement_orders_release_before_assignment` and
   use a responsibility-mismatched prior owner to assert two unique keys plus exact
   `RESPONSIBILITY_INELIGIBLE` release cause.
@@ -1174,20 +1349,34 @@ The fixed digest table is:
   evidence containing the reassociated value `3_420_000_003`. Add
   `test_resolution_evidence_preserves_runtime_integer_ceiling_without_rerounding` with blueprint
   `7_200_000_000`, runtime ceiling/pre-fraction cap `3_600_000_003`, and post-fraction cap
-  `3_420_000_003`. Assert the typed contributor's complete authority fields survive unchanged.
-- [ ] Add `test_capacity_credit_v1_independent_canonical_json_and_sha256_goldens` against all seven
+  `3_420_000_003`. Assert the typed contributor's complete authority fields survive unchanged. Add
+  `test_service_rejects_forged_allocation_or_contributor_blueprint_sha_before_committer`, replacing
+  the result-level digest and each blueprint-contributor digest in turn; assert the authoritative
+  digest is recomputed from `view.blueprint`, the committer is never called, and no write occurs. A
+  forged/noncanonical view blueprint rejects during view validation before allocator invocation.
+- [ ] Add `test_capacity_credit_v1_independent_canonical_json_and_sha256_goldens` against all eight
   literal fixture vectors across the five payload families and exact hashes in this brief. Expected
   canonical strings/digests must be produced only by stdlib JSON/hashlib in the fixture/test side,
   never by importing the production serializer or evidence builder. Add
   `test_queue_only_progress_is_canonical_and_unique_for_each_denial_reason`, parameterized over
   `CAPACITY`, `WIP_LIMIT`, and `CONTENTION`, with zero labor/null member/null proficiency, exact
   before/after queue values, one `capacity-progress/.../<visit>` key, matching independent hash, and
-  no duplicate progress draft.
+  no duplicate progress draft. Add
+  `test_positive_credit_progress_builder_matches_literal_canonical_json_and_sha256`, asserting exact
+  non-null member/proficiency, `1_800_000_000` labor/credit, `queue is None`, boundary/intervals, and
+  touch `0/1_800_000_000` elapsed, `7_200_000_000/5_400_000_000` remaining, queue `0/0`, and credited-
+  labor `0/1_800_000_000` balances before comparing the literal canonical string/hash.
 - [ ] Parameterize `test_capacity_credit_command_rejects_invalid_coordinates_before_ports` over
   naive time, target before current runtime, wrong business date, beyond sprint end, foreign
   team/run/blueprint, and forged exact-value subclasses. Add
   `test_target_equal_to_current_raises_capacity_credit_target_reached_without_port_calls` asserting
-  exact type/message and zero allocator/committer calls. Add named unit cases
+  exact type/message and zero allocator/committer calls. Add
+  `test_later_same_date_after_hours_target_raises_typed_working_interval_error_without_writes` using
+  Los Angeles `2026-08-11` work interval `[16:00Z, 00:00Z)` and target `00:30Z`; assert exact
+  `CapacityCreditTargetOutsideWorkingInterval` type/message, one read, zero allocator/committer,
+  zero DML/commit/rollback, and unchanged runtime/state/ledgers. Add
+  `test_cursor_outside_current_working_interval_rejects_before_allocator_or_committer` for cursors
+  before `16:00Z` and at/after `00:00Z`. Add named unit cases
   `test_capacity_credit_write_set_contains_only_visit_and_consumption_after_images`,
   `test_capacity_credit_claims_and_projection_are_empty`, and
   `test_capacity_credit_never_closes_or_transitions_visit` with exact unchanged collection/status/
@@ -1208,17 +1397,27 @@ The fixed digest table is:
   `test_service_calls_allocator_and_committer_once_for_first_bounded_segment`,
   `test_service_preserves_four_field_order_in_selection_ground_truth`,
   `test_service_sticky_exhausted_owner_a_reports_capacity_with_idle_member_b`, and
-  `test_service_lower_owned_visit_records_contention_progress_while_higher_visit_gets_credit`, and
-  `test_service_touch_completion_releases_owner_but_keeps_visit_open`. Assert exact visit/
+  `test_service_lower_owned_visit_records_contention_progress_while_higher_visit_gets_credit`,
+  `test_service_preexisting_touch_complete_owner_releases_at_start_without_labor_or_queue`,
+  `test_service_touch_completed_during_segment_releases_at_end_and_keeps_visit_open`, and
+  `test_service_owner_bearing_zero_required_visit_rejects_before_committer`. Assert exact visit/
   consumption after-images, opposed item-UUID/entry-instant order, queue microseconds, and no work/
   sprint/status/sample mutation. The one-member/two-owned-visits service vector emits positive credit
-  only for the higher order and one queue-only `CONTENTION` progress draft for the lower order.
+  only for the higher order and one queue-only `CONTENTION` progress draft for the lower order. The
+  preexisting-complete vector emits start-time `PREEXISTING_TOUCH_COMPLETE` activity and one owner-
+  only progress record with null labor/proficiency/queue, unchanged balances/consumption, and an
+  `OPEN`, status-unchanged, ownerless after-image. The in-segment vector emits `TOUCH_COMPLETED` only
+  at processed end.
 - [ ] Add
   `test_response_loss_retry_below_target_commits_next_segment_with_new_version_and_keys`, asserting
   the second call starts at the committed runtime, uses `expected_version + 1`, and contains no prior
   credit/progress key; and
   `test_response_loss_retry_at_target_raises_target_reached_with_zero_writes`, asserting exact
   `CapacityCreditTargetReached` type/message and unchanged runtime/state/ledgers. Add
+  `test_workday_end_target_commits_bounded_segments_then_retry_reports_reached`, using exact target
+  `2026-08-12T00:00:00.000000Z`; assert every segment remains within the current working interval,
+  the final committed cursor equals workday end, and the next identical target returns the typed
+  zero-write reached result. Add
   `test_exhausted_at_start_retry_advances_each_committed_version_without_zero_length_slice`, which
   proves a zero-labor denial segment advances to a strictly later cursor and the same target then
   continues at the new version or reaches the typed no-write result. Add
@@ -1234,6 +1433,7 @@ The fixed digest table is:
   level replay or prior-response reconstruction.
 - [ ] Add named architecture checks
   `test_capacity_credit_dependency_direction_and_session_boundary`,
+  `test_capacity_credit_derives_blueprint_digest_from_view_without_runtime_digest_field`,
   `test_capacity_credit_has_no_transition_or_external_imports`, and
   `test_capacity_credit_does_not_create_revision_016`. Spies must reject visit/sample factories,
   route/dwell/monitor/planner/lifecycle/scheduler/risk/dependency/Jira/OpenAI/projection adapters,
@@ -1282,15 +1482,21 @@ The fixed digest table is:
       eligible_ids = _eligible_visit_ids(context)
       allocation = allocate_capacity(_allocation_request(context, eligible_ids))
       _validate_strictly_positive_contiguous_segment(context, allocation)
+      _validate_allocation_blueprint_digest(context, allocation)
       committed = self._committer.commit_authoritative_slice(_build_commit(context, allocation))
       return CommittedCapacityCredit(allocation, committed)
   ```
 
-  `_validate_target_and_view` owns the exact before/equal/after target branching and builds no session
-  or draft. `_eligible_visit_ids` retains the four-field order. `_resolution_drafts`,
+  `_validate_target_and_view` owns the exact before/equal/after target branching; for a later target
+  it derives the optional working interval, validates the half-open cursor/target bounds, and computes
+  `canonical_sha256(json.loads(view.blueprint.canonical_json()))` into `_CommitContext`. It builds no
+  session or draft. `_eligible_visit_ids` retains the four-field order plus the bounded preexisting-
+  complete normalization case. `_validate_allocation_blueprint_digest` requires the result and each
+  blueprint contributor to equal the context digest before any command/port call. `_resolution_drafts`,
   `_selection_drafts`, `_progress_drafts`, and `_activity_drafts` serialize only Task 7 typed traces
   with the frozen schemas/keys/order above; `_progress_drafts` joins each changed after-image to its
-  selection/credit/queue trace and emits exactly one visit record. `_write_set_from_after_images`
+  selection/credit/queue trace and emits exactly one visit record with explicit touch/queue/credited-
+  labor balances. `_write_set_from_after_images`
   includes only visits/consumption, while `_runtime_advance` changes only UTC cursor/version. Validate
   the completed immutable Task 6 command before the single port call. Keep SQLAlchemy out of domain/
   application modules and do not reconstruct boundary, release, availability, or denial causes.
@@ -1303,9 +1509,10 @@ The fixed digest table is:
   ORM schema files byte-for-byte with the Task 7 base and retain a no-revision-016/no-schema-diff
   artifact.
 - [ ] Record the reader checkpoint, exact command/payload schemas and independent golden digests,
-  contributor/boundary/release traces, rollback/response-loss/target-reached/restart matrix, explicit
-  no-receipt and deferred-`WORK_CREDITED` limitations, no-transition/no-adapter proofs, test counts,
-  warnings, environment, and commands in `evidence/v2/M1-T08/README.md`.
+  semantic-fixture coordinate proof, contributor-authority/boundary/release traces, work-interval/
+  workday-end matrix, rollback/response-loss/target-reached/restart matrix, explicit no-receipt and
+  deferred-`WORK_CREDITED` limitations, no-transition/no-adapter proofs, test counts, warnings,
+  environment, and commands in `evidence/v2/M1-T08/README.md`.
 - [ ] Complete mandatory documentation, mark Task 8 complete only after both review stages are clean,
   leave this plan complete but M1 in progress for separately planned flow/planning/lifecycle work,
   inspect the staged diff, and commit exactly:
@@ -1319,8 +1526,11 @@ selects existing active-sprint touch visits, and commits one Task 7 segment's ru
 assignment/release activity, and resolution/selection/visit-progress ground truth through Task 6. Queue
 advances only for exact eligible-denial business subsegments. After response loss, the same desired
 target either commits only the next versioned segment or raises `CapacityCreditTargetReached` with
-zero writes at the target; it never duplicates prior credit/progress key and never reconstructs the prior
-response, and no committed runtime version exists without strictly positive UTC cursor progress.
-Visits remain open; dwell/status/lifecycle/planning/scheduler/risk/Jira/projection/schema
+zero writes at the target; it never duplicates prior credit/progress key and never reconstructs the
+prior response, and no committed runtime version exists without strictly positive UTC cursor progress.
+Targets never exceed the authenticated current work interval; workday-end retries are reachable.
+Preexisting-complete owners normalize at start without labor/queue, credit-caused completion releases
+at end, and all visits remain open. Canonical evidence matches the coherent semantic fixture and eight
+fixed hashes. Dwell/status/lifecycle/planning/scheduler/risk/Jira/projection/schema
 behavior remains absent; focused, regression, atomicity, restart, static, evidence, documentation,
 and review gates are clean under the exact Task 8 commit.

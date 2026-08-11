@@ -76,18 +76,26 @@ fraction step intentionally yields `3_420_000_003`. Capacity segments must advan
 working start: candidates at/before start are ignored, a non-working start rejects, and exhaustion at
 start advances a positive zero-labor denial segment. A member serving its highest-ordered owned visit
 gives lower owned visits exact `CONTENTION` queue time. Typed contributor, processed-boundary, and
-release-cause traces carry all evidence facts without Task 8 reconstruction.
+release-cause traces carry all evidence facts without Task 8 reconstruction. Preexisting positive-
+touch completion releases a stray owner at segment start with `PREEXISTING_TOUCH_COMPLETE` and no
+labor/queue; only credit-driven completion releases at segment end with `TOUCH_COMPLETED`. Task 8
+includes the former solely for owner normalization and rejects owner-bearing zero-required visits.
 
 Each extracted task brief repeats its applicable authority/shared contract. Task 8 uses exact
 `DraftEnvelope.schema_version="1.0"`, frozen canonical resolution/selection/visit-progress and owner-
-activity payload schemas, five payload families with seven independent canonical JSON/SHA-256
-goldens, and exactly one
+activity payload schemas, five payload families with eight independent canonical JSON/SHA-256
+goldens derived from the real canonical resolved-blueprint fixture, including a literal positive-
+credit progress vector, and exactly one
 `capacity-progress/<team>/<run>/<expected-version>/<visit>` ground-truth record per changed visit,
 including queue-only zero-labor visits. Owner activity remains only catalogue
 `WORK_ITEM_ASSIGNED_INTERNAL`/`WORK_ITEM_RELEASED_INTERNAL`; required `WORK_CREDITED` activity is
 deferred to the full event-time/per-visit-version slice while every credit remains durable ground
 truth. Task 8 has an internal reader/view review checkpoint before commit orchestration. Its retry
 contract treats `CommitCapacityCreditCommand.through` as a desired horizon, never an idempotency key.
+The authoritative contributor digest is computed only from the authenticated view blueprint; no
+runtime digest field exists. A later target must be no later than the current working interval end;
+the exact after-hours error is `CapacityCreditTargetOutsideWorkingInterval` with no allocator/commit
+effect, which makes repeated workday-end targets reachable.
 After response loss, the same target commits only the next segment when runtime is below it; at
 equality, exact `CapacityCreditTargetReached(ValueError)` with message
 `capacity credit target is already reached` guarantees zero writes. Prior-response reconstruction or
