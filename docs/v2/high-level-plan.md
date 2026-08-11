@@ -1,6 +1,7 @@
 # Jira Team Simulator v2 — High-Level Plan
 
-Status: approved direction; implementation not started.
+Status: approved direction; Tasks 1–6 are implemented and accepted, while the pragmatic live loop
+is not yet implemented.
 
 This is the active product and architecture plan. It intentionally leaves implementation details
 to the implementing model and records only the constraints needed to preserve product intent.
@@ -181,7 +182,7 @@ a confirmed product decision above.
 
 ## MVP acceptance
 
-The first production-capable release is accepted when configured Scrum teams can be created through
+The first usable v2 release is accepted when configured Scrum teams can be created through
 Codex, run autonomously through at least two sprint boundaries, converge with Jira after supported
 manual edits and a restart/outage, produce no duplicate Jira resources or lost committed work,
 retain transcripts and calibration ground truth, and remain understandable/controllable from the
