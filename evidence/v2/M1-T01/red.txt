@@ -1,0 +1,49 @@
+
+==================================== ERRORS ====================================
+____________ ERROR collecting tests/v2/unit/test_team_blueprint.py _____________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_team_blueprint.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_team_blueprint.py:7: in <module>
+    from app.v2.domain.canonical_json import canonical_json, canonical_sha256, semantic_uuid
+E   ModuleNotFoundError: No module named 'app.v2'
+_____________ ERROR collecting tests/v2/unit/test_utc_datetime.py ______________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_utc_datetime.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_utc_datetime.py:8: in <module>
+    from app.v2.persistence.team_models import V2TeamModel
+E   ModuleNotFoundError: No module named 'app.v2'
+______________ ERROR collecting tests/v2/unit/test_create_team.py ______________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_create_team.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_create_team.py:5: in <module>
+    from app.v2.application.create_team import CreateTeamCommand, CreateTeamService, InvalidResolvedBlueprint
+E   ModuleNotFoundError: No module named 'app.v2'
+________ ERROR collecting tests/v2/integration/test_team_repository.py _________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/integration/test_team_repository.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/integration/test_team_repository.py:3: in <module>
+    from app.v2.application.create_team import CreateTeamCommand, CreateTeamService
+E   ModuleNotFoundError: No module named 'app.v2'
+=========================== short test summary info ============================
+ERROR tests/v2/unit/test_team_blueprint.py
+ERROR tests/v2/unit/test_utc_datetime.py
+ERROR tests/v2/unit/test_create_team.py
+ERROR tests/v2/integration/test_team_repository.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
+4 errors in 0.16s

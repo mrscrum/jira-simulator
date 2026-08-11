@@ -28,7 +28,7 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [ ] Task 1 — Persist an isolated resolved team blueprint and runtime shell atomically
+- [x] Task 1 — Persist an isolated resolved team blueprint and runtime shell atomically — completed 2026-08-10
 - [ ] Task 2 — Add the atomic live-slice, evidence, and projection contract
 
 ## Task 1: Persist an isolated resolved team blueprint and runtime shell atomically

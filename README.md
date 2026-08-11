@@ -12,6 +12,20 @@ additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-leve
 milestone status under [backlog/v2/](backlog/v2/README.md). These are planning artifacts only; none of the v2 behavior,
 including Codex control or Jira-side manual-intervention ingestion, is implemented yet.
 
+## V2 persistence shell
+
+The first additive v2 slice is implemented locally. A fully resolved canonical Scrum blueprint can
+be atomically persisted as an isolated `v2_teams` aggregate with one immutable blueprint, initial
+run, and runtime shell. Revision `013` adds only `v2_*` tables and can downgrade to `012`; it does
+not alter v1 API behavior or invoke Jira/OpenAI.
+
+From `backend/`, run:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2 -q
+../.venv/bin/python -B -m ruff check --no-cache .
+```
+
 ## Prerequisites
 
 - AWS account with an EC2 key pair created

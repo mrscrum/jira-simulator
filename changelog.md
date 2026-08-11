@@ -159,6 +159,14 @@
   the implementing model can make appropriate local design choices.
 - No application code or runtime behavior was changed.
 
+## [2026-08-10] M1 — Persist isolated team runtime shell
+### Changed
+- Added isolated v2 Scrum blueprint persistence, canonical helpers, aware-UTC storage, and atomic team creation.
+- Added Alembic revision 013 with four additive v2 tables and a complete downgrade.
+- Added v2 tests and RED/GREEN/full-suite/Ruff/Alembic evidence.
+### Fixed
+- No v1 behavior changed; v2 model registration is additive only.
+
 ## [2026-08-10] V2 Stage 0 — Add independent implementation prompt
 ### Changed
 - Added a ready-to-paste v2 implementation prompt with direct links to the active requirements,

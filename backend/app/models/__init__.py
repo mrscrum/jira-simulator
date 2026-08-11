@@ -25,6 +25,12 @@ from app.models.timing_template import TimingTemplate, TimingTemplateEntry
 from app.models.touch_time_config import TouchTimeConfig
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
+from app.v2.persistence.team_models import (
+    V2RunModel,
+    V2TeamBlueprintModel,
+    V2TeamModel,
+    V2TeamRuntimeModel,
+)
 
 __all__ = [
     "Base",
@@ -51,6 +57,10 @@ __all__ = [
     "TimingTemplate",
     "TimingTemplateEntry",
     "TouchTimeConfig",
+    "V2RunModel",
+    "V2TeamBlueprintModel",
+    "V2TeamModel",
+    "V2TeamRuntimeModel",
     "Workflow",
     "WorkflowStep",
 ]

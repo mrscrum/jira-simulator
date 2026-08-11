@@ -37,6 +37,14 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 
 ## Most Recent Change
 
+On 2026-08-10, M1 Task 1 added revision 013 and the first isolated v2 persistence shell. The new
+`backend/app/v2/` package validates/canonicalizes a fully resolved Scrum snapshot, derives semantic
+IDs, and atomically persists a v2 team, blueprint, initial run, and runtime without legacy runtime
+tables. `backend/app/v2/persistence/team_repository.py` takes a session factory and returns domain
+objects. `backend/alembic/versions/013_add_v2_team_spine.py` owns all four v2 tables and downgrade.
+Task 2 is next: live-slice ledgers and runtime optimistic version in migration 014. Do not invoke
+Jira/OpenAI or cross the legacy boundary except to register mappings on `Base`.
+
 On 2026-08-10, Pavel approved the v2 product direction and then asked to keep the plan high level,
 leaving implementation detail to the capable model that builds it. The active requirements,
 architecture, roadmap, and MVP outcome now live in `docs/v2/high-level-plan.md`; milestone status is
@@ -79,10 +87,9 @@ Local evidence:
 
 ## Next Task
 
-Milestone M1 is next: deliver the persisted Scrum simulation core. Before code, safely checkpoint
-the current assessment/planning changes, choose a reviewable first slice, and verify the mandatory
-Superpowers TDD skill from `AGENTS.md`. Any live Jira provisioning test requires a Pavel-authorized
-disposable project/tenant.
+M1 Task 2 is next: add atomic live-slice/evidence/projection persistence above reviewed revision
+013. It must use migration 014 and preserve Task 1's aggregate boundary. Any live Jira provisioning
+test requires a Pavel-authorized disposable project/tenant.
 
 ## Active Decisions and External Gates
 

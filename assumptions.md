@@ -156,3 +156,7 @@
 - Chose migration 013 for the independently committed team/blueprint/run/runtime shell and migration
   014 for the later live-slice/evidence/projection unit of work so each task has a complete downgrade
   and can be reviewed or reverted independently.
+
+## [2026-08-10] M1 — Persist isolated team runtime shell
+- Used compact, sorted-key UTF-8 JSON with the documented fixed UUIDv5 namespace for canonical v2 identities.
+- Kept Task 1 runtime state at `CREATED`; optimistic runtime versioning remains Task 2/migration 014.
