@@ -218,3 +218,11 @@
   storing or exposing the root seed on the result.
 - No product assumptions were made; UUID-only current decision entities, exact occurrence scopes,
   the `0..2^53-1` domain, and formula-consistent duration provenance were supplied review findings.
+
+## [2026-08-11] M1 — Task 3 review fix round 2
+- Chose the explicitly permitted reconstruction policy of rejecting pickle/reduce for all six Task
+  3 value types instead of adding a private validating pickle protocol.
+- Scoped the guarantee to ordinary Python immutability: frozen/slotted values reject attribute,
+  instance-mapping, copy-clone, and reconstruction mutation paths, but do not claim protection from
+  deliberate low-level `object.__setattr__` calls, as required by the review finding.
+- No product behavior, algorithm, coordinate, formula, persistence, or schema assumption was added.

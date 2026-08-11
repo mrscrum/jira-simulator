@@ -35,10 +35,19 @@ tracked under `backlog/v2/`; its active near-term plan is
 - Persistent scheduled events, Jira write queue, rate-limit handling, Jira client, bootstrapper,
   health monitor, and queue-status auditor.
 - Pure v2 deterministic semantic identities, `HMAC_SHA256_U53_V1` decision draws, and bounded
-  dwell/touch sampling with sealed/formula-bound provenance and no persistence/external dependency.
+  dwell/touch sampling with slotted, reconstruction-resistant, formula-bound provenance and no
+  persistence/external dependency.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, Task 3 review fix round 2 moved all six deterministic decision/sampling value
+dataclasses onto one frozen/slotted policy. They expose no instance `__dict__`, shallow/deep copy
+returns the same immutable value, and pickle/reduce plus injected pickle state reject. Tests cover
+ordinary field and mapping mutation of stream seeds, decisions, digests, unit values, duration
+parameters, and samples. This is an ordinary Python immutability guarantee and deliberately does
+not claim defense against explicit low-level `object.__setattr__`. Algorithms, public provenance
+fields, persistence, migrations, external boundaries, and Task 4 are unchanged.
 
 On 2026-08-11, Task 3 review fix round 1 sealed `UniformDraw` construction behind
 `DeterministicRandomStream.draw`, restricted every current decision entity to a semantic UUID,
@@ -95,11 +104,11 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence:
+Current local evidence after Task 3 review fix round 2:
 
-- Backend: 899 passed, 43 skipped, 15 baseline warnings.
-- V2: 381 passed, 1 baseline warning.
-- Task 3 focused: 203 passed.
+- Backend: 939 passed, 43 skipped, 15 baseline warnings.
+- V2: 421 passed, 1 baseline warning.
+- Task 3 focused: 243 passed.
 - Task 1 focused: 48 passed, 1 baseline warning.
 - Task 2 focused: 144 passed.
 - Ruff: passed.
@@ -134,6 +143,8 @@ Current local evidence:
   advance, transaction command/result, and page contracts.
 - `backend/app/v2/domain/deterministic_rng.py` — closed semantic ID/decision enums, exact UUIDv5
   paths, scoped safe-integer coordinates, and sealed stateless HMAC-U53 draws.
+- `backend/app/v2/domain/immutable_value.py` — shared frozen/slotted Task 3 copy and reconstruction
+  policy; the policy covers ordinary mutation paths, not explicit `object.__setattr__` misuse.
 - `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
   bounded duration samples whose retained result is formula-validated.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical

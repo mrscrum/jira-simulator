@@ -268,3 +268,13 @@
 - Boolean canonical coordinates no longer compare equal to integer coordinates.
 - `DurationSample` construction and replacement now reject in-bounds results that do not equal the
   retained dwell/touch formula.
+
+## [2026-08-11] M1 — Seal deterministic value objects
+### Changed
+- Made every Task 3 provenance and sampling dataclass frozen and slotted with no instance mapping.
+- Made shallow/deep copying preserve immutable identity and made pickle/reduce reconstruction reject
+  for decision coordinates, streams, draws, duration parameters, and duration samples.
+- Added direct mapping, ordinary attribute, copy, reduction, and injected pickle-state regressions.
+### Fixed
+- Instance-dictionary mutation and unvalidated pickle state can no longer alter root seeds,
+  decisions, digests, unit values, duration parameters, or sampled results.

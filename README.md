@@ -53,16 +53,19 @@ clock time, and mutable RNG state. The closed creation-kind and decision enums r
 and current decision entities require semantic UUIDs rather than catalog/date strings. Every
 ordinal, occurrence, and draw index is a true integer in `0..2^53-1`; fixed-coordinate decisions
 require occurrence zero, while only the documented eligibility/forced/arrival decisions accept a
-positive caller-supplied occurrence. `UniformDraw` construction is sealed behind the keyed stream,
-so direct construction and `dataclasses.replace` cannot forge canonical or digest provenance.
+positive caller-supplied occurrence. The six Task 3 value types are frozen and slotted, expose no
+instance mapping, preserve identity across shallow/deep copy, and reject pickle/reduce
+reconstruction. `UniformDraw` construction remains sealed behind the keyed stream, so direct
+construction and `dataclasses.replace` cannot forge canonical or digest provenance.
 
 The same slice provides pure bounded dwell and touch sampling. Dwell uses the configured
 minimum/p25/p50/p99/maximum anchors with exact endpoints and log1p-space interpolation; touch uses
-the exact bounded linear formula. Both accept only explicit finite unit draws, preserve immutable
-input/result provenance, and consume no persisted occurrence. This slice adds no database table,
-migration, scheduler, engine, or external adapter. Direct construction and replacement of a
+the exact bounded linear formula. Both accept only explicit finite unit draws, preserve ordinary
+immutable input/result provenance, and consume no persisted occurrence. This slice adds no database
+table, migration, scheduler, engine, or external adapter. Direct construction and replacement of a
 `DurationSample` also revalidate that sampled hours equal the exact formula for its retained
-parameters and draw.
+parameters and draw. This ordinary immutability contract does not claim resistance to deliberate
+low-level mutation through `object.__setattr__`.
 
 ## Prerequisites
 

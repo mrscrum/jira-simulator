@@ -1,6 +1,8 @@
 import json
+import pickle
 import subprocess
 import sys
+from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, fields, replace
 from functools import partial
 from pathlib import Path
@@ -25,6 +27,7 @@ from app.v2.domain.deterministic_rng import (
     team_rng_id,
     visit_rng_id,
 )
+from tests.v2.immutable_value_testing import tampered_pickle
 
 BLUEPRINT_DIGEST = "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276"
 TEAM_ID = UUID("30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6")
@@ -128,6 +131,26 @@ def _changed_message(draw: UniformDraw, field: str, value: object) -> bytes:
     return json.dumps(
         document, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True
     ).encode("utf-8")
+
+
+def _rng_values() -> tuple[object, ...]:
+    decision = DecisionOccurrence(ITEM_ID, DecisionType.STATUS_DWELL, 0)
+    stream = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
+    return decision, stream, stream.draw(decision)
+
+
+def _rng_mutation_cases() -> tuple[tuple[object, str, object], ...]:
+    decision = DecisionOccurrence(ITEM_ID, DecisionType.STATUS_DWELL, 0)
+    replacement = DecisionOccurrence(VISIT_ID, DecisionType.STATUS_TOUCH, 0)
+    stream = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
+    draw = stream.draw(decision)
+    return (
+        (decision, "occurrence", 1),
+        (stream, "root_seed", "changed-root"),
+        (draw, "decision", replacement),
+        (draw, "hmac_sha256", "0" * 64),
+        (draw, "unit_value", 1.0),
+    )
 
 
 def test_creation_kind_is_the_closed_approved_set():
@@ -521,3 +544,61 @@ def test_uniform_draw_and_stream_are_frozen():
         stream.root_seed = "changed"
     with pytest.raises(FrozenInstanceError):
         draw.unit_value = 0.5
+
+
+@pytest.mark.parametrize("value", _rng_values())
+def test_rng_value_exposes_no_instance_dictionary(value: object):
+    with pytest.raises(TypeError):
+        vars(value)
+    with pytest.raises(AttributeError):
+        value.__dict__["tampered"] = True
+
+
+@pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+    value: object, field: str, tampered: object
+):
+    original = getattr(value, field)
+
+    with pytest.raises(AttributeError):
+        value.__dict__[field] = tampered
+    with pytest.raises(FrozenInstanceError):
+        setattr(value, field, tampered)
+    assert getattr(value, field) == original
+
+
+@pytest.mark.parametrize("value", _rng_values())
+def test_rng_value_copy_operations_preserve_identity(value: object):
+    assert copy(value) is value
+    assert deepcopy(value) is value
+
+
+@pytest.mark.parametrize("value", _rng_values())
+def test_rng_value_rejects_pickle_serialization(value: object):
+    with pytest.raises(TypeError, match="reconstructed"):
+        pickle.dumps(value)
+
+
+@pytest.mark.parametrize("value", _rng_values())
+def test_rng_value_rejects_reduce_protocols(value: object):
+    with pytest.raises(TypeError, match="reconstructed"):
+        value.__reduce__()
+    with pytest.raises(TypeError, match="reconstructed"):
+        value.__reduce_ex__(pickle.HIGHEST_PROTOCOL)
+
+
+@pytest.mark.parametrize(
+    ("value_type", "tampered_state"),
+    [
+        (DecisionOccurrence, {"entity_id": ITEM_ID, "occurrence": True}),
+        (DeterministicRandomStream, {"root_seed": "changed-root"}),
+        (UniformDraw, {"hmac_sha256": "0" * 64, "u53_integer": 0, "unit_value": 0.0}),
+    ],
+)
+def test_rng_value_rejects_tampered_pickle_state(
+    value_type: type, tampered_state: dict[str, object]
+):
+    payload = tampered_pickle(value_type, tampered_state)
+
+    with pytest.raises(TypeError, match="reconstructed"):
+        pickle.loads(payload)

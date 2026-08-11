@@ -433,3 +433,192 @@ Result: exit 0 with empty output.
 
 No persistence/UOW/calendar/scheduler/engine/frontend/Jira/OpenAI interface was imported, called,
 or changed. No deployment, push, UAT, or M1 completion was claimed.
+
+## Fix round 2 — seal deterministic value objects
+
+Date: 2026-08-11
+
+Fix base: `d8fbe3f`
+
+Required commit subject: `fix(v2): seal deterministic value objects`
+
+### Corrected evidence boundary
+
+The earlier description of Task 3 provenance as immutable was too broad. Review fix round 1 sealed
+normal `UniformDraw` construction/replacement and formula-bound `DurationSample`, but the ordinary
+dataclasses still exposed mutable instance dictionaries and accepted default pickle state. This
+round makes the six Task 3 value dataclasses frozen and slotted, removes their instance mappings,
+returns the same instance from shallow/deep copy, and rejects pickle/reduce plus injected state.
+This is an ordinary Python immutability boundary; it does not claim protection from an explicit
+low-level `object.__setattr__` call.
+
+### Strict RED -> GREEN -> REFACTOR
+
+All mapping, copy, pickle/reduce, injected-state, and architecture regressions plus the test-only
+tampered-pickle helper were added before production edits. From `backend/`, the exact RED command
+was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_deterministic_rng.py tests/v2/unit/test_sampling.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-red.txt
+```
+
+RED result: exit 1, `43 failed, 200 passed in 0.54s`. Failures proved that the six prior values
+exposed `__dict__`, allowed direct mapping mutation, cloned on copy, serialized/reduced normally,
+accepted injected pickle state, and had no shared immutable-value module for the architecture scan.
+Existing constructor/replacement/forgery/scope/safe-integer/formula tests remained green.
+
+Production then added one shared frozen/slotted ordinary-immutability policy and applied it to
+`DecisionOccurrence`, `DeterministicRandomStream`, `UniformDraw`, `DwellAnchors`, `TouchBounds`, and
+`DurationSample`. The first implementation run found one test-fixture issue: its malicious
+`DurationSample` envelope contained a protected nested `TouchBounds`, so serialization rejected
+before reaching the target sample's injected state (`1 failed, 242 passed`). Only that attack
+payload was changed to primitive invalid state; production was unchanged. The final exact GREEN
+command was identical except for its output file:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_deterministic_rng.py tests/v2/unit/test_sampling.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-green.txt
+```
+
+GREEN result: exit 0, `243 passed in 0.35s`.
+
+### Regression verification
+
+From `backend/`, the exact focused and suite commands were:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_utc_datetime.py tests/v2/unit/test_create_team.py tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_team_repository.py tests/v2/integration/test_migration_013.py -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-task1-focused.txt
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_live_slice.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/integration/test_migration_014.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-task2-focused.txt
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2 -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-v2-suite.txt
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests -q 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-full-suite.txt
+```
+
+Results:
+
+- Task 1: `48 passed, 1 warning in 1.53s`.
+- Task 2: `144 passed in 3.15s`.
+- All v2: `421 passed, 1 warning in 4.28s`.
+- Full backend: `939 passed, 43 skipped, 15 warnings in 30.57s`.
+
+The 15 full-suite warnings remain the documented baseline: one Starlette/httpx deprecation, 13
+Jira-bootstrapper unawaited-`AsyncMock` warnings, and one SQLAlchemy identity-map warning. No warning
+was suppressed, fixed, or broadened.
+
+Ruff was run exactly from `backend/`:
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m ruff check --no-cache . 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-ruff.txt
+```
+
+Result: exit 0, `All checks passed!`.
+
+Alembic graph verification from `backend/`:
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m alembic heads --verbose 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-alembic.txt
+../.venv/bin/python -B -m alembic branches --verbose 2>&1 | tee -a ../evidence/v2/M1-T03/fix-round-2-alembic.txt
+../.venv/bin/python -B -m alembic history 2>&1 | tee -a ../evidence/v2/M1-T03/fix-round-2-alembic.txt
+```
+
+Result: sole `Rev: 014 (head)` with parent `013`, empty branch output, and linear history through
+`014`. No migration/schema file changed.
+
+The exact touched-function/argument/architecture scan used fix base `d8fbe3f`, parsed every touched
+or untracked Python file, and scanned all three Task 3 production modules:
+
+```bash
+set -o pipefail
+../.venv/bin/python -B - <<'PY' 2>&1 | tee ../evidence/v2/M1-T03/fix-round-2-code-shape.txt
+import ast
+import subprocess
+from pathlib import Path
+
+repository = Path('..').resolve()
+base = 'd8fbe3f'
+tracked = subprocess.check_output(
+    ['git', '-C', str(repository), 'diff', '--name-only', base, '--', ':(glob)**/*.py'],
+    text=True,
+).splitlines()
+untracked = subprocess.check_output(
+    ['git', '-C', str(repository), 'ls-files', '--others', '--exclude-standard', '--', '*.py'],
+    text=True,
+).splitlines()
+over_length = []
+over_arguments = []
+for relative_path in sorted(set(tracked + untracked)):
+    path = repository / relative_path
+    tree = ast.parse(path.read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            length = node.end_lineno - node.lineno + 1
+            arguments = len(node.args.posonlyargs) + len(node.args.args) + len(node.args.kwonlyargs)
+            if length > 30:
+                over_length.append(f'{relative_path}:{node.lineno}:{node.name}:{length}')
+            if arguments > 3:
+                over_arguments.append(f'{relative_path}:{node.lineno}:{node.name}:{arguments}')
+print(f'Touched Python files: {sorted(set(tracked + untracked))}')
+print(f'Functions over 30 lines: {over_length}')
+print(f'Functions over 3 arguments: {over_arguments}')
+
+forbidden_imports = (
+    'app.database', 'app.engine', 'app.integrations', 'app.models',
+    'app.v2.persistence', 'random', 'sqlalchemy',
+)
+forbidden_calls = {'hash', 'uuid4', 'now', 'utcnow', 'time'}
+architecture_violations = []
+for relative_path in (
+    'backend/app/v2/domain/deterministic_rng.py',
+    'backend/app/v2/domain/immutable_value.py',
+    'backend/app/v2/domain/sampling.py',
+):
+    tree = ast.parse((repository / relative_path).read_text(encoding='utf-8'))
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith(forbidden_imports)
+        ):
+            architecture_violations.append(f'{relative_path}:import:{node.module}')
+        if isinstance(node, ast.Import):
+            architecture_violations.extend(
+                f'{relative_path}:import:{alias.name}'
+                for alias in node.names
+                if alias.name.startswith(forbidden_imports)
+            )
+        if isinstance(node, ast.Call):
+            call_name = getattr(node.func, 'id', None) or getattr(node.func, 'attr', None)
+            if call_name in forbidden_calls:
+                architecture_violations.append(f'{relative_path}:call:{call_name}')
+    for node in tree.body:
+        if (
+            isinstance(node, (ast.Assign, ast.AnnAssign))
+            and isinstance(node.value, (ast.Dict, ast.List, ast.Set))
+        ):
+            architecture_violations.append(
+                f'{relative_path}:mutable-module-state:{node.lineno}'
+            )
+print(f'Architecture violations: {architecture_violations}')
+if over_length or over_arguments or architecture_violations:
+    raise SystemExit(1)
+PY
+```
+
+Result:
+
+- `Functions over 30 lines: []`
+- `Functions over 3 arguments: []`
+- `Architecture violations: []`
+
+Final whitespace verification from the repository root:
+
+```bash
+set -o pipefail
+git diff --check 2>&1 | tee evidence/v2/M1-T03/fix-round-2-diff-check.txt
+```
+
+Result: exit 0 with empty output. No persistence/UOW/calendar/scheduler/engine/frontend/Jira/OpenAI
+interface was imported, called, or changed. No deployment, push, UAT, or M1 completion was claimed.

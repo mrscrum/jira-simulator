@@ -22,9 +22,9 @@ The existing stage files contain a detailed planning draft created before Pavel 
 high-level plan. They are reference material only; their task IDs and sequencing are not binding.
 
 The reviewed persistence spine is complete through revision 014. Deterministic-kernel Task 3 is
-implemented and review-hardened locally with sealed HMAC-U53 provenance, scoped safe-integer
-coordinates, and formula-bound dwell/touch samples. Task 4, the dual-clock/DST-safe business
-calendar, remains open; completing it will not by itself complete M1.
+implemented and review-hardened locally with slotted/reconstruction-resistant HMAC-U53 provenance,
+scoped safe-integer coordinates, and formula-bound dwell/touch samples. Task 4, the
+dual-clock/DST-safe business calendar, remains open; completing it will not by itself complete M1.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

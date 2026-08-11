@@ -55,7 +55,7 @@ def _task3_source_trees() -> tuple[ast.Module, ...]:
     domain_root = Path(__file__).parents[3] / "app" / "v2" / "domain"
     return tuple(
         ast.parse((domain_root / filename).read_text(encoding="utf-8"))
-        for filename in ("deterministic_rng.py", "sampling.py")
+        for filename in ("deterministic_rng.py", "immutable_value.py", "sampling.py")
     )
 
 

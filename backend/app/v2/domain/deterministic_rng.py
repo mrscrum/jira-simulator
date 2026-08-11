@@ -6,11 +6,11 @@ import json
 import math
 import re
 import unicodedata
-from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
 
 from app.v2.domain.canonical_json import canonical_json, semantic_uuid
+from app.v2.domain.immutable_value import ImmutableValue, immutable_dataclass
 
 ALGORITHM_ID = "HMAC_SHA256_U53_V1"
 LOWER_HEX_64_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -137,8 +137,8 @@ def _entity_text(entity_id: UUID) -> str:
     return str(_require_uuid(entity_id, "entity_id"))
 
 
-@dataclass(frozen=True)
-class DecisionOccurrence:
+@immutable_dataclass
+class DecisionOccurrence(ImmutableValue):
     entity_id: UUID
     decision_type: DecisionType
     occurrence: int
@@ -215,8 +215,8 @@ def _validate_canonical_message(
         raise ValueError("canonical_message does not match the decision coordinate")
 
 
-@dataclass(frozen=True, init=False)
-class UniformDraw:
+@immutable_dataclass
+class UniformDraw(ImmutableValue):
     algorithm: str
     decision: DecisionOccurrence
     draw_index: int
@@ -272,8 +272,8 @@ def _create_uniform_draw(
     return draw
 
 
-@dataclass(frozen=True)
-class DeterministicRandomStream:
+@immutable_dataclass
+class DeterministicRandomStream(ImmutableValue):
     root_seed: str
     team_id: UUID
     run_id: UUID

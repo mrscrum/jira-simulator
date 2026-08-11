@@ -28,7 +28,7 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fix round 1 completed 2026-08-11
+- [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fixes round 1 and 2 completed 2026-08-11
 - [ ] Task 4 — Add dual-clock, DST-safe business-calendar primitives
 
 ## Deferred Non-Blocking Validation Hardening
@@ -166,6 +166,19 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 - [x] Revalidate exact dwell/touch formulas on direct `DurationSample` construction and replacement.
 - [x] Retain focused RED/GREEN plus prior-v2/full/Ruff/Alembic/shape evidence without adding an
   occurrence allocator, schema, persistence, clock, scheduler, engine, or external call.
+
+### Task 3 review fix round 2 — completed 2026-08-11
+
+- [x] Give every Task 3 provenance/value dataclass slots and no instance `__dict__`; retain frozen
+  ordinary attribute rejection and prove direct instance-mapping mutation fails.
+- [x] Return the same immutable instance from shallow/deep copy and reject pickle, reduce, and
+  injected unvalidated pickle-state reconstruction for decision and duration values.
+- [x] Cover root-seed, decision, digest, unit-value, duration-parameter, and sampled-result
+  tampering while preserving every constructor/replacement/forgery/scope/safe-integer/formula test.
+- [x] Retain the exact focused RED/GREEN and full Task 1/Task 2/all-v2/backend/Ruff/Alembic/shape
+  evidence without changing persistence, schema, algorithm, Jira, frontend, or Task 4.
+- [x] State the ordinary immutability boundary truthfully without claiming resistance to deliberate
+  low-level `object.__setattr__` calls.
 
 ## Task 4: Add dual-clock, DST-safe business-calendar primitives
 

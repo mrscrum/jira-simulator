@@ -1,8 +1,9 @@
 """Pure bounded dwell and touch-work duration samplers."""
 
 import math
-from dataclasses import dataclass, fields
+from dataclasses import fields
 
+from app.v2.domain.immutable_value import ImmutableValue, immutable_dataclass
 from app.v2.domain.team_blueprint import TimingEntry
 
 DWELL_PROBABILITIES = (0.0, 0.25, 0.50, 0.99, 1.0)
@@ -38,8 +39,8 @@ def _store_normalized_fields(instance: object, values: tuple[float, ...]) -> Non
         object.__setattr__(instance, field.name, value)
 
 
-@dataclass(frozen=True)
-class DwellAnchors:
+@immutable_dataclass
+class DwellAnchors(ImmutableValue):
     minimum: float
     p25: float
     p50: float
@@ -53,8 +54,8 @@ class DwellAnchors:
         _store_normalized_fields(self, values)
 
 
-@dataclass(frozen=True)
-class TouchBounds:
+@immutable_dataclass
+class TouchBounds(ImmutableValue):
     minimum: float
     maximum: float
 
@@ -65,8 +66,8 @@ class TouchBounds:
         _store_normalized_fields(self, values)
 
 
-@dataclass(frozen=True)
-class DurationSample:
+@immutable_dataclass
+class DurationSample(ImmutableValue):
     parameters: DwellAnchors | TouchBounds
     unit_draw: float
     sampled_hours: float

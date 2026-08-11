@@ -1,4 +1,6 @@
 import math
+import pickle
+from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, replace
 
 import pytest
@@ -13,6 +15,26 @@ from app.v2.domain.sampling import (
     touch_bounds,
 )
 from app.v2.domain.team_blueprint import ResolvedTeamBlueprint
+from tests.v2.immutable_value_testing import tampered_pickle
+
+
+def _sampling_values() -> tuple[DwellAnchors | TouchBounds | DurationSample, ...]:
+    anchors = DwellAnchors(1, 2, 3, 5, 6)
+    bounds = TouchBounds(1, 4)
+    return anchors, bounds, sample_dwell(anchors, 0.5)
+
+
+def _sampling_mutation_cases() -> tuple[tuple[object, str, object], ...]:
+    anchors = DwellAnchors(1, 2, 3, 5, 6)
+    bounds = TouchBounds(1, 4)
+    sample = sample_dwell(anchors, 0.5)
+    return (
+        (anchors, "minimum", 0.0),
+        (bounds, "maximum", 8.0),
+        (sample, "parameters", bounds),
+        (sample, "unit_draw", 0.75),
+        (sample, "sampled_hours", 4.0),
+    )
 
 
 def test_dwell_returns_every_exact_configured_anchor():
@@ -249,3 +271,61 @@ def test_timing_entry_adapters_preserve_exact_configured_values(resolved_bluepri
 
     assert dwell_anchors(entry) == DwellAnchors(1.0, 2.0, 3.0, 5.0, 6.0)
     assert touch_bounds(entry) == TouchBounds(1.0, 4.0)
+
+
+@pytest.mark.parametrize("value", _sampling_values())
+def test_sampling_value_exposes_no_instance_dictionary(value: object):
+    with pytest.raises(TypeError):
+        vars(value)
+    with pytest.raises(AttributeError):
+        value.__dict__["tampered"] = True
+
+
+@pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+    value: object, field: str, tampered: object
+):
+    original = getattr(value, field)
+
+    with pytest.raises(AttributeError):
+        value.__dict__[field] = tampered
+    with pytest.raises(FrozenInstanceError):
+        setattr(value, field, tampered)
+    assert getattr(value, field) == original
+
+
+@pytest.mark.parametrize("value", _sampling_values())
+def test_sampling_value_copy_operations_preserve_identity(value: object):
+    assert copy(value) is value
+    assert deepcopy(value) is value
+
+
+@pytest.mark.parametrize("value", _sampling_values())
+def test_sampling_value_rejects_pickle_serialization(value: object):
+    with pytest.raises(TypeError, match="reconstructed"):
+        pickle.dumps(value)
+
+
+@pytest.mark.parametrize("value", _sampling_values())
+def test_sampling_value_rejects_reduce_protocols(value: object):
+    with pytest.raises(TypeError, match="reconstructed"):
+        value.__reduce__()
+    with pytest.raises(TypeError, match="reconstructed"):
+        value.__reduce_ex__(pickle.HIGHEST_PROTOCOL)
+
+
+@pytest.mark.parametrize(
+    ("value_type", "tampered_state"),
+    [
+        (DwellAnchors, {"minimum": 9.0, "maximum": 1.0}),
+        (TouchBounds, {"minimum": 9.0, "maximum": 1.0}),
+        (DurationSample, {"parameters": "forged-bounds", "sampled_hours": 3.0}),
+    ],
+)
+def test_sampling_value_rejects_tampered_pickle_state(
+    value_type: type, tampered_state: dict[str, object]
+):
+    payload = tampered_pickle(value_type, tampered_state)
+
+    with pytest.raises(TypeError, match="reconstructed"):
+        pickle.loads(payload)
