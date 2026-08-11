@@ -3,13 +3,13 @@
 ## Status and scope
 
 Status: original implementation committed as `a46b615`; review fix round 1 committed as
-`b44d74a`; review fix round 2 is verified and awaits the exact commit subject
-`fix(v2): support sparse scrum after-images`.
+`b44d74a`; review fix round 2 committed as `234397c`; review fix round 3 is verified on `234397c`
+and its fix commit is pending, so no final hash is claimed.
 
 Implementation base: `5e5fac547659` (`docs: define durable Scrum state slices`), a plan-only
 descendant of reviewed Task 4 head `11f3663`.
 
-Required commit subject: `feat(v2): persist authoritative scrum state`.
+Original implementation commit subject: `feat(v2): persist authoritative scrum state`.
 
 This task implements only frozen authoritative Scrum state, its relational persistence, detached
 caller-owned-session mapping, and reversible revision 015. It adds no lifecycle transition,
@@ -193,8 +193,9 @@ No warning was suppressed or broadened.
 - Confirmed no v1 behavior, external boundary, live system, Jira/OpenAI account, deployment, push,
   UAT state, Task 6 implementation, or revision 016 entered the work.
 
-No unresolved implementation concern. The original implementation was committed as `a46b615`, and
-review fix round 1 was committed as `b44d74a`. M1 remains in progress; Task 6 stays unchecked.
+No unresolved implementation concern. The original implementation was committed as `a46b615`,
+review fix round 1 as `b44d74a`, and review fix round 2 as `234397c`. M1 remains in progress; Task 6
+stays unchecked.
 
 ## Fix round 1 — authoritative binding review
 
@@ -287,11 +288,11 @@ accessed.
 
 ## Fix round 2 — sparse after-image and zero-touch review
 
-Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). The required fix-round
-subject is `fix(v2): support sparse scrum after-images`; its hash is intentionally not invented
-before the commit exists. This round remains inside Task 5 and revision 015. It adds no broad
-Task 6 upsert, atomic UOW integration, counter claim, lifecycle/allocation behavior, revision 016,
-frontend, external call, deployment, push, UAT, or live-system access.
+Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). This verified round was
+committed as `234397c` (`fix(v2): support sparse scrum after-images`). It remains inside Task 5 and
+revision 015 and adds no broad Task 6 upsert, atomic UOW integration, counter claim,
+lifecycle/allocation behavior, revision 016, frontend, external call, deployment, push, UAT, or
+live-system access.
 
 ### Review RED
 
@@ -349,6 +350,90 @@ separately witnessed as `4 failed in 0.23s` without changing the consolidated co
 - Shape scan: `8` changed Python files, with no function over 30 lines and no function accepting
   more than three arguments.
 - Repository diff check: exit `0` with empty output.
+
+The warning inventory remains the existing baseline categories. No secret, external provider,
+Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,
+Task 6 implementation, or revision 016 entered this fix round.
+
+## Fix round 3 — clean-session and sample-authentication review
+
+Review-fix base: `234397c` (`fix(v2): support sparse scrum after-images`). The exact round-3 fix
+commit is pending; no final hash is claimed before that commit exists. This round remains inside
+Task 5 and revision 015. It adds no Task 6 upsert/CAS behavior, lifecycle/allocation behavior,
+frontend, external integration, deployment, push, UAT, live-system access, or revision 016.
+
+### Review RED
+
+The consolidated Task 5 regression selection was written before production changes. From
+`backend/`, the exact command was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-red.txt
+```
+
+It recorded
+`34 failed, 273 passed in 15.99s` in `review-fix-round-3-red.txt`. The failures reproduced pending
+caller ORM state flushed or reflected by the mapper, empty coordinate-free write sets returning a
+false complete snapshot, nested deterministic-draw scalar and HMAC equality forgeries, and retained
+sample-unit float subclasses that could change behavior across validation and SQL binding.
+
+The supplemental load selection used:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/integration/test_scrum_state_mapper.py -q -k 'mapper_load_rejects_caller_pending_state' 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-load-red.txt
+```
+
+It recorded `3 failed, 131 deselected in 0.48s` in
+`review-fix-round-3-load-red.txt`. It proved that dirty visits, deleted retained samples, and
+unrelated new rows must reject before load authority SQL as well as before add candidate loading.
+
+### Corrected Task 5 contract
+
+- `add` and `load` now require the caller's ORM unit of work to have empty `new`, `dirty`, and
+  `deleted` collections before any authority/candidate query or Task 5 DML. The mapper performs no
+  implicit flush or rollback of caller work; the caller retains the pending objects and rollback
+  decision after rejection.
+- `add` rejects an empty `ScrumStateWriteSet` before SQL on both empty and populated stores. With no
+  team/run coordinate it cannot load or truthfully return a complete snapshot; Task 6 skips this
+  mapper when its Task 5 after-image set is empty.
+- Trusted sample input validation checks the exact nested `UniformDraw` representation and then
+  authenticates it against the full keyed draw. Exact algorithm text, decision type/UUID/safe
+  integers, draw index, canonical-message bytes, lower-case HMAC, U53 integer, and finite unit float
+  prevent subclass equality tricks. A changed low HMAC nibble rejects even though the retained
+  U53 is unchanged, and the sealed factory revalidates low-level reconstructed inputs.
+- Retained dwell/touch unit values are exact finite built-in floats in `[0, 1]`. Mutable,
+  stateful, or equality-spoofing float subclasses reject at the value, aggregate, and mapper
+  pre-SQL boundaries.
+- Revision 015 remains the sole linear head and no migration changed. Generalized upsert/CAS,
+  runtime mutation, counter claims, lifecycle/allocation behavior, and Task 6 atomic integration
+  remain deferred.
+
+### Final verification
+
+The exact focused GREEN command changed only the standard command's tee target:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-green.txt
+```
+
+- Task 5 focused: `311 passed in 15.54s`.
+- Task 1 focused: `56 passed, 1 warning in 1.69s`.
+- Task 2 focused: `186 passed in 10.69s`.
+- Task 3 focused: `251 passed in 0.61s`.
+- Task 4 focused: `146 passed in 0.39s`.
+- All v2: `849 passed, 1 warning in 18.39s`.
+- Full safe backend: `1367 passed, 43 skipped, 15 warnings in 45.84s`.
+- Ruff: exit `0`, `All checks passed!`.
+- Alembic: sole `015 (head)`, empty branches, and linear history.
+- Migration round trip and ORM parity: `4 passed in 1.48s`.
+- Cold-import selection: `39 passed, 2 deselected in 8.63s`.
+- Architecture boundary selection: `15 passed in 0.24s`.
+- Shape scan: four touched Python files, no function over 30 lines, and no function accepting more
+  than three arguments.
+- Staged-candidate diff check: exit `0` with empty output.
 
 The warning inventory remains the existing baseline categories. No secret, external provider,
 Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,

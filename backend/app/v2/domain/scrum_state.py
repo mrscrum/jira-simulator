@@ -746,7 +746,7 @@ def _validate_sample_input_links(sample_input: StatusVisitSampleInput) -> None:
 def _authenticate_draw(
     sample_input: StatusVisitSampleInput, draw: UniformDraw, decision_type: DecisionType
 ) -> None:
-    _require_exact_type(draw.decision, DecisionOccurrence, "draw decision")
+    _validate_draw_scalars(draw)
     decision = DecisionOccurrence(sample_input.visit.id, decision_type, 0)
     stream = DeterministicRandomStream(
         sample_input.blueprint.seed,
@@ -755,6 +755,35 @@ def _authenticate_draw(
     )
     if draw != stream.draw(decision, 0):
         raise ValueError("draw is not authenticated by the persisted blueprint seed")
+
+
+def _validate_draw_scalars(draw: UniformDraw) -> None:
+    algorithm = _require_text(draw.algorithm, "draw algorithm")
+    if algorithm != ALGORITHM_ID:
+        raise ValueError("draw algorithm is not supported")
+    _validate_draw_decision(draw.decision)
+    _require_safe_integer(draw.draw_index, "draw_index")
+    if type(draw.canonical_message) is not bytes:
+        raise TypeError("draw canonical_message must be bytes")
+    _validate_draw_digest(draw)
+
+
+def _validate_draw_decision(decision: object) -> None:
+    _require_exact_type(decision, DecisionOccurrence, "draw decision")
+    _require_uuid(decision.entity_id, "draw decision entity_id")
+    _require_enum(decision.decision_type, DecisionType, "draw decision_type")
+    _require_safe_integer(decision.occurrence, "draw decision occurrence")
+
+
+def _validate_draw_digest(draw: UniformDraw) -> None:
+    digest = _require_lower_hex_digest(draw.hmac_sha256, "draw hmac_sha256")
+    integer = _require_safe_integer(draw.u53_integer, "draw u53_integer")
+    expected_integer = int.from_bytes(bytes.fromhex(digest)[:8], "big") >> DISCARDED_LOW_BITS
+    if integer != expected_integer:
+        raise ValueError("draw u53_integer does not match its HMAC")
+    unit = _require_fraction(draw.unit_value, "draw unit_value")
+    if unit != integer / U53_DENOMINATOR:
+        raise ValueError("draw unit_value does not match its U53 integer")
 
 
 def _timing_entry(
@@ -897,6 +926,7 @@ class StatusVisitSample(ImmutableValue):
     @classmethod
     def create(cls, sample_input: StatusVisitSampleInput) -> Self:
         _require_exact_type(sample_input, StatusVisitSampleInput, "sample_input")
+        sample_input.validate()
         return _create_status_sample(sample_input)
 
     def validate(self) -> None:
@@ -914,11 +944,11 @@ class StatusVisitSample(ImmutableValue):
         self._validate_required_work()
 
     def authenticate(self, sample_input: StatusVisitSampleInput) -> None:
+        self.validate()
         expected = _status_sample_values(sample_input)
         actual = {name: getattr(self, name) for name in self.__dataclass_fields__}
         if actual != expected:
             raise ValueError("persisted status sample does not match authenticated provenance")
-        self.validate()
 
     def _validate_samples(self) -> None:
         dwell_parameters, touch_parameters = _parameter_documents(self)
@@ -926,12 +956,14 @@ class StatusVisitSample(ImmutableValue):
         touch_draw = _draw_document(self.touch_draw_json, self.touch_draw_sha256, "touch draw")
         _validate_draw_coordinate(self, dwell_draw, DecisionType.STATUS_DWELL)
         _validate_draw_coordinate(self, touch_draw, DecisionType.STATUS_TOUCH)
-        if dwell_draw["unit_value"] != self.dwell_unit_value:
+        dwell_unit = _require_fraction(self.dwell_unit_value, "dwell_unit_value")
+        touch_unit = _require_fraction(self.touch_unit_value, "touch_unit_value")
+        if dwell_draw["unit_value"] != dwell_unit:
             raise ValueError("dwell unit value does not match draw provenance")
-        if touch_draw["unit_value"] != self.touch_unit_value:
+        if touch_draw["unit_value"] != touch_unit:
             raise ValueError("touch unit value does not match draw provenance")
-        expected_dwell = sample_dwell(_anchors(dwell_parameters), self.dwell_unit_value)
-        expected_touch = sample_touch(_bounds(touch_parameters), self.touch_unit_value)
+        expected_dwell = sample_dwell(_anchors(dwell_parameters), dwell_unit)
+        expected_touch = sample_touch(_bounds(touch_parameters), touch_unit)
         _require_finite_float(self.dwell_sampled_hours, "dwell_sampled_hours")
         _require_finite_float(self.touch_sampled_hours, "touch_sampled_hours")
         if self.dwell_sampled_hours != expected_dwell.sampled_hours:

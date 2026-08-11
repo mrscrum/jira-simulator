@@ -47,16 +47,24 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 3 made both caller-session mapper entry points reject
+non-empty ORM `new`, `dirty`, or `deleted` state before authority/candidate SQL, preserving rollback
+ownership and preventing implicit flushes or identity-map leakage into detached snapshots. Empty,
+coordinate-free write sets now reject before SQL instead of returning a false complete snapshot;
+Task 6 must skip the mapper when it has no Task 5 after-images. Trusted sample creation now exactly
+revalidates every nested deterministic draw scalar and the full keyed HMAC, and retained dwell/touch
+units require exact finite built-in floats in `[0, 1]`. Low-bit HMAC equality forgeries,
+low-level reconstructed inputs, and stateful float subclasses reject before persistence. Revision
+015 remains unchanged; no generalized Task 6 upsert, revision 016, external call, deployment, UAT,
+or M1 completion was added.
+
 On 2026-08-11, Task 5 review fix round 2 made the caller-owned mapper accept sparse touched-row
 after-images without weakening complete restart state. It resolves omitted persisted member/work
 owners and unchanged visit samples under `no_autoflush`, validates a complete merged snapshot
 before Task 5 DML, and returns that complete detached aggregate. Approved null-activity route steps
-now persist and restart as exact `activity_key=None`, no-member, zero-touch visits with one
-authenticated sample. Every complete snapshot and new visit requires exactly one authenticated
-sample, required-work hashes are strict plain lower-case SHA-256 strings, and only existing visit
-rows receive the narrow reviewed after-image update. ORM metadata and revision 015 share nullable
-activity-key parity; no generalized Task 6 upsert, revision 016, external call, deployment, UAT, or
-M1 completion was added.
+persist and restart as exact `activity_key=None`, no-member, zero-touch visits with one authenticated
+sample. Every complete snapshot and new visit requires exactly one authenticated sample, and only
+existing visit rows receive the narrow reviewed after-image update.
 
 On 2026-08-11, Task 5 review fix round 1 bound authoritative Scrum state to its complete trusted
 authority. Task 5 values now reject runtime and scalar subclasses; status samples can be created
@@ -171,15 +179,15 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 5 review fix round 2:
+Current local evidence after Task 5 review fix round 3:
 
-- Backend: 1329 passed, 43 skipped, 15 baseline warnings.
-- V2: 811 passed, 1 baseline warning.
-- Task 5 focused: 273 passed.
+- Backend: 1367 passed, 43 skipped, 15 baseline warnings.
+- V2: 849 passed, 1 baseline warning.
+- Task 5 focused: 311 passed.
 - Task 4 focused: 146 passed.
 - Task 3 focused: 251 passed.
 - Task 1 focused: 56 passed, 1 baseline warning.
-- Task 2 focused: 171 passed.
+- Task 2 focused: 186 passed.
 - Ruff: passed.
 - Alembic: sole revision 015 head, no branches; populated round trip and ORM parity passed.
 - Real Jira integration tests were not run and remain skipped in normal CI.
@@ -249,7 +257,7 @@ Current local evidence after Task 5 review fix round 2:
 
 ## Next Task
 
-After the required Task 5 review-fix round 2 commit, execute Task 6 from
+After the pending exact Task 5 review-fix round 3 commit, execute Task 6 from
 `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
 revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
 counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
@@ -307,6 +315,9 @@ calls, deployment, UAT, or M1 completion.
 - Task 5 write sets may be sparse, but every returned/reloaded snapshot and every new visit must be
   sample-complete. Reuse of an omitted sample is valid only for an already persisted visit after
   the mapper loads and authenticates it in the caller's session.
+- Task 5 mapper `add` and `load` require clean caller ORM `new`/`dirty`/`deleted` collections before
+  authority SQL. Task 6 must flush or otherwise finish its ORM work before calling them and must
+  skip `add` entirely when the Task 5 write set is empty.
 
 ## Mandatory Development Flow
 

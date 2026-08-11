@@ -17,6 +17,7 @@ from app.v2.domain.deterministic_rng import (
     DecisionOccurrence,
     DecisionType,
     DeterministicRandomStream,
+    UniformDraw,
     item_rng_id,
     member_rng_id,
     run_rng_id,
@@ -41,6 +42,7 @@ from app.v2.domain.scrum_state import (
     SprintState,
     StatusVisitLifecycle,
     StatusVisitSample,
+    StatusVisitSampleInput,
     StatusVisitState,
     WorkItemFactor,
     WorkItemLifecycle,
@@ -91,6 +93,60 @@ TASK5_VALUE_TYPES = (
     ScrumStateQuery,
     ScrumStateWriteSet,
     ScrumStateSnapshot,
+)
+
+
+class EqualitySpoofText(str):
+    def __eq__(self, _other: object) -> bool:
+        return True
+
+    def __ne__(self, _other: object) -> bool:
+        return False
+
+
+class StatefulEqualityFloat(float):
+    def __new__(cls, value: float):
+        instance = super().__new__(cls, value)
+        instance.forged_state = "untrusted"
+        return instance
+
+    def __eq__(self, _other: object) -> bool:
+        return True
+
+    def __ne__(self, _other: object) -> bool:
+        return False
+
+
+class ScalarUuid(UUID):
+    pass
+
+
+class ScalarInt(int):
+    pass
+
+
+class ScalarBytes(bytes):
+    pass
+
+
+NESTED_DRAW_FORGERIES = (
+    "algorithm",
+    "decision_entity",
+    "decision_type",
+    "decision_occurrence",
+    "draw_index",
+    "canonical_message",
+    "hmac_low_bit",
+    "u53_integer",
+    "unit_value",
+)
+FACTORY_DRAW_FORGERIES = (
+    "algorithm",
+    "decision_entity",
+    "canonical_message",
+    "hmac_low_bit",
+    "u53_integer",
+    "unit_value",
 )
 
 
@@ -440,6 +496,108 @@ def _raw_status_sample(**changes: object) -> StatusVisitSample:
         value = changes.get(field.name, getattr(original, field.name))
         object.__setattr__(sample, field.name, value)
     return sample
+
+
+def _raw_value(value: object, **changes: object) -> object:
+    forged = object.__new__(type(value))
+    for field in fields(value):
+        object.__setattr__(
+            forged, field.name, changes.get(field.name, getattr(value, field.name))
+        )
+    return forged
+
+
+def _changed_low_nibble(digest: str) -> str:
+    replacement = "0" if digest[-1] != "0" else "1"
+    return digest[:-1] + replacement
+
+
+def _forged_decision(decision: DecisionOccurrence, case: str) -> DecisionOccurrence:
+    changes = {
+        "decision_entity": {"entity_id": ScalarUuid(str(decision.entity_id))},
+        "decision_type": {"decision_type": decision.decision_type.value},
+        "decision_occurrence": {"occurrence": False},
+    }[case]
+    return _raw_value(decision, **changes)
+
+
+def _forged_draw(sample_input: StatusVisitSampleInput, case: str) -> UniformDraw:
+    draw = sample_input.dwell_draw
+    if case.startswith("decision_"):
+        return _raw_value(draw, decision=_forged_decision(draw.decision, case))
+    changes = {
+        "algorithm": {"algorithm": EqualitySpoofText(draw.algorithm)},
+        "draw_index": {"draw_index": False},
+        "canonical_message": {"canonical_message": ScalarBytes(draw.canonical_message)},
+        "hmac_low_bit": {
+            "hmac_sha256": EqualitySpoofText(_changed_low_nibble(draw.hmac_sha256))
+        },
+        "u53_integer": {"u53_integer": ScalarInt(draw.u53_integer)},
+        "unit_value": {"unit_value": StatefulEqualityFloat(draw.unit_value)},
+    }[case]
+    return _raw_value(draw, **changes)
+
+
+@pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+    trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+    forged_draw = _forged_draw(trusted, case)
+
+    with pytest.raises((TypeError, ValueError)):
+        StatusVisitSampleInput(
+            trusted.blueprint,
+            trusted.work_item,
+            trusted.visit,
+            forged_draw,
+            trusted.touch_draw,
+        )
+
+
+@pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+def test_sample_factory_revalidates_raw_trusted_input(case: str):
+    trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+    forged_draw = _forged_draw(trusted, case)
+    forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+    with pytest.raises((TypeError, ValueError)):
+        StatusVisitSample.create(forged_input)
+
+
+def test_sample_input_binds_every_plain_hmac_digest_bit():
+    trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+    changed_digest = _changed_low_nibble(trusted.dwell_draw.hmac_sha256)
+    forged_draw = _raw_value(trusted.dwell_draw, hmac_sha256=changed_digest)
+
+    with pytest.raises(ValueError, match="authenticated"):
+        StatusVisitSampleInput(
+            trusted.blueprint,
+            trusted.work_item,
+            trusted.visit,
+            forged_draw,
+            trusted.touch_draw,
+        )
+
+
+@pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+def test_retained_unit_values_require_exact_stateless_floats(field_name: str):
+    original = make_sample()
+    forged_value = StatefulEqualityFloat(getattr(original, field_name))
+    forged = _raw_status_sample(**{field_name: forged_value})
+
+    assert forged_value.forged_state == "untrusted"
+    with pytest.raises(TypeError, match="float"):
+        forged.validate()
+    with pytest.raises(TypeError, match="float"):
+        replace(make_write_set(), status_visit_samples=(forged,))
+
+
+@pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+@pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+    field_name: str, invalid: float
+):
+    with pytest.raises(ValueError, match="fraction"):
+        _raw_status_sample(**{field_name: invalid}).validate()
 
 
 def test_sample_draw_provenance_is_bound_to_visit_and_canonical_message():

@@ -1,0 +1,852 @@
+....................................................................FFFF [ 23%]
+FFFFFFFFFFFFFFFFFFFFFFF..........................FFFFF...............FF. [ 46%]
+........................................................................ [ 70%]
+........................................................................ [ 93%]
+...................                                                      [100%]
+=================================== FAILURES ===================================
+____ test_sample_input_rejects_every_nonexact_nested_draw_scalar[algorithm] ____
+
+case = 'algorithm'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+_ test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_entity] _
+
+case = 'decision_entity'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+__ test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_type] __
+
+case = 'decision_type'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+_ test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_occurrence] _
+
+case = 'decision_occurrence'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+___ test_sample_input_rejects_every_nonexact_nested_draw_scalar[draw_index] ____
+
+case = 'draw_index'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+_ test_sample_input_rejects_every_nonexact_nested_draw_scalar[canonical_message] _
+
+case = 'canonical_message'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+__ test_sample_input_rejects_every_nonexact_nested_draw_scalar[hmac_low_bit] ___
+
+case = 'hmac_low_bit'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+___ test_sample_input_rejects_every_nonexact_nested_draw_scalar[u53_integer] ___
+
+case = 'u53_integer'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+___ test_sample_input_rejects_every_nonexact_nested_draw_scalar[unit_value] ____
+
+case = 'unit_value'
+
+    @pytest.mark.parametrize("case", NESTED_DRAW_FORGERIES)
+    def test_sample_input_rejects_every_nonexact_nested_draw_scalar(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:546: Failed
+_________ test_sample_factory_revalidates_raw_trusted_input[algorithm] _________
+
+case = 'algorithm'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+______ test_sample_factory_revalidates_raw_trusted_input[decision_entity] ______
+
+case = 'decision_entity'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+_____ test_sample_factory_revalidates_raw_trusted_input[canonical_message] _____
+
+case = 'canonical_message'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+_______ test_sample_factory_revalidates_raw_trusted_input[hmac_low_bit] ________
+
+case = 'hmac_low_bit'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+________ test_sample_factory_revalidates_raw_trusted_input[u53_integer] ________
+
+case = 'u53_integer'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+________ test_sample_factory_revalidates_raw_trusted_input[unit_value] _________
+
+case = 'unit_value'
+
+    @pytest.mark.parametrize("case", FACTORY_DRAW_FORGERIES)
+    def test_sample_factory_revalidates_raw_trusted_input(case: str):
+        trusted = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+        forged_draw = _forged_draw(trusted, case)
+        forged_input = _raw_value(trusted, dwell_draw=forged_draw)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:562: Failed
+__ test_retained_unit_values_require_exact_stateless_floats[dwell_unit_value] __
+
+field_name = 'dwell_unit_value'
+
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_require_exact_stateless_floats(field_name: str):
+        original = make_sample()
+        forged_value = StatefulEqualityFloat(getattr(original, field_name))
+        forged = _raw_status_sample(**{field_name: forged_value})
+
+        assert forged_value.forged_state == "untrusted"
+>       with pytest.raises(TypeError, match="float"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_scrum_state.py:573: Failed
+__ test_retained_unit_values_require_exact_stateless_floats[touch_unit_value] __
+
+field_name = 'touch_unit_value'
+
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_require_exact_stateless_floats(field_name: str):
+        original = make_sample()
+        forged_value = StatefulEqualityFloat(getattr(original, field_name))
+        forged = _raw_status_sample(**{field_name: forged_value})
+
+        assert forged_value.forged_state == "untrusted"
+>       with pytest.raises(TypeError, match="float"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_scrum_state.py:573: Failed
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value--inf] _
+
+field_name = 'dwell_unit_value', invalid = -inf
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'dwell unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-inf] _
+
+field_name = 'dwell_unit_value', invalid = inf
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'dwell unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-nan] _
+
+field_name = 'dwell_unit_value', invalid = nan
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'dwell unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value--0.1] _
+
+field_name = 'dwell_unit_value', invalid = -0.1
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'dwell unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-1.1] _
+
+field_name = 'dwell_unit_value', invalid = 1.1
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'dwell unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value--inf] _
+
+field_name = 'touch_unit_value', invalid = -inf
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'touch unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-inf] _
+
+field_name = 'touch_unit_value', invalid = inf
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'touch unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-nan] _
+
+field_name = 'touch_unit_value', invalid = nan
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'touch unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value--0.1] _
+
+field_name = 'touch_unit_value', invalid = -0.1
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'touch unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-1.1] _
+
+field_name = 'touch_unit_value', invalid = 1.1
+
+    @pytest.mark.parametrize("invalid", [float("-inf"), float("inf"), float("nan"), -0.1, 1.1])
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_retained_unit_values_reject_nonfinite_and_out_of_range_values(
+        field_name: str, invalid: float
+    ):
+>       with pytest.raises(ValueError, match="fraction"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'fraction'
+E         Actual message: 'touch unit value does not match draw provenance'
+
+tests/v2/unit/test_scrum_state.py:584: AssertionError
+_ test_mapper_rejects_caller_pending_state_before_candidate_sql[deleted_sample] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_mapper_rejects_caller_pen0/v2.db), autoflush=True, expire_on_commit=True)
+case = 'deleted_sample'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_rejects_caller_pending_state_before_candidate_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        original = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, original)
+        updated_visit = replace(
+            original.status_visits[0],
+            queue_microseconds=original.status_visits[0].queue_microseconds + 2,
+        )
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, original)
+            statements, listener = _all_sql(engine)
+            try:
+>               with pytest.raises(ValueError, match="pending"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:268: Failed
+__ test_mapper_rejects_caller_pending_state_before_candidate_sql[dirty_visit] __
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_mapper_rejects_caller_pen1/v2.db), autoflush=True, expire_on_commit=True)
+case = 'dirty_visit'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_rejects_caller_pending_state_before_candidate_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        original = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, original)
+        updated_visit = replace(
+            original.status_visits[0],
+            queue_microseconds=original.status_visits[0].queue_microseconds + 2,
+        )
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, original)
+            statements, listener = _all_sql(engine)
+            try:
+>               with pytest.raises(ValueError, match="pending"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:268: Failed
+_ test_mapper_rejects_caller_pending_state_before_candidate_sql[unrelated_new] _
+
+self = <sqlalchemy.engine.base.Connection object at 0x10b1744a0>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10ae9a660>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10b175370>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x10b175070>
+parameters = [(None, None, None, None, None, None, ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1969:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10ae9a660>
+cursor = <sqlite3.Cursor object at 0x10b15a5c0>
+statement = 'INSERT INTO v2_activity_events (event_type, aggregate_type, aggregate_id, aggregate_version, id, semantic_key, team_i...ion, occurred_at, recorded_at, canonical_payload, payload_sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = (None, None, None, None, None, None, ...)
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10b175370>
+
+    def do_execute(self, cursor, statement, parameters, context=None):
+>       cursor.execute(statement, parameters)
+E       sqlite3.IntegrityError: NOT NULL constraint failed: v2_activity_events.event_type
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:952: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_mapper_rejects_caller_pen2/v2.db), autoflush=True, expire_on_commit=True)
+case = 'unrelated_new'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_rejects_caller_pending_state_before_candidate_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        original = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, original)
+        updated_visit = replace(
+            original.status_visits[0],
+            queue_microseconds=original.status_visits[0].queue_microseconds + 2,
+        )
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, original)
+            statements, listener = _all_sql(engine)
+            try:
+                with pytest.raises(ValueError, match="pending"):
+>                   mapper.add(session, ScrumStateWriteSet(status_visits=(updated_visit,)))
+
+tests/v2/integration/test_scrum_state_mapper.py:269:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/scrum_state_mapper.py:100: in add
+    session.flush()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+../.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:1234: in _emit_insert_statements
+    result = connection.execute(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10ae9a660>
+cursor = <sqlite3.Cursor object at 0x10b15a5c0>
+statement = 'INSERT INTO v2_activity_events (event_type, aggregate_type, aggregate_id, aggregate_version, id, semantic_key, team_i...ion, occurred_at, recorded_at, canonical_payload, payload_sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = (None, None, None, None, None, None, ...)
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10b175370>
+
+    def do_execute(self, cursor, statement, parameters, context=None):
+>       cursor.execute(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) NOT NULL constraint failed: v2_activity_events.event_type
+E       [SQL: INSERT INTO v2_activity_events (event_type, aggregate_type, aggregate_id, aggregate_version, id, semantic_key, team_id, run_id, commit_id, transaction_sequence, schema_version, occurred_at, recorded_at, canonical_payload, payload_sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: (None, None, None, None, None, None, None, None, None, None, None, None, None, None, None)]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:952: IntegrityError
+__________ test_mapper_rejects_empty_sparse_input_without_sql[False] ___________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_mapper_rejects_empty_spar0/v2.db), autoflush=True, expire_on_commit=True)
+populated = False
+
+    @pytest.mark.parametrize("populated", [False, True])
+    def test_mapper_rejects_empty_sparse_input_without_sql(v2_session_factory, populated):
+        mapper = SqlAlchemyScrumStateMapper()
+        if populated:
+            seed_parent_team_and_run(v2_session_factory)
+            with v2_session_factory.begin() as session:
+                mapper.add(session, make_write_set())
+        with v2_session_factory() as session:
+            before = _counts(session)
+        engine = v2_session_factory.kw["bind"]
+
+        statements, listener = _all_sql(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises(ValueError, match="empty"):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:309: Failed
+___________ test_mapper_rejects_empty_sparse_input_without_sql[True] ___________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_mapper_rejects_empty_spar1/v2.db), autoflush=True, expire_on_commit=True)
+populated = True
+
+    @pytest.mark.parametrize("populated", [False, True])
+    def test_mapper_rejects_empty_sparse_input_without_sql(v2_session_factory, populated):
+        mapper = SqlAlchemyScrumStateMapper()
+        if populated:
+            seed_parent_team_and_run(v2_session_factory)
+            with v2_session_factory.begin() as session:
+                mapper.add(session, make_write_set())
+        with v2_session_factory() as session:
+            before = _counts(session)
+        engine = v2_session_factory.kw["bind"]
+
+        statements, listener = _all_sql(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises(ValueError, match="empty"):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:309: Failed
+_ test_stateful_sample_unit_subclass_rejects_before_mapper_sql[dwell_unit_value] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_stateful_sample_unit_subc0/v2.db), autoflush=True, expire_on_commit=True)
+field_name = 'dwell_unit_value'
+
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_stateful_sample_unit_subclass_rejects_before_mapper_sql(
+        v2_session_factory, field_name
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        sample = state.status_visit_samples[0]
+        forged_value = StatefulEqualityFloat(getattr(sample, field_name))
+        forged = _raw_sample_with_change(sample, field_name, forged_value)
+        invalid = _unsafe_write_set(
+            member_identities=state.member_identities,
+            work_items=state.work_items,
+            status_visits=state.status_visits,
+            status_visit_samples=(forged,),
+        )
+
+>       _assert_rejected_before_task5_write(v2_session_factory, invalid)
+
+tests/v2/integration/test_scrum_state_mapper.py:555:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_stateful_sample_unit_subc0/v2.db), autoflush=True, expire_on_commit=True)
+state = ScrumStateWriteSet(member_identities=(MemberIdentity(id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), team_id=UUID('30...f40558208dc858b6a2e52050c929c60e2fdf2673581187e3d40d10a0a3a'),), semantic_counters=(), natural_decision_evaluations=())
+
+    def _assert_rejected_before_task5_write(v2_session_factory, state) -> None:
+        engine = v2_session_factory.kw["bind"]
+        statements, listener = _task5_dml(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises((TypeError, ValueError)):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/integration/test_scrum_state_mapper.py:649: Failed
+_ test_stateful_sample_unit_subclass_rejects_before_mapper_sql[touch_unit_value] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_stateful_sample_unit_subc1/v2.db), autoflush=True, expire_on_commit=True)
+field_name = 'touch_unit_value'
+
+    @pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+    def test_stateful_sample_unit_subclass_rejects_before_mapper_sql(
+        v2_session_factory, field_name
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        sample = state.status_visit_samples[0]
+        forged_value = StatefulEqualityFloat(getattr(sample, field_name))
+        forged = _raw_sample_with_change(sample, field_name, forged_value)
+        invalid = _unsafe_write_set(
+            member_identities=state.member_identities,
+            work_items=state.work_items,
+            status_visits=state.status_visits,
+            status_visit_samples=(forged,),
+        )
+
+>       _assert_rejected_before_task5_write(v2_session_factory, invalid)
+
+tests/v2/integration/test_scrum_state_mapper.py:555:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-156/test_stateful_sample_unit_subc1/v2.db), autoflush=True, expire_on_commit=True)
+state = ScrumStateWriteSet(member_identities=(MemberIdentity(id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), team_id=UUID('30...f40558208dc858b6a2e52050c929c60e2fdf2673581187e3d40d10a0a3a'),), semantic_counters=(), natural_decision_evaluations=())
+
+    def _assert_rejected_before_task5_write(v2_session_factory, state) -> None:
+        engine = v2_session_factory.kw["bind"]
+        statements, listener = _task5_dml(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises((TypeError, ValueError)):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/integration/test_scrum_state_mapper.py:649: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[algorithm]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_entity]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_type]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[decision_occurrence]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[draw_index]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[canonical_message]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[hmac_low_bit]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[u53_integer]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_input_rejects_every_nonexact_nested_draw_scalar[unit_value]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[algorithm]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[decision_entity]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[canonical_message]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[hmac_low_bit]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[u53_integer]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_factory_revalidates_raw_trusted_input[unit_value]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_require_exact_stateless_floats[dwell_unit_value]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_require_exact_stateless_floats[touch_unit_value]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value--inf]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-inf]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-nan]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value--0.1]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[dwell_unit_value-1.1]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value--inf]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-inf]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-nan]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value--0.1]
+FAILED tests/v2/unit/test_scrum_state.py::test_retained_unit_values_reject_nonfinite_and_out_of_range_values[touch_unit_value-1.1]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_caller_pending_state_before_candidate_sql[deleted_sample]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_caller_pending_state_before_candidate_sql[dirty_visit]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_caller_pending_state_before_candidate_sql[unrelated_new]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_empty_sparse_input_without_sql[False]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_empty_sparse_input_without_sql[True]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_stateful_sample_unit_subclass_rejects_before_mapper_sql[dwell_unit_value]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_stateful_sample_unit_subclass_rejects_before_mapper_sql[touch_unit_value]
+34 failed, 273 passed in 15.99s

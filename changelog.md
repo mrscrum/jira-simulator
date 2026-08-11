@@ -375,3 +375,24 @@
   string values before SQL.
 - Only existing status visits receive the narrow reviewed after-image update; generalized Task 6
   upsert/CAS, external calls, deployment, UAT, and M1 completion remain deferred.
+
+## [2026-08-11] M1 — Harden Scrum mapper and sample boundaries
+
+### Changed
+
+- Required clean caller ORM state for both Task 5 mapper entry points before authority/candidate SQL
+  or DML, while preserving caller-owned rollback.
+- Revalidated every nested deterministic draw scalar and full keyed HMAC before trusted status-sample
+  creation, including low-level reconstructed factory input.
+- Added round-3 RED/GREEN, rollback, regression, migration, import, architecture, and shape evidence.
+
+### Fixed
+
+- Empty coordinate-free write sets no longer return a false complete snapshot and now reject before
+  SQL on both empty and populated databases.
+- Pending new, dirty, or deleted caller objects can no longer be flushed by `add` or leak through
+  `load` identity-map state.
+- Equality-spoofing HMAC text and stateful retained-unit float subclasses now reject before
+  persistence; retained dwell/touch units require exact finite built-in floats in `[0, 1]`.
+- Task 6, revision 016, generalized upsert/CAS, external calls, deployment, UAT, and M1 completion
+  remain deferred.

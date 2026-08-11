@@ -6,10 +6,9 @@ Implementation base: `5e5fac547659` (`docs: define durable Scrum state slices`),
 descendant of reviewed Task 4 head `11f3663`.
 
 Commit history: original Task 5 implementation `a46b615` (`feat(v2): persist authoritative scrum
-state`); review fix round 1 `b44d74a` (`fix(v2): bind authoritative scrum state`). Review fix round
-2 is verified on `b44d74a` and awaits the exact subject
-`fix(v2): support sparse scrum after-images`; its hash is intentionally not invented before the
-commit exists.
+state`); review fix round 1 `b44d74a` (`fix(v2): bind authoritative scrum state`); review fix round
+2 `234397c` (`fix(v2): support sparse scrum after-images`). Review fix round 3 is verified on
+`234397c`; its fix commit is pending, so no final hash is claimed here.
 
 Scope: immutable authoritative Scrum-state values, eleven relational mappings, a detached
 caller-owned-session mapper, and reversible Alembic revision 015. This task does not implement a
@@ -220,9 +219,9 @@ Static results:
 - Repository `git diff --check`: exit `0` with empty output.
 
 The exact outputs are retained beside this README. The original Task 5 evidence was committed in
-`a46b615`, and review fix round 1 was committed in `b44d74a`. No push, deployment, live-system
-access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016 occurred during these
-verification rounds.
+`a46b615`, review fix round 1 in `b44d74a`, and review fix round 2 in `234397c`. No push,
+deployment, live-system access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016
+occurred during these verification rounds.
 
 ## Fix round 1 — authoritative binding evidence
 
@@ -326,11 +325,11 @@ accessed during this fix or its verification.
 
 ## Fix round 2 — sparse after-image and zero-touch evidence
 
-Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). The verified fix awaits the
-exact subject `fix(v2): support sparse scrum after-images`; no pre-commit hash is claimed. Scope is
-limited to the reviewed Task 5 domain, mapper, ORM, tests, and existing revision 015. It adds no
-broad Task 6 upsert/CAS operation, revision 016, frontend, adapter, external call, deployment, push,
-or UAT action.
+Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). This verified round was
+committed as `234397c` (`fix(v2): support sparse scrum after-images`). Scope is limited to the
+reviewed Task 5 domain, mapper, ORM, tests, and existing revision 015. It adds no broad Task 6
+upsert/CAS operation, revision 016, frontend, adapter, external call, deployment, push, or UAT
+action.
 
 ### Consolidated RED
 
@@ -404,6 +403,90 @@ All retained pytest pipelines used `set -o pipefail`, `PYTHONDONTWRITEBYTECODE=1
 - `review-fix-round-2-code-shape.txt`: `8` changed Python files with no function over 30 lines and
   no function accepting more than three arguments.
 - `review-fix-round-2-diff-check.txt`: exit `0` with empty output.
+
+The 15 full-suite warnings remain the existing baseline categories. No secret, external provider,
+Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,
+Task 6 implementation, or revision 016 was accessed or introduced.
+
+## Fix round 3 — clean-session and sample-authentication evidence
+
+Review-fix base: `234397c` (`fix(v2): support sparse scrum after-images`). The exact round-3 fix
+commit is pending; no final hash is claimed before that commit exists. Scope remains limited to
+Task 5 domain validation, caller-session mapping, tests, and documentation. It adds no Task 6
+upsert/CAS behavior, revision 016, frontend, adapter, external call, deployment, push, or UAT action.
+
+### Consolidated and supplemental RED
+
+The regression tests preceded production changes. From `backend/`, the exact standard selection was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-red.txt
+```
+
+It recorded
+`34 failed, 273 passed in 15.99s` in `review-fix-round-3-red.txt`. Those failures reproduced caller
+sessions with pending new, dirty, or deleted ORM state; coordinate-free empty write sets returning
+false complete snapshots; nested `UniformDraw` scalar/equality forgeries; and retained sample-unit
+float subclasses that could diverge between validation and persistence.
+
+A supplemental load-boundary selection preceded the shared session fix:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/integration/test_scrum_state_mapper.py -q -k 'mapper_load_rejects_caller_pending_state' 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-load-red.txt
+```
+
+It recorded
+`3 failed, 131 deselected in 0.48s` in `review-fix-round-3-load-red.txt`, proving that pending deleted
+samples, dirty visits, and unrelated new rows also had to reject before `load` authority SQL rather
+than influence or coexist with a detached snapshot.
+
+### Corrected boundary
+
+- Both mapper entry points require a clean caller ORM unit of work: `Session.new`, `Session.dirty`,
+  and `Session.deleted` must all be empty before authority or candidate loading and before Task 5
+  DML. Rejection leaves rollback ownership and pending state with the caller.
+- `add` rejects an empty, coordinate-free `ScrumStateWriteSet` before SQL on both empty and populated
+  databases. It cannot return an empty value falsely presented as the complete persisted snapshot;
+  Task 6 must skip the mapper when it has no Task 5 after-images.
+- Trusted status-sample inputs revalidate every nested `UniformDraw` scalar exactly: algorithm text,
+  `DecisionOccurrence` and its UUID/decision/safe-integer fields, draw index, canonical-message
+  bytes, lower-case HMAC text, U53 integer, and finite unit float. Authentication compares the full
+  keyed draw, so a low-bit HMAC nibble change that preserves U53 still rejects even when wrapped in
+  equality-spoofing subclasses. The sealed sample factory repeats this validation for a
+  low-level reconstructed input.
+- Retained dwell and touch unit values are exact finite built-in floats in `[0, 1]`. Stateful or
+  equality-spoofing float subclasses reject during value validation, aggregate validation, and the
+  mapper boundary before SQL conversion or binding.
+- Revision 015 remains unchanged and is still the sole linear head. Generalized after-image upsert,
+  runtime CAS, counter claims, lifecycle/allocation behavior, and atomic Task 6 integration remain
+  deferred.
+
+### Final GREEN and retained verification
+
+The exact focused GREEN command changed only the standard command's tee target:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-3-green.txt
+```
+
+- `review-fix-round-3-green.txt`: `311 passed in 15.54s`.
+- `review-fix-round-3-task1-focused.txt`: `56 passed, 1 warning in 1.69s`.
+- `review-fix-round-3-task2-focused.txt`: `186 passed in 10.69s`.
+- `review-fix-round-3-task3-focused.txt`: `251 passed in 0.61s`.
+- `review-fix-round-3-task4-focused.txt`: `146 passed in 0.39s`.
+- `review-fix-round-3-v2-suite.txt`: `849 passed, 1 warning in 18.39s`.
+- `review-fix-round-3-full-suite.txt`: `1367 passed, 43 skipped, 15 warnings in 45.84s`.
+- `review-fix-round-3-ruff.txt`: exit `0`, `All checks passed!`.
+- Alembic outputs: sole `015 (head)`, empty branches, and linear history.
+- `review-fix-round-3-alembic-roundtrip.txt`: `4 passed in 1.48s`.
+- `review-fix-round-3-cold-import.txt`: `39 passed, 2 deselected in 8.63s`.
+- `review-fix-round-3-architecture.txt`: `15 passed in 0.24s`.
+- `review-fix-round-3-code-shape.txt`: four touched Python files, with no function over 30 lines and
+  no function accepting more than three arguments.
+- `review-fix-round-3-diff-check.txt`: exit `0` with empty output.
 
 The 15 full-suite warnings remain the existing baseline categories. No secret, external provider,
 Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,

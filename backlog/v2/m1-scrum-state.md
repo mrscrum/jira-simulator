@@ -109,6 +109,16 @@ lower-case SHA-256 strings. Only existing visits gain the narrow reviewed after-
 generalized Task 6 upsert/CAS remains deferred. ORM and migration 015 share nullable activity-key
 parity, and no revision 016 exists.
 
+Review fix round 3 completes the current Task 5 boundary. Both mapper entry points require empty
+caller ORM `new`, `dirty`, and `deleted` collections before authority/candidate SQL, so pending
+caller work is neither flushed nor reflected in a detached snapshot and rollback ownership remains
+with the caller. `add` rejects an empty coordinate-free write set before SQL; Task 6 skips the mapper
+when it has no Task 5 after-images. Trusted sample creation exactly validates every nested
+`UniformDraw` scalar and authenticates the full keyed HMAC, including low-bit changes hidden behind
+equality-spoofing subclasses and low-level reconstructed factory inputs. Retained dwell/touch
+unit values are exact finite built-in floats in `[0, 1]` and stateful subclasses reject before SQL.
+Revision 015 remains unchanged and no revision 016 exists.
+
 ## Task 5: Persist authoritative Scrum state at revision 015
 
 **Goal:** Define, validate, persist, and restart-reload a representative authoritative Scrum state
@@ -266,14 +276,16 @@ class SqlAlchemyScrumStateMapper:
     def add(self, session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot: ...
 ```
 
-`load` returns a complete detached immutable snapshot in deterministic semantic order and
-reauthenticates stored samples against the persisted blueprint. `add` validates the sparse write
-set structurally, loads team/blueprint/run authority plus omitted persisted owners without
-autoflush, merges a complete candidate snapshot, and completes blueprint/reference/sample
-validation before Task 5 DML. It applies only touched Task 5 rows, narrowly updating existing visit
-after-images while preserving reviewed insert semantics elsewhere, flushes so constraints surface
-inside the caller's transaction, and returns the complete detached snapshot. The caller decides to
-commit or roll back; a mapper exception leaves that decision with the caller.
+Both entry points reject non-empty caller ORM `new`, `dirty`, or `deleted` state before authority
+SQL. `load` then returns a complete detached immutable snapshot in deterministic semantic order and
+reauthenticates stored samples against the persisted blueprint. `add` rejects an empty
+coordinate-free write set before SQL, validates a non-empty sparse write set structurally, loads
+team/blueprint/run authority plus omitted persisted owners without autoflush, merges a complete
+candidate snapshot, and completes blueprint/reference/sample validation before Task 5 DML. It
+applies only touched Task 5 rows, narrowly updating existing visit after-images while preserving
+reviewed insert semantics elsewhere, flushes so constraints surface inside the caller's
+transaction, and returns the complete detached snapshot. The caller decides to commit or roll back;
+a mapper exception leaves that decision and any rejected pending ORM state with the caller.
 
 ### RED and focused behavior
 

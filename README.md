@@ -61,15 +61,21 @@ from the write set, validates the complete merged snapshot against persisted blu
 before Task 5 DML, flushes constraints without commit/rollback, and returns detached values in
 deterministic semantic order. It rejects mixed or missing parents, invalid member positions,
 route/status/activity mismatches, unsupported natural owners, duplicate semantic coordinates, and
-conflicting active/open/current after-images before writing.
+conflicting active/open/current after-images before writing. Both `add` and `load` require an empty
+caller ORM unit of work (`new`, `dirty`, and `deleted`) before authority SQL so pending objects cannot
+be implicitly flushed or reflected in the returned snapshot. `add` also rejects a coordinate-free
+empty write set before SQL; callers with no Task 5 after-images skip the mapper.
 
 Status visits use an exact `str | None` activity key. Approved null-activity route steps persist and
 restart only as zero-touch visits with no member owner, while activity-bearing steps require their
 exact activity/member binding. Every complete snapshot and newly inserted visit has exactly one
 blueprint-authenticated sample; a sparse update to an existing visit may omit only an unchanged
 sample that the mapper has loaded and reauthenticated. Required-work hashes are exact plain
-lower-case SHA-256 strings. The mapper narrowly updates existing visit after-images; generalized
-Task 6 upsert/CAS remains deferred.
+lower-case SHA-256 strings. Trusted sample creation exactly revalidates every nested deterministic
+draw scalar and the complete keyed HMAC, including low-bit changes and equality-spoofing
+subclasses. Retained dwell/touch unit values are exact finite built-in floats in `[0, 1]`, so
+stateful float subclasses reject before SQL binding. The mapper narrowly updates existing visit
+after-images; generalized Task 6 upsert/CAS remains deferred.
 Aware offset instants normalize to UTC while naive instants reject. The canonical resolved blueprint
 remains the only home for names, roles, configured capacity/WIP, responsibilities, proficiency,
 routes, timing grids, calendar, and policy configuration. Revision `015` independently downgrades to

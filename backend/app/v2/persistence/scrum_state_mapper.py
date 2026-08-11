@@ -90,6 +90,7 @@ class SqlAlchemyScrumStateMapper:
     def add(self, session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot:
         if not isinstance(session, Session):
             raise TypeError("session must be a caller-owned Session")
+        _require_clean_session(session)
         if type(state) is not ScrumStateWriteSet:
             raise TypeError("state must be a ScrumStateWriteSet")
         state.validate()
@@ -103,6 +104,7 @@ class SqlAlchemyScrumStateMapper:
     def load(self, session: Session, query: ScrumStateQuery) -> ScrumStateSnapshot:
         if not isinstance(session, Session):
             raise TypeError("session must be a caller-owned Session")
+        _require_clean_session(session)
         if type(query) is not ScrumStateQuery:
             raise TypeError("query must be a ScrumStateQuery")
         with session.no_autoflush:
@@ -110,10 +112,15 @@ class SqlAlchemyScrumStateMapper:
             return _load_validated_snapshot(session, query, blueprint)
 
 
-def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None] | None:
+def _require_clean_session(session: Session) -> None:
+    if session.new or session.dirty or session.deleted:
+        raise ValueError("caller-owned Session must not contain pending ORM changes")
+
+
+def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None]:
     records = tuple(item for items in state._collection_values() for item in items)
     if not records:
-        return None
+        raise ValueError("Scrum state write set must not be empty")
     team_id = records[0].team_id
     run_id = next((item.run_id for item in records if hasattr(item, "run_id")), None)
     return team_id, run_id
@@ -122,10 +129,8 @@ def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None] | 
 def _candidate_snapshot(
     session: Session,
     state: ScrumStateWriteSet,
-    coordinates: tuple[UUID, UUID | None] | None,
+    coordinates: tuple[UUID, UUID | None],
 ) -> ScrumStateSnapshot:
-    if coordinates is None:
-        return ScrumStateSnapshot.from_write_set(state)
     team_id, run_id = coordinates
     with session.no_autoflush:
         blueprint = _load_authority(session, team_id, run_id)

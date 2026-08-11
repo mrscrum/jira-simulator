@@ -9,8 +9,8 @@ not a fixed microtask sequence.
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
-  state at revision 015 with its second review-fix implementation verified, and Task 6 remains
-  open in [`m1-scrum-state.md`](m1-scrum-state.md)
+  state at revision 015 with its third review-fix implementation verified and exact commit pending,
+  and Task 6 remains open in [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -35,10 +35,12 @@ active [`m1-scrum-state.md`](m1-scrum-state.md) plan freezes exactly two context
 Task 5 is complete with review-hardened revision-015 authoritative state persistence, sealed and
 blueprint-authenticated timing provenance, typed semantic-owner constraints, exact zero-touch
 null-activity visits, sample-complete snapshots, and sparse touched-row after-images resolved
-against persisted owners before DML; Task 6 remains open to integrate that state with the existing
-atomic runtime-CAS/live-ledger unit of work without a revision 016. Capacity allocation,
-live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external wiring, and UAT
-remain deferred.
+against persisted owners before DML. Both mapper entry points require a clean caller ORM unit of
+work, empty write sets reject before SQL, every nested draw is exactly typed and fully
+HMAC-authenticated, and retained sample units are exact finite built-in floats. Task 6 remains open
+to integrate that state with the existing atomic runtime-CAS/live-ledger unit of work without a
+revision 016. Capacity allocation, live flow, planning, lifecycle mechanics, dependencies, risks,
+scheduler/external wiring, and UAT remain deferred.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

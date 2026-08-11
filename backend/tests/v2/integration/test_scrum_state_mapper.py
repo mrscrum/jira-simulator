@@ -30,6 +30,7 @@ from app.v2.domain.scrum_state import (
     SemanticCounterScope,
     SprintLifecycle,
 )
+from app.v2.persistence.live_models import V2ActivityEventModel
 from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper
 from app.v2.persistence.scrum_state_models import (
     V2MemberAvailabilityOverlayModel,
@@ -148,6 +149,19 @@ TRUE_INTEGER_COLUMNS = (
 )
 
 
+class StatefulEqualityFloat(float):
+    def __new__(cls, value: float):
+        instance = super().__new__(cls, value)
+        instance.forged_state = "untrusted"
+        return instance
+
+    def __eq__(self, _other: object) -> bool:
+        return True
+
+    def __ne__(self, _other: object) -> bool:
+        return False
+
+
 def _counts(session: Session) -> tuple[int, ...]:
     return tuple(session.scalar(select(func.count()).select_from(model)) for model in TASK5_MODELS)
 
@@ -230,6 +244,112 @@ def test_integrity_failure_still_leaves_rollback_ownership_with_caller(v2_sessio
 
     with v2_session_factory() as session:
         assert _counts(session) == (0,) * len(TASK5_MODELS)
+
+
+@pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+def test_mapper_rejects_caller_pending_state_before_candidate_sql(
+    v2_session_factory, case
+):
+    seed_parent_team_and_run(v2_session_factory)
+    original = make_write_set()
+    mapper = SqlAlchemyScrumStateMapper()
+    with v2_session_factory.begin() as session:
+        expected = mapper.add(session, original)
+    updated_visit = replace(
+        original.status_visits[0],
+        queue_microseconds=original.status_visits[0].queue_microseconds + 2,
+    )
+    engine = v2_session_factory.kw["bind"]
+
+    with v2_session_factory() as session:
+        _prepare_pending_change(session, case, original)
+        statements, listener = _all_sql(engine)
+        try:
+            with pytest.raises(ValueError, match="pending"):
+                mapper.add(session, ScrumStateWriteSet(status_visits=(updated_visit,)))
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        assert statements == []
+        assert _pending_collection(session, case)
+        assert session.in_transaction()
+        session.rollback()
+
+    with v2_session_factory() as session:
+        assert mapper.load(session, ScrumStateQuery(TEAM_ID, RUN_ID)) == expected
+        assert _counts(session) == (1,) * len(TASK5_MODELS)
+
+
+@pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+def test_mapper_load_rejects_caller_pending_state_before_authority_sql(
+    v2_session_factory, case
+):
+    seed_parent_team_and_run(v2_session_factory)
+    state = make_write_set()
+    mapper = SqlAlchemyScrumStateMapper()
+    with v2_session_factory.begin() as session:
+        expected = mapper.add(session, state)
+    engine = v2_session_factory.kw["bind"]
+
+    with v2_session_factory() as session:
+        _prepare_pending_change(session, case, state)
+        statements, listener = _all_sql(engine)
+        try:
+            with pytest.raises(ValueError, match="pending"):
+                mapper.load(session, ScrumStateQuery(TEAM_ID, RUN_ID))
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        assert statements == []
+        assert _pending_collection(session, case)
+        assert session.in_transaction()
+        session.rollback()
+
+    with v2_session_factory() as session:
+        assert mapper.load(session, ScrumStateQuery(TEAM_ID, RUN_ID)) == expected
+
+
+def _prepare_pending_change(session: Session, case: str, state: ScrumStateWriteSet) -> None:
+    if case == "unrelated_new":
+        session.add(V2ActivityEventModel())
+        return
+    if case == "deleted_sample":
+        sample = session.get(V2StatusVisitSampleModel, str(state.status_visit_samples[0].visit_id))
+        assert sample is not None
+        session.delete(sample)
+        return
+    visit = session.get(V2StatusVisitModel, str(state.status_visits[0].id))
+    assert visit is not None
+    visit.queue_microseconds += 1
+
+
+def _pending_collection(session: Session, case: str):
+    return {
+        "deleted_sample": session.deleted,
+        "dirty_visit": session.dirty,
+        "unrelated_new": session.new,
+    }[case]
+
+
+@pytest.mark.parametrize("populated", [False, True])
+def test_mapper_rejects_empty_sparse_input_without_sql(v2_session_factory, populated):
+    mapper = SqlAlchemyScrumStateMapper()
+    if populated:
+        seed_parent_team_and_run(v2_session_factory)
+        with v2_session_factory.begin() as session:
+            mapper.add(session, make_write_set())
+    with v2_session_factory() as session:
+        before = _counts(session)
+    engine = v2_session_factory.kw["bind"]
+
+    statements, listener = _all_sql(engine)
+    try:
+        with v2_session_factory() as session, pytest.raises(ValueError, match="empty"):
+            mapper.add(session, ScrumStateWriteSet())
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+
+    assert statements == []
+    with v2_session_factory() as session:
+        assert _counts(session) == before
 
 
 @pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
@@ -452,6 +572,33 @@ def test_forged_required_work_digest_subclass_rejects_before_sql(v2_session_fact
     _assert_rejected_before_task5_write(v2_session_factory, invalid)
 
 
+@pytest.mark.parametrize("field_name", ["dwell_unit_value", "touch_unit_value"])
+def test_stateful_sample_unit_subclass_rejects_before_mapper_sql(
+    v2_session_factory, field_name
+):
+    seed_parent_team_and_run(v2_session_factory)
+    state = make_write_set()
+    sample = state.status_visit_samples[0]
+    forged_value = StatefulEqualityFloat(getattr(sample, field_name))
+    forged = _raw_sample_with_change(sample, field_name, forged_value)
+    invalid = _unsafe_write_set(
+        member_identities=state.member_identities,
+        work_items=state.work_items,
+        status_visits=state.status_visits,
+        status_visit_samples=(forged,),
+    )
+
+    _assert_rejected_before_task5_write(v2_session_factory, invalid)
+
+
+def _raw_sample_with_change(sample, field_name: str, value: object):
+    forged = object.__new__(type(sample))
+    for field in fields(sample):
+        replacement = value if field.name == field_name else getattr(sample, field.name)
+        object.__setattr__(forged, field.name, replacement)
+    return forged
+
+
 def test_invalid_write_set_is_rejected_before_first_sql(v2_session_factory):
     seed_parent_team_and_run(v2_session_factory)
     valid = make_write_set()
@@ -507,6 +654,16 @@ def test_scalar_subclass_forgery_is_rejected_before_mapper_writes(v2_session_fac
         v2_session_factory,
         _unsafe_write_set(work_items=(forged_work,)),
     )
+
+
+def _all_sql(engine) -> tuple[list[str], object]:
+    statements = []
+
+    def capture(*event_arguments):
+        statements.append(event_arguments[2])
+
+    event.listen(engine, "before_cursor_execute", capture)
+    return statements, capture
 
 
 def _task5_dml(engine) -> tuple[list[str], object]:

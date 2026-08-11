@@ -291,3 +291,12 @@
 - Preserved revision 015 and deferred generalized upsert/CAS, atomic UOW integration, counter
   claims, lifecycle/allocation behavior, revision 016, external calls, deployment, UAT, and M1
   completion exactly as instructed.
+
+## [2026-08-11] M1 — Task 5 review fix round 3
+
+- No assumptions made. The clean-session precondition for both mapper entry points, empty-write-set
+  rejection, exact nested draw/HMAC authentication, exact retained unit-float boundary, and Task 6
+  empty-after-image skip behavior were supplied explicitly by the review findings.
+- Preserved revision 015 and deferred generalized upsert/CAS, atomic UOW integration, counter
+  claims, lifecycle/allocation behavior, revision 016, external calls, deployment, UAT, and M1
+  completion exactly as instructed.
