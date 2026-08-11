@@ -77,6 +77,21 @@ class _TickResult:
     samples: tuple[StatusVisitSample, ...]
     consumption: tuple[MemberBusinessDateConsumption, ...]
     claims: tuple[SemanticCounterClaim, ...]
+    queue_causes: tuple["_QueueCause", ...] = ()
+
+
+@dataclass(frozen=True)
+class _QueueCause:
+    visit_id: UUID
+    reason: str
+    delta_microseconds: int
+
+
+@dataclass(frozen=True)
+class _QueueContext:
+    state: LiveTeamState
+    segment: _BusinessSegment
+    consumption: dict[tuple[UUID, date], int]
 
 
 @dataclass(frozen=True)
@@ -86,6 +101,7 @@ class _LedgerItem:
     work: WorkItemState
     visit: StatusVisitState
     original_visit: StatusVisitState
+    queue_causes: tuple[_QueueCause, ...]
     semantic_key: str
     summary: str
 
@@ -193,22 +209,86 @@ def _advance_visits(
     }
     original = dict(visits)
     consumption = _consumption_map(state)
+    queue_causes: list[_QueueCause] = []
     committed_end = effective_end
     for segment in segments:
+        starting_consumption = dict(consumption)
         probe_consumption = dict(consumption)
         probe = _advance_segment(state, work_by_id, visits, probe_consumption, segment)
         boundary = _completion_boundary(state, calendar, segment, visits, probe, work_by_id)
         if boundary is None:
+            context = _QueueContext(state, segment, starting_consumption)
+            queue_causes.extend(_segment_queue_causes(context, visits, probe))
             visits = probe
             consumption = probe_consumption
             continue
         shortened = replace(segment, end=boundary)
-        visits = _advance_segment(state, work_by_id, visits, consumption, shortened)
+        advanced = _advance_segment(state, work_by_id, visits, consumption, shortened)
+        context = _QueueContext(state, shortened, starting_consumption)
+        queue_causes.extend(_segment_queue_causes(context, visits, advanced))
+        visits = advanced
         committed_end = boundary
         break
-    return _finish_visits(
+    result = _finish_visits(
         state, work_by_id, original, visits, consumption, committed_end, calendar, draws
     )
+    return replace(result, queue_causes=_aggregate_queue_causes(queue_causes))
+
+
+def _segment_queue_causes(
+    context: _QueueContext,
+    before: dict[UUID, StatusVisitState],
+    after: dict[UUID, StatusVisitState],
+) -> tuple[_QueueCause, ...]:
+    causes = []
+    for visit_id, original in before.items():
+        advanced = after[visit_id]
+        delta = advanced.queue_microseconds - original.queue_microseconds
+        if delta:
+            causes.append(
+                _QueueCause(visit_id, _queue_reason_at(context, advanced), delta)
+            )
+    return tuple(causes)
+
+
+def _aggregate_queue_causes(causes: list[_QueueCause]) -> tuple[_QueueCause, ...]:
+    totals: dict[tuple[UUID, str], int] = {}
+    for cause in causes:
+        key = cause.visit_id, cause.reason
+        totals[key] = totals.get(key, 0) + cause.delta_microseconds
+    return tuple(
+        _QueueCause(visit_id, reason, delta)
+        for (visit_id, reason), delta in sorted(
+            totals.items(), key=lambda item: (str(item[0][0]), item[0][1])
+        )
+    )
+
+
+def _queue_reason_at(context: _QueueContext, visit: StatusVisitState) -> str:
+    state = context.state
+    identities = tuple(
+        identity
+        for identity in state.scrum.member_identities
+        if _proficiency(
+            state.aggregate.blueprint.members[identity.blueprint_index],
+            visit.activity_key,
+        )
+        is not None
+    )
+    if not identities:
+        return "NO_CAPABLE_MEMBER"
+    available = tuple(
+        identity
+        for identity in identities
+        if _effective_fraction(state, identity, context.segment) > 0
+    )
+    if not available:
+        return "UNAVAILABLE"
+    exhausted = all(
+        _remaining_capacity(state, identity, context.segment, context.consumption) == 0
+        for identity in available
+    )
+    return "DAILY_CAPACITY" if exhausted else "WIP_LIMIT"
 
 
 def _completion_boundary(
@@ -675,6 +755,10 @@ def _ledger_drafts(
     work_changes = {item.id: item for item in result.work_items}
     work_by_id = {item.id: item for item in state.scrum.work_items}
     original_visits = {item.id: item for item in state.scrum.status_visits}
+    queue_causes = {
+        visit_id: tuple(cause for cause in result.queue_causes if cause.visit_id == visit_id)
+        for visit_id in original_visits
+    }
     activity = []
     truth = []
     projection = []
@@ -689,6 +773,7 @@ def _ledger_drafts(
             work,
             visit,
             original_visits[visit.id],
+            queue_causes[visit.id],
             key,
             _summary(state, work, visit),
         )
@@ -730,6 +815,13 @@ def _ground_truth_draft(item: _LedgerItem) -> GroundTruthRecordDraft:
         "status": item.work.current_status_key,
         "business_delta_microseconds": _microseconds(business_delta),
         "queue_delta_microseconds": item.visit.queue_microseconds - original.queue_microseconds,
+        "queue_causes": [
+            {
+                "reason": cause.reason,
+                "queue_delta_microseconds": cause.delta_microseconds,
+            }
+            for cause in item.queue_causes
+        ],
         "pause_delta_microseconds": item.visit.pause_microseconds - original.pause_microseconds,
         "touch_delta_microseconds": touch_delta,
         "remaining_before_microseconds": original.remaining_work_microseconds,
@@ -746,44 +838,14 @@ def _causal_reason(item: _LedgerItem) -> str:
     if item.work.current_status_key != item.visit.status_key:
         return "TRANSITIONED"
     original = item.original_visit
-    queue_delta = item.visit.queue_microseconds - original.queue_microseconds
-    if queue_delta:
-        return _queue_reason(item)
     if item.visit.remaining_work_microseconds == 0:
         return "DWELLING"
     touch_delta = item.visit.credited_labor_microseconds - original.credited_labor_microseconds
-    return "PROGRESSED" if touch_delta else "DWELLING"
-
-
-def _queue_reason(item: _LedgerItem) -> str:
-    state = item.state
-    identities = tuple(
-        identity
-        for identity in state.scrum.member_identities
-        if _proficiency(
-            state.aggregate.blueprint.members[identity.blueprint_index],
-            item.visit.activity_key,
-        )
-        is not None
-    )
-    if not identities:
-        return "NO_CAPABLE_MEMBER"
-    segment = _causal_segment(item)
-    available = tuple(
-        identity
-        for identity in identities
-        if _effective_fraction(state, identity, segment) > 0
-    )
-    if not available:
-        return "UNAVAILABLE"
-    consumption = _consumption_map(state)
-    exhausted = all(
-        _remaining_capacity(state, identity, segment, consumption) == 0
-        for identity in available
-    )
-    if exhausted:
-        return "DAILY_CAPACITY"
-    return "WIP_LIMIT"
+    if touch_delta:
+        return "PROGRESSED"
+    if item.queue_causes:
+        return item.queue_causes[0].reason
+    return "DWELLING"
 
 
 def _causal_segment(item: _LedgerItem) -> _BusinessSegment:

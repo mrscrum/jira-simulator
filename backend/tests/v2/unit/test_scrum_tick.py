@@ -250,6 +250,36 @@ def test_tick_reallocates_at_configured_and_runtime_availability_boundaries():
     }
 
 
+def test_tick_retains_early_unavailable_queue_cause_when_work_progresses_later():
+    unavailable_first_hour = _availability(
+        DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0
+    )
+    blueprint = _long_touch_blueprint(
+        _blueprint_with_developer_availability((unavailable_first_hour,))
+    )
+    visit = _long_visit(blueprint, DAY_START)
+    state = _with_runtime_start(
+        _live_state(blueprint=blueprint, visits=(visit,)), DAY_START
+    )
+
+    command = calculate_scrum_tick(
+        state,
+        _request_for(state, DAY_START + timedelta(hours=2)),
+        SeededDrawSource(state.aggregate),
+    )
+
+    payload = _ground_truth(command)
+    assert payload["reason"] == "PROGRESSED"
+    assert payload["queue_delta_microseconds"] == ONE_HOUR_MICROSECONDS
+    assert payload["touch_delta_microseconds"] == ONE_HOUR_MICROSECONDS
+    assert payload["queue_causes"] == [
+        {
+            "queue_delta_microseconds": ONE_HOUR_MICROSECONDS,
+            "reason": "UNAVAILABLE",
+        }
+    ]
+
+
 def test_tick_shares_one_members_labor_across_concurrent_wip():
     first_work = make_work_item()
     first_visit = make_visit()
