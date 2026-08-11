@@ -31,6 +31,7 @@ Status: IN PROGRESS
 - [x] Task 1 — Persist an isolated resolved team blueprint and runtime shell atomically — completed 2026-08-10
 - [x] Task 2 — Add the atomic live-slice, evidence, and projection contract — completed 2026-08-10
 - [x] Task 2 review fix round 1 — Enforce live-slice invariants — completed 2026-08-10
+- [x] Task 2 review fix round 2 — Reject non-string JSON keys — completed 2026-08-10
 
 ## Task 1: Persist an isolated resolved team blueprint and runtime shell atomically
 
@@ -192,3 +193,10 @@ insert races to no-op/typed outcomes with whole-slice rollback; and explicitly r
 after the test-only post-commit adapter failure. Supplemental evidence runs the committed migration
 014 test against Task-1 base `ee48c5d` and retains the expected missing-014 failure. M1 remains
 `IN PROGRESS`; no later engine slice, UAT, deployment, or milestone completion was claimed.
+
+### Task 2 review fix round 2
+
+The completed narrow fix rejects integer, boolean, `None`, mixed, and recursively nested non-string
+mapping keys at the live-slice envelope/factory boundary before canonical encoding or session
+creation. Valid canonical bytes, hashes, payload immutability, transaction behavior, revision 014,
+and every earlier fix remain unchanged. M1 remains `IN PROGRESS`.

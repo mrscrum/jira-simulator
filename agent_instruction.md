@@ -37,6 +37,11 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 
 ## Most Recent Change
 
+On 2026-08-10, M1 Task 2 review fix round 2 made the live-slice JSON boundary strict about object
+keys. `DraftEnvelope` and all three draft factories now reject integer, boolean, `None`, mixed, and
+nested non-string mapping keys before canonical encoding or session creation, preventing silent
+`json.dumps` coercion. Valid strict JSON retains the same canonical bytes/hash and deep immutability.
+
 On 2026-08-10, M1 Task 2 review fix round 1 hardened revision-014 contracts without changing its
 schema. Direct construction, `dataclasses.replace`, and the UOW boundary now revalidate semantic
 UUIDs, canonical JSON/digests, non-empty type fields, non-negative versions, pending status, and
@@ -67,7 +72,7 @@ runtime changes were made.
 
 Local evidence:
 
-- Backend: 672 passed, 43 skipped, 15 baseline warnings.
+- Backend: 699 passed, 43 skipped, 15 baseline warnings.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.

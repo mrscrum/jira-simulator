@@ -236,3 +236,43 @@ disposable worktree was removed afterward.
   (`fix-round-1-function-scan.txt`).
 
 No Jira/OpenAI call, deployment, push, UAT, later engine work, or M1 completion occurred.
+
+## Review fix round 2 — reject non-string JSON keys
+
+The clean fix base was `185d78842edb60d371c9002a02be0d395339a1cf`. Tests were added before the
+single production change. From `backend/`, the exact RED command was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_live_slice.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/integration/test_migration_014.py -q 2>&1 | tee ../evidence/v2/M1-T02/fix-round-2-red.txt
+```
+
+Exact result: exit one, `27 failed, 110 passed in 2.97s`. Homogeneous integer, boolean, and `None`
+keys were silently accepted at top level and inside nested objects/lists; mixed keys raised only the
+generic encoder error. The same failures reproduced through all three factories. The integration
+cases reached the UOW and committed instead of rejecting before the counting session factory.
+
+The minimum fix recursively walks mappings and arrays before canonical encoding and raises
+`ValueError("JSON object keys must be strings")` for the first non-string object key. The identical
+command then produced `137 passed in 2.90s` (`fix-round-2-green.txt`). Existing valid nested JSON,
+canonical byte/hash vectors, deep payload immutability, direct/replaced draft validation, semantic
+race handling, and adapter/import/migration regressions are part of that passing suite.
+
+Final review-fix verification:
+
+- Task 1 focused: `44 passed, 1 warning in 1.21s`
+  (`fix-round-2-task1-focused.txt`).
+- Full safe backend: `699 passed, 43 skipped, 15 warnings in 30.26s`
+  (`fix-round-2-full.txt`); the warnings are the documented baseline.
+- Ruff: `All checks passed!` (`fix-round-2-ruff.txt`).
+- Alembic: sole `Rev: 014 (head)`, parent `013`, empty branch output
+  (`fix-round-2-alembic-graph.txt`).
+- Populated `013 -> 014 -> 013 -> 014`: `1 passed in 0.72s`
+  (`fix-round-2-populated-round-trip.txt`).
+- Touched/new Python function scan: `Functions over 30 lines: []`
+  (`fix-round-2-function-scan.txt`).
+
+For each ledger class, the nested-`None` integration regression proves the failure happens while
+building the invalid draft, before the UOW session factory is called; runtime remains version zero
+and all three ledger counts remain `[0, 0, 0]`. No migration, external access, deployment, push,
+UAT, later engine scope, or M1 completion occurred.

@@ -234,3 +234,11 @@
 - Direct constructors and `dataclasses.replace` can no longer bypass semantic UUID, canonical
   JSON/digest, identifier/type, version, projection-status, or aware-instant invariants.
 - Draft payload aliases can no longer mutate the canonical snapshot through `|=`.
+
+## [2026-08-10] M1 — Task 2 review fix round 2
+### Changed
+- Added exhaustive top-level and nested strict-JSON key regressions for `DraftEnvelope`, all three
+  live-slice draft factories, and the pre-session persistence boundary.
+### Fixed
+- Integer, boolean, `None`, mixed, and recursively nested non-string object keys are now rejected
+  before `json.dumps` can coerce them into different canonical JSON identities.

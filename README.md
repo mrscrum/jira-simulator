@@ -23,7 +23,8 @@ intent ledgers; it independently downgrades to `013`. Neither revision alters v1
 invokes Jira/OpenAI. Aware boundary, availability, runtime, and ledger offsets are
 normalized to UTC in typed state while the validated canonical input bytes remain the persisted
 document and hash source; naive instants are rejected. The canonical document is immutable after
-construction, and the wire boundary rejects scalar type coercion.
+construction, and the wire boundary rejects scalar type coercion plus every non-string JSON object
+key recursively instead of accepting `json.dumps` key coercion.
 
 `SqlAlchemyV2UnitOfWork` advances a team/run runtime with one optimistic compare-and-swap and
 commits all three caller-ordered ledger tuples in the same transaction. Semantic replay is a stable

@@ -196,3 +196,7 @@
   can recover the winner without discarding the runtime advance, while a typed differing-content
   conflict still escapes to the outer UOW rollback and removes every proposed write.
 - No new product assumptions made; all other changes directly implement the supplied review findings.
+
+## [2026-08-10] M1 — Task 2 review fix round 2
+- No assumptions made; the supplied review finding explicitly required recursive rejection of every
+  non-string JSON object key while preserving the existing valid canonical representation.

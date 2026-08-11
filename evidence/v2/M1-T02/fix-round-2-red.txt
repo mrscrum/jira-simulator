@@ -1,0 +1,555 @@
+......FFFFFFFFFFFFFFFFFFFFFFFF.......................................... [ 52%]
+........................................FFF......................        [100%]
+=================================== FAILURES ===================================
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[integer-top-level] _
+
+payload = {1: 'value'}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:105: Failed
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[boolean-top-level] _
+
+payload = {True: 'value'}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:105: Failed
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[none-top-level] _
+
+payload = {None: 'value'}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:105: Failed
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[mixed-top-level] _
+
+payload = {'valid': 'value', 2: 'invalid'}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'JSON object keys must be strings'
+E         Actual message: 'payload must be valid JSON'
+
+tests/v2/unit/test_live_slice.py:105: AssertionError
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[integer-nested-object] _
+
+payload = {'nested': {3: 'value'}}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:105: Failed
+_ test_draft_envelope_rejects_non_string_json_object_keys_recursively[boolean-nested-list-object] _
+
+payload = {'items': [{False: 'value'}]}
+
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:105: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>, payload = {1: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>, payload = {1: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>, payload = {1: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>, payload = {True: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>
+payload = {True: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>, payload = {True: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>, payload = {None: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>
+payload = {None: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>, payload = {None: 'value'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>
+payload = {'valid': 'value', 2: 'invalid'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'JSON object keys must be strings'
+E         Actual message: 'payload must be valid JSON'
+
+tests/v2/unit/test_live_slice.py:121: AssertionError
+_ test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>
+payload = {'valid': 'value', 2: 'invalid'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'JSON object keys must be strings'
+E         Actual message: 'payload must be valid JSON'
+
+tests/v2/unit/test_live_slice.py:121: AssertionError
+_ test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>
+payload = {'valid': 'value', 2: 'invalid'}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: 'JSON object keys must be strings'
+E         Actual message: 'payload must be valid JSON'
+
+tests/v2/unit/test_live_slice.py:121: AssertionError
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>
+payload = {'nested': {3: 'value'}}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>
+payload = {'nested': {3: 'value'}}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>
+payload = {'nested': {3: 'value'}}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-activity] _
+
+draft_factory = <function _activity at 0x10c00d3a0>
+payload = {'items': [{False: 'value'}]}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-ground-truth] _
+
+draft_factory = <function _ground_truth at 0x10c00d440>
+payload = {'items': [{False: 'value'}]}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-projection] _
+
+draft_factory = <function _projection at 0x10c00d4e0>
+payload = {'items': [{False: 'value'}]}
+
+    @pytest.mark.parametrize(
+        "draft_factory",
+        [_activity, _ground_truth, _projection],
+        ids=["activity", "ground-truth", "projection"],
+    )
+    @pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+    def test_draft_factories_reject_forged_non_string_json_object_keys(
+        draft_factory: Callable, payload
+    ):
+        envelope = _envelope()
+        object.__setattr__(envelope, "payload", payload)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_live_slice.py:121: Failed
+_ test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[activity] _
+
+live_context = (sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-...8, 30, tzinfo=datetime.timezone.utc))), <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10cece060>)
+collection_name = 'activity'
+
+    @pytest.mark.parametrize(
+        "collection_name", ["activity", "ground_truth", "projection_intents"]
+    )
+    def test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged(
+        live_context, collection_name
+    ):
+        session_factory, aggregate, _ = live_context
+        counting_factory = _CountingSessionFactory(session_factory)
+        unit_of_work = SqlAlchemyV2UnitOfWork(counting_factory)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_unit_of_work.py:215: Failed
+_ test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[ground_truth] _
+
+live_context = (sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-...8, 30, tzinfo=datetime.timezone.utc))), <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10cb3bec0>)
+collection_name = 'ground_truth'
+
+    @pytest.mark.parametrize(
+        "collection_name", ["activity", "ground_truth", "projection_intents"]
+    )
+    def test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged(
+        live_context, collection_name
+    ):
+        session_factory, aggregate, _ = live_context
+        counting_factory = _CountingSessionFactory(session_factory)
+        unit_of_work = SqlAlchemyV2UnitOfWork(counting_factory)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_unit_of_work.py:215: Failed
+_ test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[projection_intents] _
+
+live_context = (sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-...8, 30, tzinfo=datetime.timezone.utc))), <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10cfe9610>)
+collection_name = 'projection_intents'
+
+    @pytest.mark.parametrize(
+        "collection_name", ["activity", "ground_truth", "projection_intents"]
+    )
+    def test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged(
+        live_context, collection_name
+    ):
+        session_factory, aggregate, _ = live_context
+        counting_factory = _CountingSessionFactory(session_factory)
+        unit_of_work = SqlAlchemyV2UnitOfWork(counting_factory)
+
+>       with pytest.raises(ValueError, match="JSON object keys must be strings"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_unit_of_work.py:215: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[integer-top-level]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[boolean-top-level]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[none-top-level]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[mixed-top-level]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[integer-nested-object]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_envelope_rejects_non_string_json_object_keys_recursively[boolean-nested-list-object]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-top-level-projection]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-top-level-projection]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[none-top-level-projection]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[mixed-top-level-projection]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[integer-nested-object-projection]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-activity]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-ground-truth]
+FAILED tests/v2/unit/test_live_slice.py::test_draft_factories_reject_forged_non_string_json_object_keys[boolean-nested-list-object-projection]
+FAILED tests/v2/integration/test_unit_of_work.py::test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[activity]
+FAILED tests/v2/integration/test_unit_of_work.py::test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[ground_truth]
+FAILED tests/v2/integration/test_unit_of_work.py::test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged[projection_intents]
+27 failed, 110 passed in 2.97s

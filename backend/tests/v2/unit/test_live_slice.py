@@ -23,6 +23,14 @@ OCCURRED_AT = datetime(2026, 8, 10, 12, tzinfo=timezone(timedelta(hours=-7)))
 TEAM_ID = UUID("f13f852b-4959-54fc-a939-929da9288bf9")
 RUN_ID = UUID("c3a43cfa-cd9c-573d-b402-d27635564f6f")
 COMMIT_ID = UUID("28f0f0a2-ee52-5c87-ab1f-4488f4b8e529")
+NON_STRING_KEY_PAYLOADS = (
+    pytest.param({1: "value"}, id="integer-top-level"),
+    pytest.param({True: "value"}, id="boolean-top-level"),
+    pytest.param({None: "value"}, id="none-top-level"),
+    pytest.param({"valid": "value", 2: "invalid"}, id="mixed-top-level"),
+    pytest.param({"nested": {3: "value"}}, id="integer-nested-object"),
+    pytest.param({"items": [{False: "value"}]}, id="boolean-nested-list-object"),
+)
 
 
 def _envelope(semantic_key: str = "tick-1/activity-1") -> DraftEnvelope:
@@ -39,17 +47,17 @@ def _activity(envelope: DraftEnvelope | None = None) -> ActivityEventDraft:
     return ActivityEventDraft.create(envelope or _envelope(), details)
 
 
-def _ground_truth() -> GroundTruthRecordDraft:
+def _ground_truth(envelope: DraftEnvelope | None = None) -> GroundTruthRecordDraft:
     details = GroundTruthDetails("ISSUE_STATE", "SIMULATOR_V1")
     return GroundTruthRecordDraft.create(
-        replace(_envelope(), semantic_key="tick-1/evidence-1"), details
+        envelope or replace(_envelope(), semantic_key="tick-1/evidence-1"), details
     )
 
 
-def _projection() -> ProjectionIntentDraft:
+def _projection(envelope: DraftEnvelope | None = None) -> ProjectionIntentDraft:
     details = ProjectionDetails("JIRA", "UPSERT_ISSUE", TEAM_ID, 7, "PENDING")
     return ProjectionIntentDraft.create(
-        replace(_envelope(), semantic_key="tick-1/projection-1"), details
+        envelope or replace(_envelope(), semantic_key="tick-1/projection-1"), details
     )
 
 
@@ -90,6 +98,28 @@ def test_draft_factories_derive_canonical_identity_and_normalize_utc():
 def test_draft_factory_rejects_invalid_envelope_or_supplied_identity(changes):
     with pytest.raises((TypeError, ValueError), match="semantic|aware|JSON|identifier|hash"):
         _activity(replace(_envelope(), **changes))
+
+
+@pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+def test_draft_envelope_rejects_non_string_json_object_keys_recursively(payload):
+    with pytest.raises(ValueError, match="JSON object keys must be strings"):
+        DraftEnvelope("strict-keys", "1.0", OCCURRED_AT, payload)
+
+
+@pytest.mark.parametrize(
+    "draft_factory",
+    [_activity, _ground_truth, _projection],
+    ids=["activity", "ground-truth", "projection"],
+)
+@pytest.mark.parametrize("payload", NON_STRING_KEY_PAYLOADS)
+def test_draft_factories_reject_forged_non_string_json_object_keys(
+    draft_factory: Callable, payload
+):
+    envelope = _envelope()
+    object.__setattr__(envelope, "payload", payload)
+
+    with pytest.raises(ValueError, match="JSON object keys must be strings"):
+        draft_factory(envelope)
 
 
 def test_draft_and_runtime_contracts_are_frozen_and_require_pending_projection():

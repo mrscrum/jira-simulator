@@ -119,6 +119,25 @@ def _with_conflicting_target(aggregate, winner, loser, collection_name: str):
     return replace(loser, **{collection_name: (conflicting,)})
 
 
+def _invalid_key_draft(aggregate, collection_name: str):
+    envelope = DraftEnvelope("slice/strict-key/1", "1.0", SLICE_TIME, {"valid": True})
+    object.__setattr__(envelope, "payload", {"nested": [{None: "invalid"}]})
+    if collection_name == "activity":
+        details = ActivityDetails("ISSUE_UPDATED", "ISSUE", aggregate.team.id, 7)
+        return ActivityEventDraft.create(envelope, details)
+    if collection_name == "ground_truth":
+        details = GroundTruthDetails("ISSUE_STATE", "SIMULATOR_V1")
+        return GroundTruthRecordDraft.create(envelope, details)
+    details = ProjectionDetails("JIRA", "UPSERT_ISSUE", aggregate.team.id, 7, "PENDING")
+    return ProjectionIntentDraft.create(envelope, details)
+
+
+def _commit_with_invalid_key(aggregate, collection_name: str):
+    draft = _invalid_key_draft(aggregate, collection_name)
+    commit = make_tick_commit(aggregate, 0, "invalid-key")
+    return replace(commit, **{collection_name: (draft,)})
+
+
 def test_commit_advances_runtime_and_appends_each_ordered_ledger_atomically(
     v2_session_factory, resolved_blueprint_json, requested_at
 ):
@@ -181,6 +200,24 @@ def test_uow_revalidates_forged_drafts_before_opening_a_session(
     assert counting_factory.calls == 0
     assert SqlAlchemyV2UnitOfWork(v2_session_factory).get_runtime(aggregate.team.id).version == 0
     assert _ledger_counts(v2_session_factory) == [0, 0, 0]
+
+
+@pytest.mark.parametrize(
+    "collection_name", ["activity", "ground_truth", "projection_intents"]
+)
+def test_non_string_json_keys_fail_before_session_and_leave_all_state_unchanged(
+    live_context, collection_name
+):
+    session_factory, aggregate, _ = live_context
+    counting_factory = _CountingSessionFactory(session_factory)
+    unit_of_work = SqlAlchemyV2UnitOfWork(counting_factory)
+
+    with pytest.raises(ValueError, match="JSON object keys must be strings"):
+        unit_of_work.commit_tick_slice(_commit_with_invalid_key(aggregate, collection_name))
+
+    assert counting_factory.calls == 0
+    assert SqlAlchemyV2UnitOfWork(session_factory).get_runtime(aggregate.team.id).version == 0
+    assert _ledger_counts(session_factory) == [0, 0, 0]
 
 
 def test_two_loaded_writers_leave_stale_writer_with_zero_partial_rows(

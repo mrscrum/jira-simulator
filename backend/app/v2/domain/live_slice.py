@@ -1,6 +1,7 @@
 """Immutable contracts for one atomically persisted v2 live slice."""
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Self
@@ -41,7 +42,19 @@ def _freeze_json(value: Any) -> JsonValue:
     return value
 
 
+def _require_string_json_object_keys(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ValueError("JSON object keys must be strings")
+            _require_string_json_object_keys(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _require_string_json_object_keys(item)
+
+
 def _validated_json(value: Any) -> tuple[JsonValue, str, str]:
+    _require_string_json_object_keys(value)
     try:
         encoded = canonical_json(value)
         copied = json.loads(encoded)
