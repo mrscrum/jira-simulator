@@ -54,23 +54,21 @@ are not executable for v2.
 - Immutable Task 6 authoritative commands/results and a one-session unit-of-work operation that
   atomically commits runtime CAS, sparse Scrum after-images, exact counter/natural claims, ordered
   evidence, and pending projection intents without external delivery or revision 016.
+- A live-team store that reads the persisted runtime and authoritative Scrum state in one
+  transaction, plus deterministic idempotent initial Scrum bootstrap with direct zero-touch
+  transitions and authenticated samples only for timed visits.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
 
-On 2026-08-11, Pavel approved the pragmatic v2 live-simulator design. It preserves the high-level v2
-product plan and Tasks 1–6, but replaces the binding capacity-credit Task 7/8 plan with a practical
-incremental loop: coherent bootstrap/read, capacity/WIP and workflow progress, fixed sprint
-boundaries with unchanged carryover, atomic state/evidence/Jira-intent commit, asynchronous Jira
-delivery, and restart continuation. It explicitly cuts further hostile-object hardening,
-proof-per-decision hashing, exact half-even/microsecond mechanics, theoretical replay protocols, and
-exhaustive failure matrices. No production code was added by this decision.
-
-Current uncommitted Task 7 tests and evidence are preserved and must not be deleted, reset, staged,
-or treated as acceptance gates. Focused behavioral ideas may be salvaged later under the new design.
-
-The superseded capacity-credit details remain in `backlog/v2/m1-capacity-credit.md` as historical
-planning only; they are intentionally omitted from this current handoff.
+On 2026-08-11, the first pragmatic v2 slice added coherent persisted live-team reads and an
+idempotent initial Scrum bootstrap. `SqlAlchemyLiveTeamStore` owns one short transaction, follows
+the persisted runtime `run_id`, and calls the Task 5 mapper with its caller-owned clean session.
+Bootstrap writes member identities, a deterministic ranked target-depth backlog, an active sprint
+and capacity-bounded scope, then direct zero-touch transitions or timed open visits with retained
+Task 3 samples. It sets the existing runtime to `RUNNING` at the supplied start and leaves its
+version unchanged. Focused tests pass 154/154; the full v2 suite passes 1041 with one dependency
+warning. No migration, Task 6 change, Jira/OpenAI call, deployment, or UAT was performed.
 
 ## Accepted Task 1–6 History
 
@@ -302,6 +300,12 @@ Accepted Task 6 evidence:
 - `backend/app/v2/domain/scrum_state.py` — sealed Task 5 lifecycle/state, trusted blueprint-bound
   timing samples, exact clocks/provenance, simulator rank, semantic counter, evaluation, write-set,
   query, and detached snapshot contracts.
+- `backend/app/v2/domain/draw_source.py` — bootstrap/tick-facing Task 3 draw protocol and persisted
+  seed/runtime adapter.
+- `backend/app/v2/domain/scrum_bootstrap.py` — deterministic initial backlog, sprint scope, direct
+  zero-touch route transitions, and timed-visit/sample construction.
+- `backend/app/v2/application/live_team.py` — detached coherent aggregate/Scrum read model.
+- `backend/app/v2/persistence/live_team_store.py` — one-session transactional read/bootstrap store.
 - `backend/app/v2/domain/authoritative_slice.py` — exact immutable Task 6 claim, authoritative
   command/result, team/run, coordinate, semantic-ID, and natural-eligibility binding contracts.
 - `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
@@ -329,10 +333,9 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Create a concise implementation plan for pragmatic-v2 slice 1: coherent authoritative read plus
-idempotent initial Scrum-state bootstrap and restart reload proof. Preserve accepted Tasks 1–6 and
-all uncommitted Task 7 artifacts. Use strict RED -> GREEN -> REFACTOR, keep the slice free of Jira or
-OpenAI network calls, and do not resume `m1-capacity-credit.md` Tasks 7/8.
+Implement the next pragmatic v2 slice: an incremental Scrum tick that advances the persisted
+bootstrap state without revising the capacity-credit plan. Preserve the one-session live-team store,
+use strict RED -> GREEN -> REFACTOR, and keep the work free of Jira/OpenAI network calls.
 
 ## Active Decisions and External Gates
 

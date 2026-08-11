@@ -360,3 +360,12 @@
 - No assumptions made. The exact commit chain through `47f9e55`, independent Ultra acceptance
   result, Task 6/plan completion, and continued M1 IN PROGRESS state were supplied explicitly.
 - Did not infer Task 7 or a next detailed M1 plan.
+
+## [2026-08-11] M1 — Bootstrap coherent live-team Scrum state
+
+- Used the persisted runtime's `run_id`, rather than selecting a run independently, as the live
+  state authority because the slice requires restart-safe runtime continuity.
+- Derived the initial active sprint's planned interval directly from the resolved first boundary and
+  cadence; chose the configured inclusive capacity range with the persisted deterministic draw.
+- Assigned each timed initial route step to the first resolved member responsible for its activity;
+  WIP/capacity arbitration is deferred to the next incremental tick slice.

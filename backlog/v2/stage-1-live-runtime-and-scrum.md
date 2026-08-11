@@ -1,9 +1,10 @@
 # V2 Stage 1 — Durable Live Runtime and Scrum Kernel
 
 > **DETAILED REFERENCE DRAFT — NOT ACTIVE.** See [`README.md`](README.md) for milestone status.
-Status: NOT STARTED
+Status: IN PROGRESS
 
 ## Tasks
+- [x] Coherent live-team read and idempotent Scrum bootstrap — completed 2026-08-11
 - [ ] V2-S1-T01 — Add isolated blueprint, calendar, policy, and runtime persistence
 - [ ] V2-S1-T02 — Add member responsibility and availability persistence
 - [ ] V2-S1-T03 — Add canonical route and timing-catalog persistence
@@ -30,3 +31,5 @@ Status: NOT STARTED
 - V2 is additive; v1 precompute/scheduler behavior remains frozen.
 - Active near-term execution is tracked in [`m1-persistence-spine.md`](m1-persistence-spine.md);
   this detailed 17-task draft remains reference-only and is not activated by that plan.
+- The active pragmatic slice establishes a transactionally coherent live-team read and an
+  idempotent initial Scrum bootstrap.

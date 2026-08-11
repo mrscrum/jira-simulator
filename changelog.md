@@ -511,3 +511,19 @@
 
 - Replaced pending-review provenance in current-state documentation and evidence with the accepted
   technical-review outcome.
+
+## [2026-08-11] M1 — Bootstrap coherent live-team Scrum state
+
+### Changed
+
+- Added a deterministic live-team read/store, seed-backed draw adapter, and initial Scrum bootstrap
+  using the existing persisted team/runtime and authoritative Scrum mapper.
+- Bootstrap now persists member identities, ranked target-depth work, fixed-boundary active sprint
+  scope, timed open visits with authenticated samples, and the initial `RUNNING` runtime wake in one
+  transaction; repeat calls reload the original state.
+- Added focused deterministic, zero-touch, rollback, idempotency, and detached-reload coverage.
+
+### Fixed
+
+- Zero-touch route steps now transition directly to the first timed step or terminal state without
+  fabricating a visit or sample. No migration, network call, or v1 behavior changed.

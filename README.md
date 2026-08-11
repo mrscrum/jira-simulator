@@ -329,6 +329,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
 - V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
-  decision/timing/calendar primitives, and the atomic Task 6 state/counter/evaluation/live-ledger
-  commit boundary. It has no mechanical eligibility or lifecycle allocator, live tick engine,
-  scheduler wiring, projection worker, API routes, Jira/OpenAI adapter, or live-provider validation.
+  decision/timing/calendar primitives, an idempotent coherent read/initial Scrum bootstrap, and the
+  atomic Task 6 state/counter/evaluation/live-ledger commit boundary. It has no incremental tick,
+  lifecycle allocator, scheduler wiring, projection worker, API routes, Jira/OpenAI adapter, or
+  live-provider validation.

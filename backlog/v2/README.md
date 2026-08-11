@@ -19,8 +19,8 @@ UAT/load fixture only.
   reported CLEAN with no Critical or Important findings; Task 6 commit chain `4cfaa65` → `6bac956`
   → `47f9e55` is also technically accepted after independent Ultra review reported CLEAN with no
   Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan.
-  Next work follows the pragmatic v2 slices: coherent bootstrap/read, incremental Scrum tick,
-  lifecycle/scheduler/restart, Jira delivery, then vertical proof and realism
+  The coherent bootstrap/read slice is complete; next work is the incremental Scrum tick, followed
+  by lifecycle/scheduler/restart, Jira delivery, then vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT
