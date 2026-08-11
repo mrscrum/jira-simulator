@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass, replace
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 import pytest
 from sqlalchemy import create_engine, delete, event, text, update
@@ -274,6 +274,28 @@ def _assert_committed_ledgers(committed, command) -> None:
         assert all(item.commit_id == command.live_slice.commit_id for item in rows)
 
 
+def _assert_live_instants_are_exact_utc(runtime, ledgers) -> None:
+    runtime_instants = (
+        runtime.simulation_time,
+        runtime.next_wake_at,
+        runtime.created_at,
+        runtime.updated_at,
+    )
+    recorded_instants = tuple(row.recorded_at for rows in ledgers for row in rows)
+    instants = (*runtime_instants, *recorded_instants)
+    assert all(instant is None or instant.tzinfo is UTC for instant in instants)
+
+
+def _assert_committed_live_instants_are_exact_utc(committed) -> None:
+    live_slice = committed.live_slice
+    ledgers = (
+        live_slice.activity,
+        live_slice.ground_truth,
+        live_slice.projection_intents,
+    )
+    _assert_live_instants_are_exact_utc(live_slice.runtime, ledgers)
+
+
 def _assert_success_state(committed, context: AtomicContext) -> None:
     assert committed.live_slice.runtime.version == 1
     assert committed.state == _stored_view(context).state
@@ -359,6 +381,7 @@ def test_success_commits_runtime_state_claims_evaluations_and_ledgers_in_order(a
     _assert_success_state(committed, atomic_context)
     _assert_success_evaluations(committed, atomic_context)
     _assert_committed_ledgers(committed, atomic_context.command)
+    _assert_committed_live_instants_are_exact_utc(committed)
     _assert_write_order(statements)
     assert all(item in committed.state.semantic_counters for item in committed.counters)
     assert all(
@@ -1461,12 +1484,15 @@ def _restart_context(database_url, resolved_blueprint_json, requested_at):
 def _assert_restarted_live_slice(unit_of_work, committed) -> None:
     query = LedgerPageQuery(TEAM_ID, RUN_ID, None, 100)
     projection_query = ProjectionPageQuery(TEAM_ID, RUN_ID, None, 100)
-    assert unit_of_work.get_runtime(TEAM_ID) == committed.live_slice.runtime
-    assert unit_of_work.page_activity(query).items == committed.live_slice.activity
-    assert unit_of_work.page_ground_truth(query).items == committed.live_slice.ground_truth
-    assert unit_of_work.page_projection(projection_query).items == (
-        committed.live_slice.projection_intents
-    )
+    runtime = unit_of_work.get_runtime(TEAM_ID)
+    activity = unit_of_work.page_activity(query).items
+    ground_truth = unit_of_work.page_ground_truth(query).items
+    projection = unit_of_work.page_projection(projection_query).items
+    assert runtime == committed.live_slice.runtime
+    assert activity == committed.live_slice.activity
+    assert ground_truth == committed.live_slice.ground_truth
+    assert projection == committed.live_slice.projection_intents
+    _assert_live_instants_are_exact_utc(runtime, (activity, ground_truth, projection))
     first = unit_of_work.page_activity(LedgerPageQuery(TEAM_ID, RUN_ID, None, 1))
     second = unit_of_work.page_activity(LedgerPageQuery(TEAM_ID, RUN_ID, 1, 100))
     assert tuple(item.append_sequence for item in first.items) == (1,)
@@ -1524,6 +1550,7 @@ def test_disposed_engine_restart_reloads_and_continues_exact_occurrences(
 
     assert state == first.state
     assert continued.live_slice.runtime.version == 2
+    _assert_committed_live_instants_are_exact_utc(continued)
     assert {item.occurrence for item in continued.natural_decision_evaluations} == {1}
     with restarted_factory() as session:
         exact = SqlAlchemyScrumStateMapper().load(session, ScrumStateQuery(TEAM_ID, RUN_ID))

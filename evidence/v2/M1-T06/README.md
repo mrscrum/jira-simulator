@@ -4,11 +4,12 @@
 
 - Date: 2026-08-11
 - Original Task 6 commit: `4cfaa65` (`feat(v2): commit scrum state atomically`)
-- Review-fix base: `4cfaa65`
-- Exact review-fix subject: `fix(v2): enforce authoritative after-image identity`
+- Review-fix round 1 commit: `6bac956` (`fix(v2): enforce authoritative after-image identity`)
+- Review-fix round 2 base: `6bac956`
+- Exact round-2 subject: `fix(v2): normalize authoritative result instants`
 - Alembic remains at sole linear head `015`; Task 6 creates no revision `016`.
-- The bounded non-Ultra review-fix audit is CLEAN with no Critical or Important findings.
-  Independent Ultra re-review remains pending, so Task 6 and M1 remain open.
+- The round-2 verification matrix and direct probe are GREEN. Independent Ultra re-review remains
+  pending, so Task 6 and M1 remain open.
 - No Jira/OpenAI/provider call, projection delivery, deployment, push, UAT, or live mutation ran.
 
 Task 6 adds immutable authoritative command/result values and one atomic SQLAlchemy operation. The
@@ -165,6 +166,55 @@ The warning inventory remains exactly the documented baseline. The required boun
 post-GREEN audit reported CLEAN after rechecking identity theft, whole-slice replay, member/counter
 non-resurrection, result validation/membership, and visible owner binding. No external or live call,
 revision 016, deployment, push, or UAT occurred.
+
+## Review fix round 2
+
+The single Ultra finding was converted into direct-construction, `dataclasses.replace`, and
+disposed-engine regressions before production edits. From `backend/`, the consolidated RED command
+was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_authoritative_slice.py tests/v2/integration/test_authoritative_unit_of_work.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T06/fix-round-2-red.txt
+```
+
+Expected RED: `14 failed, 238 passed in 19.78s`. Each failure retained an equivalent aware
+`+05:30` value in the submitted offset instead of normalizing it to exact UTC. The existing naive
+instant rejection and integration cases remained green. No historical RED was changed.
+
+The identical command targeting `fix-round-2-green.txt` produced `252 passed in 20.46s`.
+`CommittedAuthoritativeTickSlice` now rebuilds its exact frozen nested `TeamRuntime`,
+`ActivityEvent`, `GroundTruthRecord`, and `ProjectionIntent` values with every aware instant
+normalized to `datetime.UTC` before retaining and deeply validating the committed result. The
+caller-supplied frozen values are not mutated, naive values still reject, and exact nested types
+remain required. Disposed-engine reload and continuation assert the same exact-UTC contract.
+
+The direct immutable probe covered all seven paths and reported
+`normalized_paths=7 input_unchanged=true result_frozen=true`.
+
+Final retained verification:
+
+| Verification | Retained result |
+|---|---|
+| Task 1 focused | 62 passed, 1 baseline warning in 2.96s (`fix-round-2-task1-focused.txt`) |
+| Task 2 accepted focused | 197 passed in 17.04s (`fix-round-2-task2-focused.txt`) |
+| Task 3 focused | 257 passed in 0.95s (`fix-round-2-task3-focused.txt`) |
+| Task 4 focused | 152 passed in 0.61s (`fix-round-2-task4-focused.txt`) |
+| Task 5 focused | 338 passed in 24.53s (`fix-round-2-task5-focused.txt`) |
+| Narrow UTC normalization selection | 21 passed, 66 deselected in 0.20s (`fix-round-2-unit-green.txt`) |
+| Task 6 focused | 252 passed in 20.46s (`fix-round-2-green.txt`) |
+| All v2 | 1037 passed, 1 baseline warning in 33.34s (`fix-round-2-all-v2.txt`) |
+| Single fresh full backend | 1555 passed, 43 skipped, 15 baseline warnings in 61.60s (`fix-round-2-full.txt`) |
+| Direct immutable normalization probe | 7 paths normalized; input unchanged; result frozen (`fix-round-2-direct-probe.txt`) |
+| Touched-file Ruff | `All checks passed!` (`fix-round-2-ruff-touched.txt`) |
+| Ruff | `All checks passed!` (`fix-round-2-ruff.txt`) |
+| Migration parity/round trip, cold import, restart, adapter boundary | 49 passed in 13.66s (`fix-round-2-boundaries.txt`) |
+| Function/argument shape | 3 Python files; no function over 30 lines or 3 arguments (`fix-round-2-code-shape.txt`) |
+| Alembic | sole `015 (head)`, empty branches, fresh upgrade/current at 015 (`fix-round-2-alembic-graph.txt`) |
+| Migration diff from `6bac956` | empty, exit 0 (`fix-round-2-no-migration-diff.txt`) |
+
+The full-suite warning inventory remains exactly the documented baseline. No migration, external or
+live call, deployment, push, UAT, or M1 completion was added.
 
 ## Files under test
 

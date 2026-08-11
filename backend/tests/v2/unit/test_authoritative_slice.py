@@ -1,7 +1,7 @@
 import copy
 import pickle
 from dataclasses import FrozenInstanceError, fields, replace
-from datetime import datetime
+from datetime import UTC, datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -567,6 +567,83 @@ def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
         )
     with pytest.raises((TypeError, ValueError)):
         replace(valid, live_slice=malformed)
+
+
+NESTED_INSTANT_PATHS = (
+    "runtime.simulation_time",
+    "runtime.next_wake_at",
+    "runtime.created_at",
+    "runtime.updated_at",
+    "activity.recorded_at",
+    "ground_truth.recorded_at",
+    "projection_intents.recorded_at",
+)
+NON_UTC = timezone(timedelta(hours=5, minutes=30))
+
+
+def _nested_instant(live: CommittedTickSlice, path: str) -> datetime:
+    owner_name, field_name = path.split(".")
+    owner = live.runtime if owner_name == "runtime" else getattr(live, owner_name)[0]
+    return getattr(owner, field_name)
+
+
+def _with_nested_instant(
+    live: CommittedTickSlice, path: str, instant: datetime
+) -> CommittedTickSlice:
+    owner_name, field_name = path.split(".")
+    if owner_name == "runtime":
+        return replace(live, runtime=replace(live.runtime, **{field_name: instant}))
+    rows = getattr(live, owner_name)
+    return replace(live, **{owner_name: (replace(rows[0], **{field_name: instant}),)})
+
+
+def _construct_result(valid, live):
+    return CommittedAuthoritativeTickSlice(
+        live,
+        valid.state,
+        valid.counters,
+        valid.natural_decision_evaluations,
+    )
+
+
+def _replace_result(valid, live):
+    return replace(valid, live_slice=live)
+
+
+@pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+@pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+    path, result_factory
+):
+    valid = _committed_result()
+    expected = _nested_instant(valid.live_slice, path)
+    offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+    result = result_factory(
+        valid,
+        offset_live,
+    )
+
+    retained = _nested_instant(result.live_slice, path)
+    assert retained == expected
+    assert retained.tzinfo is UTC
+
+
+@pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+def test_committed_result_rejects_naive_nested_instants(path):
+    valid = _committed_result()
+    aware = _nested_instant(valid.live_slice, path)
+    naive_live = _with_nested_instant(valid.live_slice, path, aware.replace(tzinfo=None))
+
+    with pytest.raises(ValueError, match="aware"):
+        CommittedAuthoritativeTickSlice(
+            naive_live,
+            valid.state,
+            valid.counters,
+            valid.natural_decision_evaluations,
+        )
+    with pytest.raises(ValueError, match="aware"):
+        replace(valid, live_slice=naive_live)
 
 
 @pytest.mark.parametrize(

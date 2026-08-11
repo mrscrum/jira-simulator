@@ -1,6 +1,7 @@
 """Immutable command values for one authoritative v2 tick slice."""
 
-from datetime import date, datetime
+from dataclasses import replace
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from app.v2.domain.canonical_json import semantic_uuid
@@ -73,6 +74,10 @@ def _require_aware(value: object, label: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{label} must be aware")
     return value
+
+
+def _normalized_aware(value: object, label: str) -> datetime:
+    return _require_aware(value, label).astimezone(UTC)
 
 
 def _require_tuple(values: object, value_type: type, label: str) -> tuple:
@@ -166,6 +171,7 @@ class CommittedAuthoritativeTickSlice(ImmutableValue):
     natural_decision_evaluations: tuple[NaturalDecisionEvaluation, ...]
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "live_slice", _normalized_committed_live(self.live_slice))
         self.validate()
 
     def validate(self) -> None:
@@ -199,6 +205,45 @@ def _validate_committed_live(live_slice: object) -> None:
         (live_slice.projection_intents, (ProjectionIntent, "projection_intents")),
     ):
         _validate_committed_collection(values, specification, runtime)
+
+
+def _normalized_committed_live(live_slice: object) -> CommittedTickSlice:
+    _require_exact(live_slice, CommittedTickSlice, "live_slice")
+    return CommittedTickSlice(
+        _normalized_runtime(live_slice.runtime),
+        _normalized_records(live_slice.activity, (ActivityEvent, "activity")),
+        _normalized_records(live_slice.ground_truth, (GroundTruthRecord, "ground_truth")),
+        _normalized_records(
+            live_slice.projection_intents,
+            (ProjectionIntent, "projection_intents"),
+        ),
+    )
+
+
+def _normalized_runtime(runtime: object) -> TeamRuntime:
+    _require_exact(runtime, TeamRuntime, "live_slice runtime")
+    next_wake_at = runtime.next_wake_at
+    if next_wake_at is not None:
+        next_wake_at = _normalized_aware(next_wake_at, "runtime next_wake_at")
+    return replace(
+        runtime,
+        simulation_time=_normalized_aware(runtime.simulation_time, "runtime simulation_time"),
+        next_wake_at=next_wake_at,
+        created_at=_normalized_aware(runtime.created_at, "runtime created_at"),
+        updated_at=_normalized_aware(runtime.updated_at, "runtime updated_at"),
+    )
+
+
+def _normalized_records(values: object, specification: tuple[type, str]) -> tuple:
+    value_type, label = specification
+    if type(values) is not tuple:
+        raise TypeError(f"{label} must be a tuple")
+    for value in values:
+        _require_exact(value, value_type, label)
+    return tuple(
+        replace(value, recorded_at=_normalized_aware(value.recorded_at, "recorded_at"))
+        for value in values
+    )
 
 
 def _validate_runtime(runtime: object) -> None:

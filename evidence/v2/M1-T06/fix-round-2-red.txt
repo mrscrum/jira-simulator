@@ -1,0 +1,399 @@
+....................................................FFFFFFFFFFFFFF...... [ 28%]
+........................................................................ [ 57%]
+........................................................................ [ 85%]
+....................................                                     [100%]
+=================================== FAILURES ===================================
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.simulation_time-_construct_result] _
+
+path = 'runtime.simulation_time'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.simulation_time-_replace_result] _
+
+path = 'runtime.simulation_time'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.next_wake_at-_construct_result] _
+
+path = 'runtime.next_wake_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.next_wake_at-_replace_result] _
+
+path = 'runtime.next_wake_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.created_at-_construct_result] _
+
+path = 'runtime.created_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.created_at-_replace_result] _
+
+path = 'runtime.created_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.updated_at-_construct_result] _
+
+path = 'runtime.updated_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.updated_at-_replace_result] _
+
+path = 'runtime.updated_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 0, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[activity.recorded_at-_construct_result] _
+
+path = 'activity.recorded_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[activity.recorded_at-_replace_result] _
+
+path = 'activity.recorded_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[ground_truth.recorded_at-_construct_result] _
+
+path = 'ground_truth.recorded_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[ground_truth.recorded_at-_replace_result] _
+
+path = 'ground_truth.recorded_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[projection_intents.recorded_at-_construct_result] _
+
+path = 'projection_intents.recorded_at'
+result_factory = <function _construct_result at 0x108947740>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+_ test_committed_result_normalizes_nested_aware_instants_to_exact_utc[projection_intents.recorded_at-_replace_result] _
+
+path = 'projection_intents.recorded_at'
+result_factory = <function _replace_result at 0x1089477e0>
+
+    @pytest.mark.parametrize("result_factory", [_construct_result, _replace_result])
+    @pytest.mark.parametrize("path", NESTED_INSTANT_PATHS)
+    def test_committed_result_normalizes_nested_aware_instants_to_exact_utc(
+        path, result_factory
+    ):
+        valid = _committed_result()
+        expected = _nested_instant(valid.live_slice, path)
+        offset_live = _with_nested_instant(valid.live_slice, path, expected.astimezone(NON_UTC))
+
+        result = result_factory(
+            valid,
+            offset_live,
+        )
+
+        retained = _nested_instant(result.live_slice, path)
+        assert retained == expected
+>       assert retained.tzinfo is timezone.utc
+E       assert datetime.timezone(datetime.timedelta(seconds=19800)) is datetime.timezone.utc
+E        +  where datetime.timezone(datetime.timedelta(seconds=19800)) = datetime.datetime(2026, 8, 11, 4, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=19800))).tzinfo
+E        +  and   datetime.timezone.utc = timezone.utc
+
+tests/v2/unit/test_authoritative_slice.py:629: AssertionError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.simulation_time-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.simulation_time-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.next_wake_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.next_wake_at-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.created_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.created_at-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.updated_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[runtime.updated_at-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[activity.recorded_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[activity.recorded_at-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[ground_truth.recorded_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[ground_truth.recorded_at-_replace_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[projection_intents.recorded_at-_construct_result]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_normalizes_nested_aware_instants_to_exact_utc[projection_intents.recorded_at-_replace_result]
+14 failed, 238 passed in 19.78s

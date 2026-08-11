@@ -3,10 +3,12 @@
 ## Status
 
 The original Task 6 implementation is commit `4cfaa65` (`feat(v2): commit scrum state atomically`).
-Review-fix round 1 is implemented and verified on that base under the exact subject
-`fix(v2): enforce authoritative after-image identity`. The bounded non-Ultra post-GREEN audit is
-CLEAN; independent Ultra re-review remains pending, so Task 6 and M1 remain open. No live system,
-deployment, push, UAT, or external provider was used.
+Review-fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`).
+Review-fix round 2 is implemented and verified on that base under the exact subject
+`fix(v2): normalize authoritative result instants`. Its verification matrix and direct probe are
+GREEN; independent
+Ultra re-review remains pending, so Task 6 and M1 remain open. No live system, deployment, push,
+UAT, or external provider was used.
 
 ## Implemented behavior
 
@@ -115,9 +117,9 @@ Ruff remained green.
 - V1 tables/routes remain unchanged/invisible, cold imports still register all v2 tables, and Task 6
   adds no migration.
 
-## Final verification
+## Original Task 6 verification
 
-Final retained results after the last production change:
+Results retained after the original Task 6 implementation:
 
 - Task 1 focused: 62 passed, 1 baseline warning in 1.58s.
 - Task 2 accepted focused: 197 passed in 11.73s; its original four-file command also passed 176.
@@ -140,7 +142,7 @@ warnings in the frozen Jira bootstrap tests, and one SQLAlchemy identity warning
 integration tests are expected with `INTEGRATION_TESTS=false`. No test was weakened or warning
 suppressed.
 
-## Self-review
+## Original implementation self-review
 
 The bounded non-Ultra audit initially found sparse allocation handling, later owner-counter use,
 natural replay, immutable sprint planning, and exact public-boundary defects. Each became a witnessed
@@ -153,7 +155,7 @@ semantic-ID/range binding, new-owner seed authorization, deleted-counter stalene
 monotonicity, adapter/import isolation, no migration, function/argument shape, and documentation
 truthfulness. No Critical or Important concern remains from the bounded audit.
 
-## Concerns
+## Original implementation concerns
 
 No implementation concern is known. Independent technical review is still required before Task 6
 or this plan is marked complete. M1 remains in progress, and no next slice was inferred.
@@ -199,4 +201,60 @@ The bounded non-Ultra post-GREEN audit independently rechecked all six seams and
 - Shape: six changed Python files, no function over 30 lines or three arguments.
 - Alembic: sole 015 head, empty branches, fresh upgrade/current at 015; migration diff from
   `4cfaa65` empty.
-- Repository diff checks are clean. No test, warning, or scope was weakened.
+- `git diff --check` reported no whitespace errors. No test, warning, or scope was weakened.
+
+## Review fix round 2 — normalize authoritative result instants
+
+### RED
+
+Before production edits, direct construction and `dataclasses.replace` were parameterized over
+`TeamRuntime.simulation_time`, `next_wake_at`, `created_at`, and `updated_at`, plus every activity,
+ground-truth, and projection `recorded_at`. Equivalent aware `+05:30` values were required to retain
+the same instant with `tzinfo is datetime.UTC`; the existing naive rejection cases remained.
+
+Exact command from `backend/`:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_authoritative_slice.py tests/v2/integration/test_authoritative_unit_of_work.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T06/fix-round-2-red.txt
+```
+
+Expected RED: `14 failed, 238 passed in 19.78s`. All fourteen offset cases proved that the prior
+result validator accepted aware instants but retained their submitted `+05:30` representation.
+Naive-instant and UOW cases remained green.
+
+### GREEN and behavior
+
+The identical command targeting `fix-round-2-green.txt` produced `252 passed in 20.46s`.
+`CommittedAuthoritativeTickSlice` now immutably rebuilds the exact nested `TeamRuntime` and ledger
+records, normalizing every aware instant to `datetime.UTC` before retaining and deeply validating
+the result. Original caller values stay unchanged, normal frozen/slotted mutation rejection remains,
+and naive datetimes still raise `ValueError`. Successful UOW, disposed-engine reload, and continued
+commit results all assert exact UTC on the detached runtime and every returned ledger row.
+
+The direct probe covered all seven paths and reported
+`normalized_paths=7 input_unchanged=true result_frozen=true`.
+
+### Final verification
+
+- Task 1: 62 passed, 1 baseline warning; Task 2: 197 passed; Task 3: 257 passed; Task 4:
+  152 passed; Task 5: 338 passed; Task 6: 252 passed.
+- All v2: 1037 passed, 1 baseline warning in 33.34s.
+- Single fresh full backend after the final production change: 1555 passed, 43 skipped, exactly 15
+  baseline warnings in 61.60s.
+- Ruff: all checks passed. Migration parity/round trip, cold import, restart, and adapter boundary:
+  49 passed in 13.66s.
+- Shape: three changed Python files, no function over 30 lines or three arguments.
+- Alembic: sole 015 head, empty branches, fresh upgrade/current at 015; migration diff from
+  `6bac956` empty.
+- `git diff --check` reported no whitespace errors. No test, warning, migration, or scope was
+  weakened.
+
+### Self-review and concerns
+
+The verification matrix and direct probe confirmed exact-UTC normalization for all seven nested
+paths, unchanged caller-owned values, and preserved frozen result behavior. The final diff was
+checked for exact
+nested types, naive rejection, immutable reconstruction, restart behavior, no migration, and scope
+isolation. No implementation concern is known. Independent Ultra re-review remains required before
+Task 6 or this plan is marked complete; M1 stays in progress.

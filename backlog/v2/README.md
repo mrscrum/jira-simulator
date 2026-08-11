@@ -10,9 +10,9 @@ not a fixed microtask sequence.
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
   state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
-  reported CLEAN with no Critical or Important findings; Task 6 original commit `4cfaa65` has a
-  verified review-fix round 1 with a CLEAN bounded audit, but remains open pending independent Ultra
-  re-review in [`m1-scrum-state.md`](m1-scrum-state.md)
+  reported CLEAN with no Critical or Important findings; Task 6 original commit `4cfaa65` and
+  round-1 commit `6bac956` now have a verified round-2 exact-UTC result normalization, but Task 6
+  remains open pending independent Ultra re-review in [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -51,11 +51,12 @@ new-allocation ranges, work-item child-counter seeds, monotonic replay, typed st
 restart continuation, and unchanged post-commit adapter boundary. Review-fix round 1 freezes every
 ownership/history coordinate, rejects missing established blueprint members, requires whole-slice
 exactness for advanced replay, deeply validates committed results, and binds visible natural owners
-before a session. Deleted established counters remain stale; revision 015 remains the sole head and
-no external call or revision 016 was added. Verification is 231 focused, 1016 all-v2 with one
-baseline warning, and 1534 full-backend with 43 skipped and 15 baseline warnings; Ruff, static,
-Alembic, and no-migration checks are clean. Original commit `4cfaa65` and the exact fix
-subject `fix(v2): enforce authoritative after-image identity` have a CLEAN bounded audit;
+before a session. Round 2 immutably rebuilds the nested committed runtime and ledger records so all
+aware result instants retain exact UTC while naive instants still reject. Deleted established
+counters remain stale; revision 015 remains the sole head and no external call or revision 016 was
+added. Verification is 252 focused, 1037 all-v2 with one baseline warning, and 1555 full-backend
+with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and no-migration checks are clean.
+Original commit `4cfaa65`, round-1 commit `6bac956`, and the round-2 direct probe are verified;
 independent Ultra re-review remains pending, so Task 6 and M1 stay open. Capacity
 allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
 wiring, UAT, and any next task remain deferred.

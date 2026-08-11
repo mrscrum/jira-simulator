@@ -71,14 +71,15 @@ Status: IN PROGRESS
 
 - [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and technically
   accepted 2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
-- [ ] Task 6 — Commit authoritative Scrum state atomically — original commit and review-fix round 1
-  implementation/verification complete with CLEAN bounded audit; independent Ultra re-review pending
+- [ ] Task 6 — Commit authoritative Scrum state atomically — original commit plus review-fix rounds
+  1–2 implemented and verified; independent Ultra re-review pending
 
 ### Task 6 Current Implementation Status
 
 Task 6 original commit is `4cfaa65` (`feat(v2): commit scrum state atomically`). Review-fix round 1
-is implemented on that base under exact subject `fix(v2): enforce authoritative after-image
-identity`. The immutable authoritative command is validated before session creation; one session
+is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`). Review-fix round 2 is
+implemented on that base under exact subject `fix(v2): normalize authoritative result instants`.
+The immutable authoritative command is validated before session creation; one session
 then performs runtime CAS, sparse Task 5 after-images, exact semantic-counter CAS, natural-
 eligibility resolution, ordered evidence/pending-intent appends, final flush, and one commit.
 Ownership/history coordinates cannot move persisted rows, missing established blueprint members
@@ -86,12 +87,14 @@ reject instead of being recreated, and advanced allocation replay requires the e
 state/claim/natural/ledger slice to be already persisted and exact. Projection delivery remains
 post-commit; no external client or adapter is imported or called.
 
-Final retained verification is 231 Task 6 focused tests, 1016 all-v2 tests with one baseline warning,
-and 1534 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, touched-function
+Committed results now immutably rebuild the exact runtime and ledger values so all aware instants
+are retained with exact UTC tzinfo while naive instants reject. Final retained verification is 252
+Task 6 focused tests, 1037 all-v2 tests with one baseline warning, and 1555 full-backend tests with
+43 skipped and 15 baseline warnings. Ruff, touched-function
 shape/static/import checks, Alembic sole head 015 with empty branches and linear history, and the
-no-migration diff are clean. No revision 016 exists. The bounded non-Ultra post-GREEN audit is CLEAN;
-keep this task and plan open until independent Ultra re-review is clean. M1 remains in progress, and
-this plan selects no next task.
+no-migration diff are clean. No revision 016 exists. The round-2 verification matrix and direct
+probe are GREEN; keep this task and plan open until independent Ultra re-review is clean. M1 remains
+in progress, and this plan selects no next task.
 
 ## Deferred Validation Hardening Outside These Tasks
 

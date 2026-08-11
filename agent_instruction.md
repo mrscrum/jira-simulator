@@ -51,16 +51,19 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 ## Most Recent Change
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
-fix round 1 binds every after-image to immutable ownership/history coordinates and requires an
+fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
+every after-image to immutable ownership/history coordinates and requires an
 advanced allocation claim to authenticate the entire submitted replay: all state, allocation and
 natural claims, and ledger drafts must already be persisted and exact. Missing established blueprint
 members reject instead of being recreated or having counters reset; Task 5/bootstrap remains their
 initialization authority. Committed runtime/ledger results are deeply revalidated, returned
 counters/evaluations must be exact complete-snapshot members, and visible natural owner-kind
-cross-binding rejects before session creation. The bounded non-Ultra review-fix audit is CLEAN. The
-exact fix subject is `fix(v2): enforce authoritative after-image identity`; independent
-Ultra re-review remains pending. Revision 015 and external boundaries are unchanged, M1 stays in
-progress, and no Task 7 has been selected.
+cross-binding rejects before session creation. Review fix round 2 now immutably rebuilds every
+nested committed runtime/ledger value so each aware instant is retained with exact UTC tzinfo;
+naive instants still reject and caller-supplied frozen values stay unchanged. Its direct probe is
+GREEN in the round-2 verification matrix and direct probe; independent Ultra re-review remains
+pending. Revision 015 and external boundaries are
+unchanged, M1 stays in progress, and no Task 7 has been selected.
 
 On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A complete same-key
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
@@ -214,16 +217,16 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 6 review-fix round 1:
+Current local evidence after Task 6 review-fix round 2:
 
-- Task 6 focused: 231 passed.
-- V2, including Tasks 1-6: 1016 passed with 1 baseline warning.
-- Full safe backend: 1534 passed, 43 skipped, with 15 baseline warnings.
+- Task 6 focused: 252 passed.
+- V2, including Tasks 1-6: 1037 passed with 1 baseline warning.
+- Full safe backend: 1555 passed, 43 skipped, with 15 baseline warnings.
 - Ruff, touched-function shape/static/import checks, Alembic sole revision 015 with parent 014,
   empty branches, linear history, and the no-migration diff are clean.
-- Evidence is retained under `evidence/v2/M1-T06/`; original commit is `4cfaa65`, exact fix
-  subject is `fix(v2): enforce authoritative after-image identity`, and independent Ultra re-review
-  remains pending.
+- Evidence is retained under `evidence/v2/M1-T06/`; original commit is `4cfaa65`, round-1 commit is
+  `6bac956`, exact round-2 subject is `fix(v2): normalize authoritative result instants`, and
+  independent Ultra re-review remains pending.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -298,7 +301,7 @@ Current local evidence after Task 6 review-fix round 1:
 ## Next Task
 
 Obtain the independent Ultra re-review required by `backlog/v2/m1-scrum-state.md` after Task 6
-review-fix round 1. Do not select or guess Task 7; M1 remains in progress pending a separately
+review-fix round 2. Do not select or guess Task 7; M1 remains in progress pending a separately
 approved next slice. Do not add revision 016,
 allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
 calls, deployment, UAT, or M1 completion.

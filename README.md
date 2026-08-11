@@ -95,8 +95,11 @@ that schema unchanged and adds no allocator, lifecycle transition, scheduler, or
 ## V2 authoritative atomic slices
 
 Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review-fix round 1 is
-implemented on that base under the subject `fix(v2): enforce authoritative after-image
-identity`; its bounded non-Ultra audit is CLEAN, and independent Ultra re-review remains pending.
+commit `6bac956` (`fix(v2): enforce authoritative after-image identity`). Review-fix round 2 now
+normalizes every aware instant retained inside an immutable committed authoritative result to exact
+UTC while preserving naive rejection, exact nested types, and caller-owned frozen input. Its
+round-2 verification matrix and direct probe are GREEN, and independent Ultra re-review remains
+pending.
 `AuthoritativeTickSliceCommit` wraps the existing live-slice command with sparse authoritative Scrum
 after-images, explicit safe-integer semantic-counter ranges, and eligible natural-decision claims.
 The SQLAlchemy unit of work validates the exact immutable command before session creation, opens one
@@ -116,8 +119,8 @@ slice. Projection delivery stays strictly post-commit. Task 6 creates no revisio
 external adapter/client, and implements no probability, eligibility, transition, labor-allocation,
 or live-flow mechanics.
 
-The retained review-fix verification records 231 focused tests, 1016 all-v2 tests with one baseline
-warning, and 1534 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
+The retained round-2 verification records 252 focused tests, 1037 all-v2 tests with one baseline
+warning, and 1555 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
 checks, the Alembic sole-head/empty-branch/linear-history checks, and the no-migration diff are clean.
 
 From `backend/`, run:

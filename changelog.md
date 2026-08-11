@@ -479,3 +479,21 @@
   cannot mix fresh state, claims, natural occurrences, or ledger drafts with an advanced claim.
 - Revision 015 remains unchanged and sole head; no revision 016, external call, deployment, push,
   UAT, or M1 completion was added. Independent Ultra re-review remains pending.
+
+## [2026-08-11] M1 — Normalize authoritative result instants
+
+### Changed
+
+- Rebuilt immutable committed runtime and live-ledger values so every retained aware instant uses
+  exact UTC while preserving the same instant, exact nested types, and caller-owned input values.
+- Added direct-construction, `dataclasses.replace`, successful-UOW, disposed-engine restart, and
+  continuation coverage for all seven nested runtime/ledger instant paths.
+- Retained review-fix evidence from base `6bac956`: 252 focused tests, 1037 all-v2 tests with one
+  baseline warning, and 1555 full-backend tests with 43 skipped and 15 baseline warnings.
+
+### Fixed
+
+- Equivalent non-UTC aware result instants no longer remain in their submitted offset; naive
+  instants continue to reject and normal frozen result mutation remains unavailable.
+- Revision 015 remains unchanged and sole head; no revision 016, external call, deployment, push,
+  UAT, Task 7 selection, or M1 completion was added. Independent Ultra re-review remains pending.

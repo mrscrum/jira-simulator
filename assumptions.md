@@ -345,3 +345,12 @@
   with that replay is stale/conflicting and rolls back atomically.
 - Preserved revision 015 and all Task 6 scope exclusions. No Task 7, allocator, lifecycle/live-flow
   behavior, migration 016, external call, deployment, push, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 6 review fix round 2
+
+- Chose immutable nested reconstruction with `dataclasses.replace` because the committed result and
+  its runtime/ledger values are frozen and caller-owned inputs must remain unchanged.
+- Used `datetime.UTC`, which is the exact singleton also exposed as `timezone.utc`, for the retained
+  tzinfo identity contract; all aware offsets normalize to it and naive values remain invalid.
+- Preserved revision 015 and every Task 6 exclusion. No Task 7, migration 016, external call,
+  deployment, push, UAT, or M1 completion was assumed.
