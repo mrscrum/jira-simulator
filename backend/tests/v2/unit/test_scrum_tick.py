@@ -4,6 +4,8 @@ import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.v2.application.live_team import LiveTeamState
 from app.v2.domain.canonical_json import canonical_json, canonical_sha256, semantic_uuid
 from app.v2.domain.deterministic_rng import (
@@ -45,6 +47,7 @@ from tests.v2.scrum_state_support import (
 
 ONE_HOUR = timedelta(hours=1)
 ONE_HOUR_MICROSECONDS = 3_600_000_000
+HALF_HOUR_MICROSECONDS = ONE_HOUR_MICROSECONDS // 2
 DAY_START = datetime(2026, 8, 10, 16, tzinfo=UTC)
 
 
@@ -208,6 +211,54 @@ def test_tick_applies_fraction_once_after_the_prefraction_daily_cap():
     )
 
 
+@pytest.mark.parametrize(
+    ("availability_fraction", "starting_consumption", "expected_reason"),
+    (
+        (1.0, 11 * HALF_HOUR_MICROSECONDS, "DAILY_CAPACITY"),
+        (0.5, 0, "UNAVAILABLE"),
+    ),
+)
+def test_tick_classifies_the_constraint_that_limits_partial_allocation(
+    availability_fraction, starting_consumption, expected_reason
+):
+    interval = _availability(
+        DAY_START, DAY_START + ONE_HOUR, availability_fraction, 6.0
+    )
+    blueprint = _long_touch_blueprint(
+        _blueprint_with_developer_availability((interval,))
+    )
+    visit = _long_visit(blueprint, DAY_START)
+    consumption = (
+        MemberBusinessDateConsumption(
+            TEAM_ID,
+            RUN_ID,
+            MEMBER_ID,
+            DAY_START.date(),
+            starting_consumption,
+        ),
+    )
+    state = _with_runtime_start(
+        _live_state(blueprint=blueprint, visits=(visit,), consumption=consumption),
+        DAY_START,
+    )
+
+    command = calculate_scrum_tick(
+        state,
+        _request_for(state, DAY_START + ONE_HOUR),
+        SeededDrawSource(state.aggregate),
+    )
+
+    payload = _ground_truth(command)
+    assert payload["touch_delta_microseconds"] == HALF_HOUR_MICROSECONDS
+    assert payload["queue_delta_microseconds"] == HALF_HOUR_MICROSECONDS
+    assert payload["queue_causes"] == [
+        {
+            "queue_delta_microseconds": HALF_HOUR_MICROSECONDS,
+            "reason": expected_reason,
+        }
+    ]
+
+
 def test_tick_reallocates_at_configured_and_runtime_availability_boundaries():
     unavailable_first_hour = _availability(
         DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0
@@ -307,6 +358,12 @@ def test_tick_shares_one_members_labor_across_concurrent_wip():
     )
     assert credited_delta == ONE_HOUR_MICROSECONDS
     assert visits[second_work.id].queue_microseconds == ONE_HOUR_MICROSECONDS
+    assert _ground_truth(command, second_work.id)["queue_causes"] == [
+        {
+            "queue_delta_microseconds": ONE_HOUR_MICROSECONDS,
+            "reason": "CONTENTION",
+        }
+    ]
 
 
 def test_tick_keeps_visit_open_until_both_touch_and_sampled_dwell_are_complete():

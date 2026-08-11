@@ -88,10 +88,29 @@ class _QueueCause:
 
 
 @dataclass(frozen=True)
-class _QueueContext:
+class _SegmentAdvance:
+    visits: dict[UUID, StatusVisitState]
+    queue_causes: tuple[_QueueCause, ...]
+
+
+@dataclass(frozen=True)
+class _AssignedVisit:
+    visit: StatusVisitState
+    denied_reason: str | None
+
+
+@dataclass(frozen=True)
+class _AllocationContext:
     state: LiveTeamState
     segment: _BusinessSegment
     consumption: dict[tuple[UUID, date], int]
+    starting_consumption: dict[tuple[UUID, date], int]
+
+
+@dataclass(frozen=True)
+class _Capacity:
+    microseconds: int
+    limiting_constraint: str
 
 
 @dataclass(frozen=True)
@@ -212,43 +231,26 @@ def _advance_visits(
     queue_causes: list[_QueueCause] = []
     committed_end = effective_end
     for segment in segments:
-        starting_consumption = dict(consumption)
         probe_consumption = dict(consumption)
         probe = _advance_segment(state, work_by_id, visits, probe_consumption, segment)
-        boundary = _completion_boundary(state, calendar, segment, visits, probe, work_by_id)
+        boundary = _completion_boundary(
+            state, calendar, segment, visits, probe.visits, work_by_id
+        )
         if boundary is None:
-            context = _QueueContext(state, segment, starting_consumption)
-            queue_causes.extend(_segment_queue_causes(context, visits, probe))
-            visits = probe
+            queue_causes.extend(probe.queue_causes)
+            visits = probe.visits
             consumption = probe_consumption
             continue
         shortened = replace(segment, end=boundary)
         advanced = _advance_segment(state, work_by_id, visits, consumption, shortened)
-        context = _QueueContext(state, shortened, starting_consumption)
-        queue_causes.extend(_segment_queue_causes(context, visits, advanced))
-        visits = advanced
+        queue_causes.extend(advanced.queue_causes)
+        visits = advanced.visits
         committed_end = boundary
         break
     result = _finish_visits(
         state, work_by_id, original, visits, consumption, committed_end, calendar, draws
     )
     return replace(result, queue_causes=_aggregate_queue_causes(queue_causes))
-
-
-def _segment_queue_causes(
-    context: _QueueContext,
-    before: dict[UUID, StatusVisitState],
-    after: dict[UUID, StatusVisitState],
-) -> tuple[_QueueCause, ...]:
-    causes = []
-    for visit_id, original in before.items():
-        advanced = after[visit_id]
-        delta = advanced.queue_microseconds - original.queue_microseconds
-        if delta:
-            causes.append(
-                _QueueCause(visit_id, _queue_reason_at(context, advanced), delta)
-            )
-    return tuple(causes)
 
 
 def _aggregate_queue_causes(causes: list[_QueueCause]) -> tuple[_QueueCause, ...]:
@@ -262,33 +264,6 @@ def _aggregate_queue_causes(causes: list[_QueueCause]) -> tuple[_QueueCause, ...
             totals.items(), key=lambda item: (str(item[0][0]), item[0][1])
         )
     )
-
-
-def _queue_reason_at(context: _QueueContext, visit: StatusVisitState) -> str:
-    state = context.state
-    identities = tuple(
-        identity
-        for identity in state.scrum.member_identities
-        if _proficiency(
-            state.aggregate.blueprint.members[identity.blueprint_index],
-            visit.activity_key,
-        )
-        is not None
-    )
-    if not identities:
-        return "NO_CAPABLE_MEMBER"
-    available = tuple(
-        identity
-        for identity in identities
-        if _effective_fraction(state, identity, context.segment) > 0
-    )
-    if not available:
-        return "UNAVAILABLE"
-    exhausted = all(
-        _remaining_capacity(state, identity, context.segment, context.consumption) == 0
-        for identity in available
-    )
-    return "DAILY_CAPACITY" if exhausted else "WIP_LIMIT"
 
 
 def _completion_boundary(
@@ -356,18 +331,22 @@ def _advance_segment(
     visits: dict[UUID, StatusVisitState],
     consumption: dict[tuple[UUID, date], int],
     segment: _BusinessSegment,
-) -> dict[UUID, StatusVisitState]:
+) -> _SegmentAdvance:
     ordered = sorted(
         visits.values(), key=lambda visit: work_by_id[visit.work_item_id].simulator_rank
     )
-    assigned = _assign_owners(state, ordered, segment, consumption)
-    starting_consumption = dict(consumption)
+    assignments = _assign_owners(state, ordered, segment, consumption)
+    context = _AllocationContext(
+        state, segment, consumption, dict(consumption)
+    )
     advanced: dict[UUID, StatusVisitState] = {}
-    for visit in assigned:
-        advanced[visit.id] = _advance_visit(
-            state, visit, segment, consumption, starting_consumption
-        )
-    return advanced
+    causes: list[_QueueCause] = []
+    for assignment in assignments:
+        updated, cause = _advance_visit(context, assignment)
+        advanced[updated.id] = updated
+        if cause is not None:
+            causes.append(cause)
+    return _SegmentAdvance(advanced, tuple(causes))
 
 
 def _assign_owners(
@@ -375,7 +354,7 @@ def _assign_owners(
     visits: list[StatusVisitState],
     segment: _BusinessSegment,
     consumption: dict[tuple[UUID, date], int],
-) -> list[StatusVisitState]:
+) -> list[_AssignedVisit]:
     members = {identity.id: identity for identity in state.scrum.member_identities}
     retained: dict[UUID, int] = {}
     assigned: list[StatusVisitState] = []
@@ -386,12 +365,15 @@ def _assign_owners(
             assigned.append(visit)
         else:
             assigned.append(replace(visit, member_id=None))
-    return [
-        _assign_owner(state, members, visit, segment, consumption, retained)
-        if visit.member_id is None
-        else visit
-        for visit in assigned
-    ]
+    results = []
+    for visit in assigned:
+        if visit.member_id is None:
+            results.append(
+                _assign_owner(state, members, visit, segment, consumption, retained)
+            )
+        else:
+            results.append(_AssignedVisit(visit, None))
+    return results
 
 
 def _can_retain(
@@ -414,53 +396,89 @@ def _assign_owner(
     segment: _BusinessSegment,
     consumption: dict[tuple[UUID, date], int],
     retained: dict[UUID, int],
-) -> StatusVisitState:
+) -> _AssignedVisit:
     candidates = []
+    capable = False
+    available = False
+    has_capacity = False
     for identity in members.values():
         member = state.aggregate.blueprint.members[identity.blueprint_index]
         proficiency = _proficiency(member, visit.activity_key)
+        if proficiency is None:
+            continue
+        capable = True
+        if _effective_fraction(state, identity, segment) == 0:
+            continue
+        available = True
+        if _remaining_capacity(state, identity, segment, consumption) == 0:
+            continue
+        has_capacity = True
         room = retained.get(identity.id, 0) < member.max_concurrent_wip
-        has_time = _remaining_capacity(state, identity, segment, consumption) > 0
-        if proficiency is not None and room and has_time:
+        if room:
             candidates.append((proficiency, -identity.blueprint_index, identity))
     if not candidates:
-        return visit
+        reason = _assignment_denial_reason(capable, available, has_capacity)
+        return _AssignedVisit(visit, reason)
     identity = max(candidates, key=lambda candidate: candidate[:2])[2]
     retained[identity.id] = retained.get(identity.id, 0) + 1
-    return replace(visit, member_id=identity.id)
+    return _AssignedVisit(replace(visit, member_id=identity.id), None)
+
+
+def _assignment_denial_reason(
+    capable: bool, available: bool, has_capacity: bool
+) -> str:
+    if not capable:
+        return "NO_CAPABLE_MEMBER"
+    if not available:
+        return "UNAVAILABLE"
+    if not has_capacity:
+        return "DAILY_CAPACITY"
+    return "WIP_LIMIT"
 
 
 def _advance_visit(
-    state: LiveTeamState,
-    visit: StatusVisitState,
-    segment: _BusinessSegment,
-    consumption: dict[tuple[UUID, date], int],
-    starting_consumption: dict[tuple[UUID, date], int],
-) -> StatusVisitState:
+    context: _AllocationContext, assignment: _AssignedVisit
+) -> tuple[StatusVisitState, _QueueCause | None]:
+    state = context.state
+    visit = assignment.visit
+    segment = context.segment
     status = next(
         item for item in state.aggregate.blueprint.workflow.statuses if item.key == visit.status_key
     )
     if status.pauses_service_clock:
-        return replace(visit, pause_microseconds=visit.pause_microseconds + segment.microseconds)
+        updated = replace(visit, pause_microseconds=visit.pause_microseconds + segment.microseconds)
+        return updated, None
     if visit.member_id is None or visit.remaining_work_microseconds == 0:
         queue = segment.microseconds if visit.remaining_work_microseconds else 0
-        return replace(visit, queue_microseconds=visit.queue_microseconds + queue)
+        updated = replace(visit, queue_microseconds=visit.queue_microseconds + queue)
+        cause = _queue_cause(visit.id, assignment.denied_reason, queue)
+        return updated, cause
     identity = next(item for item in state.scrum.member_identities if item.id == visit.member_id)
-    available = _remaining_segment_capacity(
-        state, identity, segment, consumption, starting_consumption
-    )
-    credited = min(available, visit.remaining_work_microseconds)
+    capacity = _segment_capacity(context, identity)
+    credited = min(capacity.microseconds, visit.remaining_work_microseconds)
     key = (identity.id, segment.business_date)
-    consumption[key] = consumption.get(key, 0) + credited
+    context.consumption[key] = context.consumption.get(key, 0) + credited
     remaining = visit.remaining_work_microseconds - credited
     queue = 0 if remaining == 0 else segment.microseconds - credited
-    return replace(
+    updated = replace(
         visit,
         elapsed_work_microseconds=visit.elapsed_work_microseconds + credited,
         remaining_work_microseconds=remaining,
         queue_microseconds=visit.queue_microseconds + max(0, queue),
         credited_labor_microseconds=visit.credited_labor_microseconds + credited,
     )
+    cause = _queue_cause(visit.id, capacity.limiting_constraint, queue)
+    return updated, cause
+
+
+def _queue_cause(
+    visit_id: UUID, reason: str | None, delta_microseconds: int
+) -> _QueueCause | None:
+    if not delta_microseconds:
+        return None
+    if reason is None:
+        raise RuntimeError("queued labor must have a limiting constraint")
+    return _QueueCause(visit_id, reason, delta_microseconds)
 
 
 def _consumption_map(state: LiveTeamState) -> dict[tuple[UUID, date], int]:
@@ -482,19 +500,22 @@ def _remaining_capacity(
     return max(0, min(available, ceiling - consumed))
 
 
-def _remaining_segment_capacity(
-    state: LiveTeamState,
-    identity: MemberIdentity,
-    segment: _BusinessSegment,
-    consumption: dict[tuple[UUID, date], int],
-    starting_consumption: dict[tuple[UUID, date], int],
-) -> int:
-    key = (identity.id, segment.business_date)
-    consumed = consumption.get(key, 0)
-    used_in_segment = consumed - starting_consumption.get(key, 0)
-    available = _available_microseconds(state, identity, segment) - used_in_segment
-    ceiling = _daily_ceiling(state, identity, segment) - consumed
-    return max(0, min(available, ceiling))
+def _segment_capacity(
+    context: _AllocationContext, identity: MemberIdentity
+) -> _Capacity:
+    key = (identity.id, context.segment.business_date)
+    consumed = context.consumption.get(key, 0)
+    used = consumed - context.starting_consumption.get(key, 0)
+    segment_remaining = max(
+        0, _available_microseconds(context.state, identity, context.segment) - used
+    )
+    daily_remaining = max(
+        0, _daily_ceiling(context.state, identity, context.segment) - consumed
+    )
+    if segment_remaining <= daily_remaining:
+        reason = "CONTENTION" if used else "UNAVAILABLE"
+        return _Capacity(segment_remaining, reason)
+    return _Capacity(daily_remaining, "DAILY_CAPACITY")
 
 
 def _available_microseconds(
