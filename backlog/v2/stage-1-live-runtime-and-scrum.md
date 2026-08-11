@@ -5,6 +5,7 @@ Status: IN PROGRESS
 
 ## Tasks
 - [x] Coherent live-team read and idempotent Scrum bootstrap — completed 2026-08-11
+- [x] Honor initial Scrum boundary, DST cadence, and minimum-capacity bootstrap policy — completed 2026-08-11
 - [ ] V2-S1-T01 — Add isolated blueprint, calendar, policy, and runtime persistence
 - [ ] V2-S1-T02 — Add member responsibility and availability persistence
 - [ ] V2-S1-T03 — Add canonical route and timing-catalog persistence
@@ -33,3 +34,5 @@ Status: IN PROGRESS
   this detailed 17-task draft remains reference-only and is not activated by that plan.
 - The active pragmatic slice establishes a transactionally coherent live-team read and an
   idempotent initial Scrum bootstrap.
+- Bootstrap remains planned until the first boundary, retains local cadence through DST, and uses
+  contiguous ranked scope through configured minimum capacity.

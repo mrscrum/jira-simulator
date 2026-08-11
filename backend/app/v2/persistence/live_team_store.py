@@ -128,7 +128,7 @@ def _running_runtime(
         raise RuntimeError("persisted runtime disappeared during bootstrap")
     runtime.state = "RUNNING"
     runtime.simulation_time = started_at
-    runtime.next_wake_at = started_at
+    runtime.next_wake_at = _first_wake_at(aggregate, started_at)
     runtime.updated_at = started_at
     return TeamRuntime(
         UUID(runtime.id),
@@ -141,3 +141,8 @@ def _running_runtime(
         runtime.created_at,
         runtime.updated_at,
     )
+
+
+def _first_wake_at(aggregate: PersistedTeamAggregate, started_at: datetime) -> datetime:
+    boundary = aggregate.blueprint.scrum.first_boundary
+    return boundary if started_at < boundary else started_at

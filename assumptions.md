@@ -369,3 +369,8 @@
   cadence; chose the configured inclusive capacity range with the persisted deterministic draw.
 - Assigned each timed initial route step to the first resolved member responsible for its activity;
   WIP/capacity arbitration is deferred to the next incremental tick slice.
+
+## [2026-08-11] M1 — Honor v2 bootstrap boundaries
+
+- No assumptions made. The boundary, wake, DST cadence, and contiguous minimum-capacity policy were
+  supplied by the review resolution.

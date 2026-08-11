@@ -1,8 +1,9 @@
 """Deterministic construction of the first persisted Scrum runtime state."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from uuid import UUID
 
+from app.v2.domain.business_calendar import BusinessCalendar, CadenceRule, cadence_boundary
 from app.v2.domain.canonical_json import semantic_uuid
 from app.v2.domain.deterministic_rng import (
     CreationKind,
@@ -44,7 +45,13 @@ def build_initial_scrum_state(
     started = _utc(started_at)
     members = _member_identities(aggregate)
     work_items = _ranked_backlog(aggregate, started, draws)
-    sprint = _active_sprint(aggregate, started)
+    sprint = _initial_sprint(aggregate, started)
+    if sprint.lifecycle is SprintLifecycle.PLANNED:
+        return ScrumStateWriteSet(
+            member_identities=members,
+            work_items=work_items,
+            sprints=(sprint,),
+        )
     selected_ids = _selected_scope_ids(aggregate, sprint.id, work_items, draws)
     active_work, visits, samples = _activate_selected_work(
         aggregate, started, members, work_items, selected_ids, draws
@@ -134,19 +141,24 @@ def _weighted_value(weights: object, unit_value: float) -> str:
     return pairs[-1][0]
 
 
-def _active_sprint(aggregate: PersistedTeamAggregate, started_at: datetime) -> SprintState:
-    scrum = aggregate.blueprint.scrum
-    planned_start = scrum.first_boundary
-    planned_end = planned_start + timedelta(days=scrum.cadence_days)
+def _initial_sprint(aggregate: PersistedTeamAggregate, started_at: datetime) -> SprintState:
+    blueprint = aggregate.blueprint
+    scrum = blueprint.scrum
+    calendar = BusinessCalendar.from_blueprint(blueprint.team.timezone, blueprint.calendar)
+    cadence = CadenceRule(scrum.first_boundary, scrum.cadence_days)
+    planned_start = cadence_boundary(calendar, cadence, INITIAL_SPRINT_ORDINAL)
+    planned_end = cadence_boundary(calendar, cadence, INITIAL_SPRINT_ORDINAL + 1)
+    lifecycle = SprintLifecycle.ACTIVE if started_at >= planned_start else SprintLifecycle.PLANNED
+    observed_start = started_at if lifecycle is SprintLifecycle.ACTIVE else None
     return SprintState(
         sprint_rng_id(aggregate.team.id, INITIAL_SPRINT_ORDINAL),
         aggregate.team.id,
         aggregate.runtime.run_id,
         INITIAL_SPRINT_ORDINAL,
-        SprintLifecycle.ACTIVE,
+        lifecycle,
         planned_start,
         planned_end,
-        started_at,
+        observed_start,
         None,
         started_at,
         started_at,
@@ -167,9 +179,11 @@ def _selected_scope_ids(
     selected: list[UUID] = []
     used_points = 0
     for item in sorted(work_items, key=lambda candidate: candidate.simulator_rank):
-        if used_points + item.story_points <= capacity:
-            selected.append(item.id)
-            used_points += item.story_points
+        next_points = used_points + item.story_points
+        if used_points >= scrum.capacity_min_points and next_points > capacity:
+            break
+        selected.append(item.id)
+        used_points = next_points
     return frozenset(selected)
 
 

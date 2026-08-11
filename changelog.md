@@ -527,3 +527,17 @@
 
 - Zero-touch route steps now transition directly to the first timed step or terminal state without
   fabricating a visit or sample. No migration, network call, or v1 behavior changed.
+
+## [2026-08-11] M1 — Honor v2 bootstrap boundaries
+
+### Changed
+
+- Bootstrap now records a planned sprint and waits for its first boundary before creating scope,
+  visits, or samples; DST-safe cadence derives its end through the business calendar.
+- Ranked scope remains contiguous and reaches configured minimum capacity even across a discrete
+  sampled-target overshoot.
+
+### Fixed
+
+- Prevented early work activation, UTC-duration DST drift, and 33-point selection below a
+  35-point configured minimum.

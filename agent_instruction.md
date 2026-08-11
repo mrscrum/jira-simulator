@@ -64,11 +64,11 @@ are not executable for v2.
 On 2026-08-11, the first pragmatic v2 slice added coherent persisted live-team reads and an
 idempotent initial Scrum bootstrap. `SqlAlchemyLiveTeamStore` owns one short transaction, follows
 the persisted runtime `run_id`, and calls the Task 5 mapper with its caller-owned clean session.
-Bootstrap writes member identities, a deterministic ranked target-depth backlog, an active sprint
-and capacity-bounded scope, then direct zero-touch transitions or timed open visits with retained
-Task 3 samples. It sets the existing runtime to `RUNNING` at the supplied start and leaves its
-version unchanged. Focused tests pass 154/154; the full v2 suite passes 1041 with one dependency
-warning. No migration, Task 6 change, Jira/OpenAI call, deployment, or UAT was performed.
+Before the first boundary it writes only the deterministic member/backlog state and `PLANNED`
+sprint, waking the runtime at that boundary. At/after it, bootstrap uses local DST-safe cadence and
+contiguous ranked work through the configured minimum before opening timed visits with Task 3
+samples. Runtime version remains unchanged. Focused tests pass 158/158; full v2 passes 1045 with
+one dependency warning. No migration, Task 6 change, Jira/OpenAI call, deployment, or UAT occurred.
 
 ## Accepted Task 1–6 History
 
