@@ -11,8 +11,9 @@ for the assessed boundaries and gaps.
 additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
 milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation now includes
 the persistence/deterministic kernel, coherent Scrum bootstrap, incremental ticks, fixed sprint
-lifecycle, and persisted scheduler/restart path described below. Codex control, transport delivery,
-and Jira-side manual-intervention ingestion are not implemented.
+lifecycle, persisted scheduler/restart path, and retryable outbound Jira delivery described below.
+Codex control, Jira-side manual-intervention ingestion, and live-provider acceptance are not
+implemented.
 
 ## V2 persistence spine
 
@@ -35,7 +36,7 @@ error. Public drafts revalidate deterministic identity, canonical bytes/hash, ty
 versions, and aware instants on direct construction, replacement, and before a UOW opens a session.
 Each ledger pages by its own exclusive append-sequence cursor. Projection intents are transport
 neutral and remain `PENDING`; delivery adapters are deliberately outside this unit of work. Every
-public v2 persistence import order registers all 18 v2 tables before schema creation.
+public v2 persistence import order registers the v2 tables before schema creation.
 
 Revision `015` adds detached, immutable authoritative Scrum state without changing lifecycle state
 or taking transaction ownership. The relational state covers semantic member identities,
@@ -167,6 +168,29 @@ elapsed sprint boundaries through zero-work lifecycle-only commits, then rebases
 cursor/wake to the current scheduling point. Existing pending projection intents remain unchanged
 except for lifecycle intents genuinely due. Wall downtime never earns touch, queue, pause, or
 capacity.
+
+## V2 retryable Jira delivery
+
+Revision `016` adds only `v2_jira_delivery_receipts` and `v2_jira_resource_mappings`. Receipt
+absence means an intent has never been attempted; persisted states are only `RETRYABLE` and
+`DELIVERED`, with attempt, next-attempt, last-attempt, delivered, and error fields. Resource maps
+bind a team plus local semantic kind/UUID to Jira ID/key. Downgrade removes both delivery tables and
+restores populated revision `015` without changing authoritative state or immutable projection
+rows.
+
+`SqlAlchemyJiraDeliveryStore` opens a short transaction for each query or receipt write. It releases
+only the earliest outstanding intent per team, only when its canonical `depends_on` keys have
+delivered receipts, while eligible work for other teams continues. The sequential worker performs
+the external await after the query session closes and atomically records resource mappings with a
+success receipt afterward. Jira 429 `Retry-After` values are persisted without scheduler sleep;
+other translated provider/transport failures remain retryable with capped backoff.
+
+`JiraClientV2IntentAdapter` is the only concrete transport adapter and remains outside `app.v2`.
+Create operations preflight stable provider-visible identities: project key, project-scoped board,
+`sim-v2-<work-item UUID>` issue label, and a sprint-name marker. Absolute sprint/status/scope
+operations read current Jira state before writing. APScheduler registers one async delivery poller
+after v2 restart reconciliation. Fake-client tests cover provider-success/local-commit-crash reuse;
+no live Jira call, credential access, deployment, comments, or inbound reconciliation was performed.
 
 From `backend/`, run:
 
@@ -374,6 +398,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
 - V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
   decision/timing/calendar primitives, coherent bootstrap, atomic incremental ticks, fixed sprint
-  lifecycle/carryover, and persisted scheduler/restart execution. It does not yet evaluate risk
-  policies, deliver projections, expose v2 API routes, call Jira/OpenAI, reconcile real Jira
-  observations, or validate a live provider.
+  lifecycle/carryover, persisted scheduler/restart execution, and retryable outbound projection
+  delivery. It does not yet evaluate risk policies, enrich every lifecycle intent for the vertical
+  Jira scenario, expose v2 API routes, call OpenAI, reconcile real Jira observations, or validate a
+  live provider.

@@ -30,12 +30,17 @@ from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
 
 _V2_LIVE_MODULE = "app.v2.persistence.live_models"
+_V2_JIRA_DELIVERY_MODULE = "app.v2.persistence.jira_delivery_models"
 _V2_TEAM_MODULE = "app.v2.persistence.team_models"
 _V2_SCRUM_MODULE = "app.v2.persistence.scrum_state_models"
 _V2_LIVE_MODELS = {
     "V2ActivityEventModel",
     "V2GroundTruthRecordModel",
     "V2ProjectionIntentModel",
+}
+_V2_JIRA_DELIVERY_MODELS = {
+    "V2JiraDeliveryReceiptModel",
+    "V2JiraResourceMappingModel",
 }
 _V2_TEAM_MODELS = {
     "V2RunModel",
@@ -57,7 +62,12 @@ _V2_SCRUM_MODELS = {
     "V2WorkItemModel",
 }
 
-for _v2_module in (_V2_TEAM_MODULE, _V2_LIVE_MODULE, _V2_SCRUM_MODULE):
+for _v2_module in (
+    _V2_TEAM_MODULE,
+    _V2_LIVE_MODULE,
+    _V2_SCRUM_MODULE,
+    _V2_JIRA_DELIVERY_MODULE,
+):
     if _v2_module not in sys.modules:
         importlib.import_module(_v2_module)
 
@@ -88,6 +98,8 @@ __all__ = [
     "TouchTimeConfig",
     "V2ActivityEventModel",
     "V2GroundTruthRecordModel",
+    "V2JiraDeliveryReceiptModel",
+    "V2JiraResourceMappingModel",
     "V2ProjectionIntentModel",
     "V2RunModel",
     "V2TeamBlueprintModel",
@@ -114,6 +126,10 @@ def __getattr__(name: str) -> object:
         from app.v2.persistence import live_models
 
         return getattr(live_models, name)
+    if name in _V2_JIRA_DELIVERY_MODELS:
+        from app.v2.persistence import jira_delivery_models
+
+        return getattr(jira_delivery_models, name)
     if name in _V2_TEAM_MODELS:
         from app.v2.persistence import team_models
 

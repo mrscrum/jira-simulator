@@ -89,7 +89,7 @@ def _assert_revision(engine, expected: str) -> None:
         assert connection.scalar(sa.text("SELECT version_num FROM alembic_version")) == expected
 
 
-def test_migration_graph_remains_linear_through_current_015_head():
+def test_migration_graph_remains_linear_through_current_016_head():
     backend_root = Path(__file__).parents[3]
     result = subprocess.run(
         [sys.executable, "-B", "-m", "alembic", "heads"],
@@ -100,7 +100,7 @@ def test_migration_graph_remains_linear_through_current_015_head():
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "015 (head)"
+    assert result.stdout.strip() == "016 (head)"
 
 
 def test_populated_013_round_trip_preserves_task_one_and_legacy_rows(tmp_path):

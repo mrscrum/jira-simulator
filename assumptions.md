@@ -408,3 +408,13 @@
 - No assumptions made. The exclusive pagination cursor, default page size, sequential failure
   isolation, evidence-before-lifecycle order, lifecycle-only zero-work transition, final rebase,
   and exact exclusions were supplied explicitly by the review findings.
+
+## [2026-08-11] Stage 2 — Deliver v2 Jira intents
+
+- Chose a 10-second exponential retry base capped at 300 seconds because the instruction required a
+  modest capped schedule but did not prescribe exact non-429 intervals.
+- Kept a missing `issue_ids` list on `SCOPE_SPRINT` as an empty absolute scope operation because the
+  currently committed lifecycle payload contains only `sprint_id`; enriching lifecycle payloads is
+  deferred to the vertical-proof slice rather than reading or mutating authoritative state here.
+- Used a stable `sim-v2-<UUID>` issue label and sprint-name suffix for provider-visible preflight;
+  project key and project-scoped board lookup are the corresponding stable project/board markers.

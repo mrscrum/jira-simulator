@@ -31,7 +31,7 @@ TASK5_TABLES = {
 }
 
 
-def test_migration_graph_loads_with_one_linear_015_head():
+def test_migration_graph_loads_with_one_linear_016_head():
     backend_root = Path(__file__).parents[3]
     result = subprocess.run(
         [sys.executable, "-B", "-m", "alembic", "heads"],
@@ -41,7 +41,7 @@ def test_migration_graph_loads_with_one_linear_015_head():
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "015 (head)"
+    assert result.stdout.strip() == "016 (head)"
 
 
 def test_revision_015_matches_every_task5_orm_schema_detail(tmp_path):

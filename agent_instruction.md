@@ -20,8 +20,9 @@ The approved additive v2 specification and execution plan now begin at `docs/v2/
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
 `backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
 two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is preserved planning history only.
-Choose the next reviewable slice from the approved pragmatic-v2 design. Historical Stage 4/5 plans
-are not executable for v2.
+The retryable Jira-delivery slice at revision 016 is complete. Choose the next reviewable vertical-
+proof/realism slice from the approved pragmatic-v2 design. Historical Stage 4/5 plans are not
+executable for v2.
 
 ## Product Boundary
 
@@ -35,7 +36,7 @@ are not executable for v2.
 
 ## What Is Implemented
 
-- FastAPI backend with 76 OpenAPI operations and 43 SQLAlchemy tables.
+- FastAPI backend with 76 OpenAPI operations and 45 SQLAlchemy tables.
 - React UI for teams, members, workflows, timing templates, move-left configuration,
   dependencies, simulation controls, and sprint/event schedules.
 - Per-team project key/board, members, workflow, timing, sprint, calendar, and backlog settings.
@@ -66,9 +67,23 @@ are not executable for v2.
 - Persisted sorted due-team discovery, one sequential failure-isolated scheduler path, and restart
   handling that reconciles first, records skipped downtime, advances lifecycle with zero work, and
   preserves existing pending intents. APScheduler hosts one v2 poller job.
+- Revision 016 retry/delivery receipts and semantic Jira resource mappings, plus a short-transaction
+  FIFO/dependency store, sequential retryable worker, provider-visible idempotent create preflight,
+  and one async delivery poller registered after restart reconciliation.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the fourth pragmatic v2 slice added retryable outbound Jira delivery without
+changing authoritative state or projection rows. Revision 016 owns only delivery receipts and
+team-scoped resource mappings and round-trips populated revision 015. The store releases the first
+outstanding intent per team only when canonical dependencies are delivered; one deferred/failed
+team does not block another. The worker awaits the integration adapter outside database sessions,
+persists 429 `Retry-After` or capped provider retry, then atomically records mappings plus success.
+Provider-visible issue labels and sprint-name markers prevent duplicate creation after provider
+success/local-commit failure. Startup reconciles persisted v2 state before registering exactly one
+delivery job. No live Jira/network call, credential access, comments, deployment, inbound
+reconciliation, or UAT was performed.
 
 Task 3 review fix round 1 drains due runtimes through exclusive `team_id` keyset pages instead of
 repeating the first default 100; one failure remains isolated while later pages run in the same
@@ -313,6 +328,8 @@ Accepted Task 6 evidence:
 - `backend/app/engine/event_dispatcher.py` — moves due scheduled events to the Jira queue.
 - `backend/app/integrations/jira_write_queue.py` — external-write boundary and operation routing.
 - `backend/app/integrations/jira_client.py` — Jira REST/Agile API client.
+- `backend/app/integrations/v2_jira_intent_adapter.py` — concrete public-`JiraClient` translation,
+  read-before-write absolute operations, and provider-visible create preflight.
 - `backend/app/integrations/scheduler.py` — background jobs and paused startup behavior.
 - `backend/app/api/routers/scheduled_events.py` — sprint/schedule management and diagnostics.
 - `backend/app/v2/domain/live_slice.py` — immutable live-slice drafts, stored records, runtime
@@ -347,6 +364,13 @@ Accepted Task 6 evidence:
   one stale-runtime reload/recalculation retry.
 - `backend/app/v2/application/live_scheduler.py` — one persisted sequential due/restart path with
   per-team failure isolation and downtime-skipped commits.
+- `backend/app/v2/application/jira_delivery.py` — transport-neutral delivery protocols, persisted
+  pacing errors, and sequential worker.
+- `backend/app/v2/persistence/jira_delivery_store.py` — short-transaction FIFO/dependency reads and
+  atomic retry/success/mapping writes.
+- `backend/app/v2/persistence/jira_delivery_models.py` — the two revision-016 delivery mappings.
+- `backend/alembic/versions/016_add_v2_jira_delivery_state.py` — reversible delivery-only migration
+  over revision 015.
 - `backend/app/v2/persistence/due_team_store.py` — sorted due/running runtime discovery.
 - `backend/app/v2/runtime.py` — v2 scheduler composition, local reconciliation seam, restart, and
   one test-injectable APScheduler poller registration.
@@ -379,9 +403,9 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Implement the next pragmatic v2 slice: Jira projection delivery over committed pending intents,
-including semantic resource mapping, dependency order, idempotency, pacing, and retry. Preserve the
-accepted Task 6 transaction boundary and do not call Jira from lifecycle/tick commits.
+Implement the next pragmatic v2 slice: fake-Jira multi-sprint vertical proof, then the required
+causal risks/content/transcript realism in focused increments. Preserve revision-016 delivery and
+the accepted Task 6 transaction boundary; do not call Jira from lifecycle/tick commits.
 
 ## Active Decisions and External Gates
 
@@ -417,8 +441,8 @@ accepted Task 6 transaction boundary and do not call Jira from lifecycle/tick co
   reconciliation on the current one-way dispatcher alone.
 - Restart must reconcile supported Jira interventions before boundary handling or new outbound
   delivery, and must not manufacture missed daily work.
-- Jira provisioning and sprint creation need explicit idempotency/read-back tests before relying on
-  them in autonomous operation.
+- Jira provisioning and sprint creation have fake-client idempotency/read-back coverage but still
+  require designated-sandbox live acceptance before autonomous operation.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
 - V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
   neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.

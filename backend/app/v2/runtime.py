@@ -26,6 +26,10 @@ class DueRunner(Protocol):
     def run_due(self, as_of: datetime) -> SchedulerRunResult | object: ...
 
 
+class DeliveryRunner(Protocol):
+    async def drain_once(self, as_of: datetime) -> object: ...
+
+
 class NoopObservationReconciler:
     """Local supported-observation seam until Jira reconciliation is connected."""
 
@@ -67,13 +71,36 @@ def register_v2_job(
     )
 
 
+def register_v2_delivery_job(
+    scheduler: AsyncIOScheduler,
+    worker: DeliveryRunner,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> None:
+    """Register one async Jira-delivery poller over committed v2 intents."""
+
+    async def deliver_pending_intents() -> None:
+        await worker.drain_once(now())
+
+    scheduler.add_job(
+        deliver_pending_intents,
+        trigger=IntervalTrigger(seconds=V2_POLL_INTERVAL_SECONDS),
+        id="v2_jira_delivery",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
+
+
 def resume_and_register_v2(
     scheduler: AsyncIOScheduler,
     session_factory: sessionmaker[Session],
     as_of: datetime,
+    delivery_worker: DeliveryRunner | None = None,
 ) -> LiveScheduler:
     """Reconcile persisted running teams before enabling future due polling."""
     live_scheduler = build_v2_scheduler(session_factory)
     live_scheduler.resume_after_restart(as_of)
     register_v2_job(scheduler, live_scheduler)
+    if delivery_worker is not None:
+        register_v2_delivery_job(scheduler, delivery_worker)
     return live_scheduler

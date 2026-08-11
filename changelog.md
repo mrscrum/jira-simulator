@@ -612,3 +612,21 @@
 - Prevented the first 100 still-due teams from starving later configured teams.
 - Guaranteed downtime evidence commits before lifecycle when the persisted cursor equals a boundary;
   no missed work, duplicate evidence, migration, concurrency, or lease behavior was introduced.
+
+## [2026-08-11] Stage 2 — Deliver v2 Jira intents
+
+### Changed
+
+- Added reversible revision 016 with retryable/delivered Jira receipts and team-owned semantic
+  resource mappings while leaving immutable projection intents `PENDING`.
+- Added strict per-team FIFO/dependency delivery, persisted retry pacing, cross-team failure
+  isolation, and atomic mapping-plus-success receipts through short database transactions.
+- Added a concrete `JiraClient` adapter with provider-visible project/board/issue/sprint preflight
+  markers and one async delivery job registered after v2 restart reconciliation.
+
+### Fixed
+
+- Provider success followed by a local receipt-commit crash no longer requires duplicate issue or
+  sprint creation: retries rediscover the stable Jira-visible marker before creating.
+- Jira 429 responses now persist `Retry-After` without sleeping inside the scheduler; other provider
+  and transport failures remain visible and retryable with capped backoff.

@@ -528,7 +528,7 @@ def test_authoritative_operation_never_delegates_to_the_public_live_slice_operat
     assert "commit_tick_slice" not in called
 
 
-def test_task6_creates_no_alembic_revision_016():
+def test_task4_adds_only_one_alembic_revision_016():
     versions = Path(__file__).parents[3] / "alembic" / "versions"
     revisions = {
         node.value.value
@@ -541,5 +541,30 @@ def test_task6_creates_no_alembic_revision_016():
     }
 
     assert "015" in revisions
-    assert "016" not in revisions
-    assert not tuple(versions.glob("016*.py"))
+    assert "016" in revisions
+    assert len(tuple(versions.glob("016*.py"))) == 1
+
+
+def test_jira_delivery_protocol_stays_inside_application_boundary():
+    application_path = (
+        Path(__file__).parents[3] / "app" / "v2" / "application" / "jira_delivery.py"
+    )
+    integration_path = (
+        Path(__file__).parents[3] / "app" / "integrations" / "v2_jira_intent_adapter.py"
+    )
+    application_tree = ast.parse(application_path.read_text(encoding="utf-8"))
+    integration_tree = ast.parse(integration_path.read_text(encoding="utf-8"))
+
+    assert all(
+        not name.startswith("app.integrations")
+        for name in _imported_modules(application_tree)
+    )
+    application_classes = {
+        node.name for node in application_tree.body if isinstance(node, ast.ClassDef)
+    }
+    integration_classes = {
+        node.name for node in integration_tree.body if isinstance(node, ast.ClassDef)
+    }
+    assert {"JiraIntentAdapter", "JiraDeliveryWorker"} <= application_classes
+    assert "JiraClientV2IntentAdapter" not in application_classes
+    assert "JiraClientV2IntentAdapter" in integration_classes

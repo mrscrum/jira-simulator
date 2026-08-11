@@ -1,9 +1,10 @@
 # V2 Stage 2 — Outbound Jira Provisioning and Convergence
 
 > **DETAILED REFERENCE DRAFT — NOT ACTIVE.** See [`README.md`](README.md) for milestone status.
-Status: NOT STARTED
+Status: IN PROGRESS
 
 ## Tasks
+- [x] Revision 016 and retryable v2 Jira delivery — completed 2026-08-11
 - [ ] V2-S2-T01 — Define typed Jira adapter and capability probe
 - [ ] V2-S2-T02 — Implement dependency-aware idempotent outbox writer
 - [ ] V2-S2-T03 — Provision and validate the company-managed project
@@ -22,3 +23,6 @@ Status: NOT STARTED
 - Stage 2 preserves unexpected Jira differences without overwriting them. Full human-intervention
   ingestion follows the Codex alpha in Stage 4.
 - No v2 Jira comments and no simulator-originated changes to actual assignee/reporter.
+- The pragmatic outbound foundation now has strict team FIFO/dependencies, retry receipts, semantic
+  mappings, provider-visible create preflight, and one post-reconciliation delivery job. Live Jira
+  acceptance, inbound reconciliation, and full provisioning breadth remain future work.

@@ -25,7 +25,9 @@ UAT/load fixture only.
   pre-fraction capacity, earliest shared completion, residual tick time, and causal evidence. The
   fixed lifecycle/scheduler/restart slice is complete with unchanged carryover, persisted due-team
   authority, exclusive paging beyond 100, sequential failure isolation, and evidence-first
-  zero-work restart boundaries; next work is Jira delivery, then vertical proof and realism
+  zero-work restart boundaries. Revision 016 and retryable Jira delivery are complete with strict
+  per-team FIFO/dependencies, cross-team continuation, provider-visible create preflight, persisted
+  pacing, and one post-reconciliation delivery job; next work is vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT
@@ -38,7 +40,7 @@ needed at that time, following `/AGENTS.md`, and update the relevant stage file 
 The existing stage files contain a detailed planning draft created before Pavel asked for a
 high-level plan. They are reference material only; their task IDs and sequencing are not binding.
 
-The reviewed persistence spine is complete through revision 014. The
+The reviewed persistence spine is complete through revision 016. The
 [`m1-deterministic-kernel.md`](m1-deterministic-kernel.md) plan is also complete: Task 3 provides
 review-hardened slotted/reconstruction-resistant HMAC-U53 provenance, scoped safe-integer
 coordinates, and formula-bound dwell/touch samples; Task 4 provides pure dual-clock/DST-safe
@@ -66,15 +68,17 @@ ownership/history coordinate, rejects missing established blueprint members, req
 exactness for advanced replay, deeply validates committed results, and binds visible natural owners
 before a session. Round 2 immutably rebuilds the nested committed runtime and ledger records so all
 aware result instants retain exact UTC while naive instants still reject. Deleted established
-counters remain stale; revision 015 remains the sole head and no external call or revision 016 was
-added. Verification is 252 focused, 1037 all-v2 with one baseline warning, and 1555 full-backend
+counters remain stale; Task 6 itself added no external call or revision 016. Verification is 252
+focused, 1037 all-v2 with one baseline warning, and 1555 full-backend
 with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and no-migration checks are clean.
 Original commit `4cfaa65`, round-1 commit `6bac956`, and round-2 commit `47f9e55` are verified; the
 independent Ultra technical review reported CLEAN with no Critical or Important findings. Task 6 and
-the Scrum-state plan are complete, while M1 remains in progress. The former
+the Scrum-state plan are complete. The pragmatic Jira-delivery slice subsequently added reversible
+revision 016 receipts/mappings and fake-provider retry/idempotency coverage without changing Task 6
+authority or projection rows. M1 remains in progress. The former
 [`m1-capacity-credit.md`](m1-capacity-credit.md) Tasks 7/8 are preserved as superseded planning
-history and are not implementation or acceptance authority. The next task must be selected from the
-approved pragmatic-v2 implementation slices rather than continuing the capacity-credit matrix.
+history and are not implementation or acceptance authority. The next task is the approved
+vertical-proof and realism slice rather than the superseded capacity-credit matrix.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and
