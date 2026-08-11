@@ -12,8 +12,8 @@ evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
 The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
-`backlog/v2/`, and the next M1 slice needs a new reviewable plan. Historical Stage 4/5 plans are
-not executable for v2.
+`backlog/v2/`, and `backlog/v2/m1-scrum-state.md` is the active reviewable two-task implementation
+plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Product Boundary
 
@@ -43,6 +43,15 @@ not executable for v2.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the next M1 implementation boundary was frozen in
+`backlog/v2/m1-scrum-state.md`. Task 5 owns immutable authoritative Scrum-state contracts,
+caller-owned-session mapping, composite team/run constraints, and reversible revision 015. Task 6
+then wraps the reviewed `TickSliceCommit` and commits runtime CAS, state after-images, semantic
+counter/eligible occurrence claims, existing ledgers, and pending projection intent once without a
+revision 016. The canonical blueprint remains the sole configuration authority; allocator,
+live-flow/lifecycle, planning, dependencies, risks, Jira/OpenAI, deployment, UAT, and M1 completion
+remain out of scope. This planning change adds no production/test behavior or migration.
 
 On 2026-08-11, Task 4 review fix round 2 centralized business-calendar timezone conversion and
 local-boundary range handling. `business_date`, `working_interval`, nested next-working/addition,
@@ -157,8 +166,10 @@ Current local evidence after Task 4 review fix round 2:
   run, including autonomy, safety, priorities, verification, and morning handoff.
 - `docs/v2/README.md` — authority and resumption instructions.
 - `backlog/v2/README.md` — active milestone status.
-- `backlog/v2/m1-deterministic-kernel.md` — active Tasks 3/4 requirements, TDD commands, evidence,
-  and completion gates.
+- `backlog/v2/m1-deterministic-kernel.md` — completed Tasks 3/4 requirements, TDD commands,
+  evidence, and completion gates.
+- `backlog/v2/m1-scrum-state.md` — active Tasks 5/6 requirements: revision-015 authoritative Scrum
+  state followed by atomic runtime-CAS/UOW integration.
 - Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
   not the active contract or mandatory task sequence.
 - `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
@@ -200,12 +211,12 @@ Current local evidence after Task 4 review fix round 2:
 
 ## Next Task
 
-The two-task deterministic-kernel plan is complete, but M1 remains in progress. Do not guess the
-next implementation slice. First create and review a context-sized plan for authoritative
-work/sprint/status-visit persistence and commit-time occurrence allocation, preserving the reviewed
-Task 1-4 identities, ledgers, decision coordinates, calendar semantics, and revision-014 boundary.
-Do not add a migration, scheduler/engine wiring, Jira/OpenAI call, deployment, UAT claim, or M1
-completion until that next slice explicitly authorizes it.
+Execute Task 5 from `backlog/v2/m1-scrum-state.md` through strict RED -> GREEN -> REFACTOR and its
+task-scoped review gate. It alone authorizes revision 015, immutable authoritative Scrum-state
+contracts, the third v2 model module, caller-owned-session mapping, populated migration round-trip,
+cold-import, composite-FK, and restart proof. Do not begin Task 6 until Task 5 is reviewed and
+committed exactly as the plan requires. Do not add allocator/live-flow/lifecycle/planning,
+dependencies, risks, scheduler/engine wiring, Jira/OpenAI calls, deployment, UAT, or M1 completion.
 
 ## Active Decisions and External Gates
 

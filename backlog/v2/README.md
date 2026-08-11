@@ -8,8 +8,8 @@ not a fixed microtask sequence.
 
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
-  persistence-spine and deterministic-kernel plans are complete, and the next slice needs a new
-  context-sized plan
+  persistence-spine and deterministic-kernel plans are complete, and the active two-task durable
+  Scrum-state plan is [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -29,9 +29,12 @@ coordinates, and formula-bound dwell/touch samples; Task 4 provides pure dual-cl
 business-calendar, fixed-cadence, and review-hardened `US_FEDERAL_V1` horizon primitives. The
 starter year is team-zone-derived, only available IANA keys are accepted, canonical horizons are
 authenticated before use, stale extensions catch up idempotently in ten-year blocks, and extreme
-timezone/local-boundary conversions expose a stable domain range error. M1 remains in progress.
-Work/sprint/status-visit persistence is the next plan decision and must not be guessed from the
-historical detailed backlog.
+timezone/local-boundary conversions expose a stable domain range error. M1 remains in progress. The
+active [`m1-scrum-state.md`](m1-scrum-state.md) plan now freezes exactly two context-sized slices:
+Task 5 owns revision-015 authoritative state persistence, and Task 6 integrates that state with the
+existing atomic runtime-CAS/live-ledger unit of work without a revision 016. Capacity allocation,
+live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external wiring, and UAT
+remain deferred.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

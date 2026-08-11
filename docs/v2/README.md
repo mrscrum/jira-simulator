@@ -1,8 +1,9 @@
 # Jira Team Simulator v2
 
 Implementation status: **M1 IN PROGRESS** — the isolated persistence spine is implemented and
-reviewed locally through Alembic revision 014; the next deterministic-kernel slices are planned but
-not yet implemented.
+reviewed locally through Alembic revision 014, and the pure deterministic decision/sampling and
+dual-clock calendar kernel is implemented and review-hardened. The active next implementation plan
+is [`/backlog/v2/m1-scrum-state.md`](/backlog/v2/m1-scrum-state.md).
 
 Pavel requested a high-level plan and explicitly left implementation detail to the capable model
 that will build it. The active product and architecture plan is therefore:
@@ -60,7 +61,10 @@ operation, unchanged carryover without an automatic penalty, or internal-only tr
 
 The high-level plan remains authoritative. Follow the active context-sized plan linked from
 `/backlog/v2/README.md`; preserve unrelated work, verify the mandatory TDD skill required by
-`/AGENTS.md`, and keep live Jira work behind a separately authorized disposable project/tenant.
+`/AGENTS.md`, and keep live Jira work behind a separately authorized disposable project/tenant. The
+current plan contains only revision-015 authoritative Scrum-state persistence followed by its atomic
+runtime-CAS/UOW integration; it does not authorize allocation, lifecycle/live-flow mechanics,
+external calls, deployment, or UAT.
 
 ## Resumption Rule
 
