@@ -47,6 +47,14 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A complete same-key
+visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
+identities after an external cascade deletion, eliminating two sample identity-conflict
+`SAWarning`s while preserving unrelated caller cache entries. The isolated TDD regression moved
+from `1 failed in 0.28s` to `1 passed in 0.27s`. The full verification matrix is GREEN; only the
+exact pending commit subject `fix(v2): detach cascaded scrum identities` remains open, so no
+round-5 commit hash is claimed.
+
 On 2026-08-11, Task 5 review fix round 4 made every mapper authority/state read refresh matching
 clean ORM identities from the current transaction's database view. Cached team/run/blueprint/sample
 corruption and run deletion now reject; valid external state updates appear in complete `load` and
@@ -54,9 +62,9 @@ sparse-`add` snapshots without broadly expiring unrelated caller identities. Mem
 the same boundary. A complete visit/sample after-image can restore an externally deleted cached
 visit without `StaleDataError` or SQLAlchemy identity-conflict warnings because only the
 confirmed-missing stale visit identity is detached first. The focused and full round-4 verification
-matrix is GREEN; only the exact pending commit `fix(v2): refresh authoritative scrum reads` remains
-open on base `e9dd4cf`. Revision 015, Task 6, external calls, deployment, UAT, and M1 completion
-remain unchanged.
+matrix is GREEN, and the change is committed as `9049e1a`
+(`fix(v2): refresh authoritative scrum reads`). Revision 015, Task 6, external calls, deployment,
+UAT, and M1 completion remain unchanged.
 
 On 2026-08-11, Task 5 review fix round 3 made both caller-session mapper entry points reject
 non-empty ORM `new`, `dirty`, or `deleted` state before authority/candidate SQL, preserving rollback
@@ -190,19 +198,18 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 5 review fix round 4 verification:
+Current local evidence after Task 5 review fix round 5 verification:
 
-- Round-4 Task 5 focused: 327 passed in 20.84s; the preceding behavioral GREEN was 327 passed in
-  18.79s.
-- Round-4 genuine RED: 11 failed, 314 passed in 18.46s; supplemental RED: 2 failed; warning RED:
-  1 failed.
-- Backend: 1383 passed, 43 skipped, 15 baseline warnings.
-- V2: 865 passed, 1 baseline warning.
-- Task 1: 56 passed, 1 warning; Task 2: 186 passed; Task 3: 251 passed; Task 4: 146 passed.
+- Round-5 isolated RED: 1 failed in 0.28s because two sample identity-conflict `SAWarning`s were
+  emitted; isolated GREEN: 1 passed in 0.27s.
+- Direct round-5 self-probe: PASS; targeted mapper selection: 16 passed, 134 deselected in 1.38s.
+- Round-5 Task 5 focused: 327 passed in 21.60s.
+- Backend: 1383 passed, 43 skipped, 15 baseline warnings in 51.39s.
+- V2, including Tasks 1-5: 865 passed, 1 baseline warning in 25.29s.
 - Ruff passed. Alembic remains sole revision 015 with parent 014, no branches, linear history, and
-  passing parity/populated round trip.
-- Cold import: 39 passed, 2 deselected; architecture: 15 passed; two touched Python files have no
-  function over 30 lines or more than three arguments.
+  parity/populated round trip at 4 passed in 1.81s.
+- Cold import: 39 passed, 2 deselected in 10.98s; architecture: 15 passed in 0.25s; two touched
+  Python files have no function over 30 lines or more than three arguments.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -271,7 +278,8 @@ Current local evidence after Task 5 review fix round 4 verification:
 
 ## Next Task
 
-After the pending exact `fix(v2): refresh authoritative scrum reads` commit, execute Task 6 from
+Create the exact pending `fix(v2): detach cascaded scrum identities` commit on base `9049e1a`, then
+execute Task 6 from
 `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
 revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
 counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
@@ -335,6 +343,8 @@ calls, deployment, UAT, or M1 completion.
 - Task 5 authoritative reads deliberately populate matching existing ORM identities so clean caller
   cache state cannot hide committed database updates, corruption, or deletion. This refresh is
   limited to queried team/run state and does not expire unrelated identities.
+- Restoring a cascade-deleted complete visit/sample after-image must detach only the confirmed-
+  missing same-key visit and sample identities; unrelated caller cache entries remain preserved.
 
 ## Mandatory Development Flow
 

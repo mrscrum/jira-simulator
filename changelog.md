@@ -403,9 +403,9 @@
 
 - Made every Task 5 authority/state read populate matching existing ORM identities from the current
   transaction's database view without broadly expiring unrelated caller cache entries.
-- Added round-4 genuine, supplemental, warning, and focused GREEN evidence on committed base
-  `e9dd4cf`; final regression/static verification is complete and only the exact pending
-  `fix(v2): refresh authoritative scrum reads` commit remains open.
+- Added round-4 genuine, supplemental, warning, focused GREEN, and final verification evidence on
+  base `e9dd4cf`; committed the verified change as `9049e1a`
+  (`fix(v2): refresh authoritative scrum reads`).
 
 ### Fixed
 
@@ -416,3 +416,22 @@
   `StaleDataError` or SQLAlchemy identity-map conflict warnings.
 - Revision 015, Task 6, generalized runtime CAS/counter allocation, external calls, deployment,
   UAT, and M1 completion remain unchanged.
+
+## [2026-08-11] M1 — Detach cascaded Scrum identities
+
+### Changed
+
+- Narrowed confirmed-missing restoration to detach the target-local same-key visit and sample
+  identities before inserting their complete after-images, while preserving unrelated caller cache
+  entries.
+- Added isolated round-5 RED/GREEN evidence on base `9049e1a`: `1 failed in 0.28s` from two sample
+  identity-conflict `SAWarning`s, then `1 passed in 0.27s`. Task 5 focused, all-v2, full backend,
+  Ruff, Alembic/parity, cold-import, architecture, shape, and the direct self-probe are GREEN; only
+  the exact pending `fix(v2): detach cascaded scrum identities` commit remains open.
+
+### Fixed
+
+- Complete visit/sample after-images no longer emit sample identity-conflict warnings when an
+  external cascade deleted both same-key rows while both caller identities remained cached.
+- Revision 015, generalized Task 6 CAS/upsert, lifecycle/allocation behavior, external calls,
+  deployment, UAT, and M1 completion remain unchanged.

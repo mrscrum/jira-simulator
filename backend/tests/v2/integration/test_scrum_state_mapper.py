@@ -30,6 +30,7 @@ from app.v2.domain.scrum_state import (
     SemanticCounterKind,
     SemanticCounterScope,
     SprintLifecycle,
+    StatusVisitState,
 )
 from app.v2.persistence.live_models import V2ActivityEventModel
 from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper
@@ -503,24 +504,22 @@ def test_externally_deleted_cached_visit_can_be_reinserted_from_after_image(
     v2_session_factory,
 ):
     state = _persist_complete_state(v2_session_factory)
-    visit = state.status_visits[0]
-    updated = replace(visit, queue_microseconds=visit.queue_microseconds + 1)
-    after_image = ScrumStateWriteSet(
-        status_visits=(updated,),
-        status_visit_samples=state.status_visit_samples,
-    )
+    other_team_id, _other_run_id = _seed_second_team_and_run(v2_session_factory)
+    visit, after_image = _visit_after_image(state)
 
     with v2_session_factory() as session:
-        cached = session.get(V2StatusVisitModel, str(visit.id))
-        assert cached is not None
-        with v2_session_factory.begin() as external:
-            external.execute(
-                delete(V2StatusVisitModel).where(V2StatusVisitModel.id == str(visit.id))
-            )
+        cached_visit, cached_sample, unrelated = _cache_cascade_identities(
+            session, visit.id, other_team_id
+        )
+        _delete_visit_and_verify_sample_cascade(v2_session_factory, visit.id)
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always")
             restored = SqlAlchemyScrumStateMapper().add(session, after_image)
         assert not [item for item in captured if issubclass(item.category, SAWarning)]
+        assert inspect(cached_visit).detached
+        assert inspect(cached_sample).detached
+        assert inspect(unrelated).persistent and not inspect(unrelated).expired
+        assert len(_flatten(restored)) == len(TASK5_MODELS)
         session.commit()
 
     with v2_session_factory() as session:
@@ -528,6 +527,36 @@ def test_externally_deleted_cached_visit_can_be_reinserted_from_after_image(
         assert (
             SqlAlchemyScrumStateMapper().load(session, ScrumStateQuery(TEAM_ID, RUN_ID)) == restored
         )
+
+
+def _visit_after_image(
+    state: ScrumStateWriteSet,
+) -> tuple[StatusVisitState, ScrumStateWriteSet]:
+    visit = state.status_visits[0]
+    updated = replace(visit, queue_microseconds=visit.queue_microseconds + 1)
+    after_image = ScrumStateWriteSet(
+        status_visits=(updated,), status_visit_samples=state.status_visit_samples
+    )
+    return visit, after_image
+
+
+def _cache_cascade_identities(
+    session: Session, visit_id: UUID, unrelated_team_id: UUID
+) -> tuple[V2StatusVisitModel, V2StatusVisitSampleModel, V2TeamModel]:
+    cached_visit = session.get(V2StatusVisitModel, str(visit_id))
+    cached_sample = session.get(V2StatusVisitSampleModel, str(visit_id))
+    unrelated = session.get(V2TeamModel, str(unrelated_team_id))
+    assert cached_visit is not None and cached_sample is not None and unrelated is not None
+    return cached_visit, cached_sample, unrelated
+
+
+def _delete_visit_and_verify_sample_cascade(v2_session_factory, visit_id: UUID) -> None:
+    with v2_session_factory.begin() as external:
+        result = external.execute(
+            delete(V2StatusVisitModel).where(V2StatusVisitModel.id == str(visit_id))
+        )
+        assert result.rowcount == 1
+        assert external.get(V2StatusVisitSampleModel, str(visit_id)) is None
 
 
 def _expire_cached(session: Session, model: object) -> None:

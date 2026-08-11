@@ -305,8 +305,18 @@
 
 - No assumptions made. Authoritative refresh of every Task 5 ORM read, clean cached corruption/
   deletion handling, valid external-update visibility, warning-free deleted-visit restoration,
-  committed base `e9dd4cf`, and pending commit subject
-  `fix(v2): refresh authoritative scrum reads` were supplied explicitly by the review findings.
+  review-fix base `e9dd4cf`, and committed outcome `9049e1a`
+  (`fix(v2): refresh authoritative scrum reads`) were supplied explicitly by the review findings.
+- Preserved caller transaction ownership, revision 015, and the deferral of generalized Task 6
+  upsert/CAS, counter claims, lifecycle/allocation behavior, revision 016, external calls,
+  deployment, UAT, and M1 completion exactly as instructed.
+
+## [2026-08-11] M1 — Task 5 review fix round 5
+
+- No assumptions made. Base `9049e1a`, target-local same-key visit/sample detachment, preservation
+  of unrelated caller cache entries, isolated RED `1 failed in 0.28s`, isolated GREEN
+  `1 passed in 0.27s`, the exact final verification matrix, and pending commit subject
+  `fix(v2): detach cascaded scrum identities` were supplied explicitly.
 - Preserved caller transaction ownership, revision 015, and the deferral of generalized Task 6
   upsert/CAS, counter claims, lifecycle/allocation behavior, revision 016, external calls,
   deployment, UAT, and M1 completion exactly as instructed.

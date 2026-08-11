@@ -4,9 +4,10 @@
 
 Status: original implementation committed as `a46b615`; review fix round 1 committed as
 `b44d74a`; review fix round 2 committed as `234397c`; review fix round 3 committed as `e9dd4cf`
-(`fix(v2): harden scrum mapper boundaries`). Review fix round 4 has focused GREEN on `e9dd4cf`;
-final verification is complete and the exact commit `fix(v2): refresh authoritative scrum reads`
-is pending, so no final hash is claimed.
+(`fix(v2): harden scrum mapper boundaries`); review fix round 4 committed as `9049e1a`
+(`fix(v2): refresh authoritative scrum reads`). Review fix round 5 is fully verified on base
+`9049e1a`; the exact commit subject `fix(v2): detach cascaded scrum identities` remains pending, so
+no round-5 hash is claimed.
 
 Implementation base: `5e5fac547659` (`docs: define durable Scrum state slices`), a plan-only
 descendant of reviewed Task 4 head `11f3663`.
@@ -443,9 +444,9 @@ Task 6 implementation, or revision 016 entered this fix round.
 
 ## Fix round 4 — authoritative identity-map refresh review
 
-Review-fix base: `e9dd4cf` (`fix(v2): harden scrum mapper boundaries`). The exact pending commit
-subject is `fix(v2): refresh authoritative scrum reads`; no final hash is claimed before the commit
-and final verification exist. The change remains inside Task 5 and revision 015.
+Review-fix base: `e9dd4cf` (`fix(v2): harden scrum mapper boundaries`). The verified change was
+committed as `9049e1a` (`fix(v2): refresh authoritative scrum reads`). It remains inside Task 5 and
+revision 015.
 
 ### Review RED
 
@@ -498,5 +499,49 @@ standard run overwrote `review-fix-round-4-green.txt` with `327 passed in 20.84s
 - Shape scan: two touched Python files, no function over 30 lines, and no function accepting more
   than three arguments.
 
-The warning inventory remains the existing baseline categories. No round-4 commit hash is claimed
-yet.
+The warning inventory remains the existing baseline categories. Round 4 was committed as `9049e1a`
+(`fix(v2): refresh authoritative scrum reads`).
+
+## Fix round 5 — cascaded identity detachment review
+
+Review-fix base: `9049e1a` (`fix(v2): refresh authoritative scrum reads`). The exact pending commit
+subject is `fix(v2): detach cascaded scrum identities`; no round-5 commit hash is claimed before
+that commit exists. Scope remains limited to Task 5 target-local identity-map handling, its
+regression, evidence, and documentation.
+
+### Isolated RED
+
+The same-key visit/sample cascade-restoration regression preceded the production change and is
+retained in `review-fix-round-5-red.txt`. It recorded exactly `1 failed in 0.28s`: a complete
+visit/sample after-image could restore its externally cascade-deleted visit, but the caller's
+retained cached sample caused two SQLAlchemy identity-conflict `SAWarning`s.
+
+### Corrected Task 5 contract
+
+- Confirmed-missing restoration now detaches the target-local same-key visit and sample identities
+  before inserting their complete after-images.
+- The detachment is limited to those restored identities. Unrelated caller cache entries remain
+  preserved and are neither expired nor detached.
+- The change adds no generalized upsert/CAS, lifecycle or allocation behavior, schema change,
+  revision 016, external access, deployment, push, UAT, or other scope broadening.
+
+### Isolated GREEN and final verification
+
+The identical isolated regression is retained in `review-fix-round-5-green.txt` and recorded
+exactly `1 passed in 0.27s`.
+
+- Direct target-local/unrelated-cache self-probe: `PASS`.
+- Targeted mapper selection: `16 passed, 134 deselected in 1.38s`.
+- Task 5 focused: `327 passed in 21.60s`.
+- All v2, including Tasks 1-5: `865 passed, 1 warning in 25.29s`.
+- Full safe backend: `1383 passed, 43 skipped, 15 warnings in 51.39s`.
+- Ruff: exit `0`, `All checks passed!`.
+- Alembic: sole `015` head with parent `014`, empty branches, and linear history.
+- Migration parity and populated round trip: `4 passed in 1.81s`.
+- Cold-import selection: `39 passed, 2 deselected in 10.98s`.
+- Architecture selection: `15 passed in 0.25s`.
+- Shape scan: two touched Python files, no function over 30 lines, and no function accepting more
+  than three arguments.
+
+The full-suite warnings remain the existing baseline categories. Round-5 verification is complete;
+only the exact pending commit remains, so no round-5 hash is claimed yet.

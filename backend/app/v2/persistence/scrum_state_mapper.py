@@ -225,18 +225,19 @@ def _apply_visits(session: Session, items: tuple[object, ...]) -> None:
         values = _record_values(item)
         model = session.get(V2StatusVisitModel, values["id"], populate_existing=True)
         if model is None:
-            _expunge_missing_visit(session, values["id"])
+            _expunge_deleted_visit_identities(session, values["id"])
             session.add(V2StatusVisitModel(**values))
             continue
         for field_name, value in values.items():
             setattr(model, field_name, value)
 
 
-def _expunge_missing_visit(session: Session, identity: object) -> None:
-    identity_key = session.identity_key(V2StatusVisitModel, identity)
-    stale = session.identity_map.get(identity_key)
-    if stale is not None:
-        session.expunge(stale)
+def _expunge_deleted_visit_identities(session: Session, identity: object) -> None:
+    for model_type in (V2StatusVisitModel, V2StatusVisitSampleModel):
+        identity_key = session.identity_key(model_type, identity)
+        stale = session.identity_map.get(identity_key)
+        if stale is not None:
+            session.expunge(stale)
 
 
 def _merged_snapshot(

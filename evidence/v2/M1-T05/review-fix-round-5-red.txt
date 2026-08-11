@@ -1,0 +1,31 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_externally_deleted_cached_visit_can_be_reinserted_from_after_image ____
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-182/test_externally_deleted_cached0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_externally_deleted_cached_visit_can_be_reinserted_from_after_image(
+        v2_session_factory,
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        other_team_id, _other_run_id = _seed_second_team_and_run(v2_session_factory)
+        visit, after_image = _visit_after_image(state)
+
+        with v2_session_factory() as session:
+            cached_visit, cached_sample, unrelated = _cache_cascade_identities(
+                session, visit.id, other_team_id
+            )
+            with v2_session_factory.begin() as external:
+                external.execute(
+                    delete(V2StatusVisitModel).where(V2StatusVisitModel.id == str(visit.id))
+                )
+            with warnings.catch_warnings(record=True) as captured:
+                warnings.simplefilter("always")
+                restored = SqlAlchemyScrumStateMapper().add(session, after_image)
+>           assert not [item for item in captured if issubclass(item.category, SAWarning)]
+E           assert not [<warnings.WarningMessage object at 0x108f65970>, <warnings.WarningMessage object at 0x108f655e0>]
+
+tests/v2/integration/test_scrum_state_mapper.py:521: AssertionError
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_externally_deleted_cached_visit_can_be_reinserted_from_after_image
+1 failed in 0.28s

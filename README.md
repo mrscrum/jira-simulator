@@ -71,8 +71,9 @@ database view instead of trusting clean, unexpired caller cache entries. Persist
 blueprint/sample corruption and deleted run authority therefore reject, while valid external state
 updates appear in the complete returned snapshot without expiring unrelated cached identities.
 Member-only candidate reads use the same boundary. If a complete visit/sample after-image restores
-an externally deleted cached visit, the mapper detaches only the confirmed-missing stale visit
-identity before insertion, avoiding stale-row errors and SQLAlchemy identity-conflict warnings.
+an externally cascade-deleted same-key visit and sample, the mapper detaches only those
+confirmed-missing target-local identities before insertion, avoiding stale-row errors and
+SQLAlchemy identity-conflict warnings while preserving unrelated caller cache entries.
 
 Status visits use an exact `str | None` activity key. Approved null-activity route steps persist and
 restart only as zero-touch visits with no member owner, while activity-bearing steps require their
