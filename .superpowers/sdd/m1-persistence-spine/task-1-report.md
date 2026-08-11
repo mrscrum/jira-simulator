@@ -151,3 +151,50 @@ Exact result: `33 passed, 1 warning in 1.27s`.
   canonical/typed/hash behavior is covered directly in the domain and service unit tests.
 - Confirmed no migration, Task 2, Jira/OpenAI, deployment, push, or UAT change entered this round.
 - The full suite retains only the documented 15 baseline warnings.
+
+## Fix round 3 — 2026-08-10
+
+### Review findings resolved
+
+- Removed mutable `PrivateAttr` canonical state. The exact validated document is now an excluded
+  ordinary required field governed by the frozen model, and private-name assignment is explicitly
+  rejected so the old mutation route cannot be recreated.
+- Enabled strict validation for the full nested blueprint hierarchy and immutable JSON/weight root
+  models. Construction validates a synthetic JSON document in JSON mode, preserving legitimate JSON
+  arrays and ISO date/aware-instant strings without permitting Python scalar coercion.
+- Added regressions for both canonical-state assignment routes, literal canonical hashes, exact
+  offset-document re-encoding/hash, UTC typed values, and representative numeric/string/bool
+  substitutions across required, content, Scrum, member, timing, and risk fields.
+
+### RED / GREEN
+
+RED command, run from `backend/` with `set -o pipefail`:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-red.txt
+```
+
+Exact result: `7 failed, 23 passed in 0.13s`. `_canonical_document` assignment did not raise, and
+six strict-wire cases were silently coerced by the then-current Python-mode Pydantic validation.
+
+GREEN exact Task 1 command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_utc_datetime.py tests/v2/unit/test_create_team.py tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_team_repository.py tests/v2/integration/test_migration_013.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-green.txt
+```
+
+Exact result: `42 passed, 1 warning in 1.20s`.
+
+### Verification and self-review
+
+- Full safe backend suite: `560 passed, 43 skipped, 15 warnings in 27.23s`.
+- Ruff: `All checks passed!`.
+- Alembic: sole `013` head, no branches, linear history; fresh disposable
+  `012 -> 013 -> 012 -> 013` succeeded and finished at `Rev: 013 (head)`.
+- Touched/new Python function scan: `Functions over 30 lines: []`.
+- Confirmed non-zero aware offsets still preserve exact submitted canonical bytes/hash and normalize
+  all three typed instants to `datetime.UTC`; existing naive-boundary/availability tests still reject.
+- Confirmed the strict model does not expose `canonical_document` in `model_dump(mode="json")`, so
+  the persisted wire document contains only the approved blueprint sections.
+- Confirmed no Task 2/migration 014, live provider, deployment, push, or UAT work entered the diff.
+- The full suite retains only the documented 15 baseline warnings.

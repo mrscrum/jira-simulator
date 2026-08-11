@@ -167,3 +167,7 @@
 ## [2026-08-10] M1 — Task 1 review fix round 2
 - No new product assumptions made; this round implements the specified aware-offset normalization
   while retaining the approved canonical input and hash rules.
+
+## [2026-08-10] M1 — Task 1 review fix round 3
+- No new product assumptions made; this round implements the requested immutable canonical state
+  and strict wire-type boundary without changing the approved snapshot content.

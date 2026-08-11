@@ -19,6 +19,17 @@ def _rejects(document: dict[str, object]) -> None:
         ResolvedTeamBlueprint.from_canonical_json(_canonical_document(document))
 
 
+def _with_replacement(
+    document: dict[str, object], path: tuple[object, ...], value: object
+) -> dict[str, object]:
+    changed = deepcopy(document)
+    target = changed
+    for segment in path[:-1]:
+        target = target[segment]
+    target[path[-1]] = value
+    return changed
+
+
 def test_resolved_blueprint_round_trips_as_deeply_frozen_model(
     resolved_blueprint_json: str,
 ):
@@ -34,6 +45,20 @@ def test_resolved_blueprint_round_trips_as_deeply_frozen_model(
         blueprint.members[0].roles[0] = "Mutated"
     with pytest.raises(TypeError):
         blueprint.backlog.issue_type_weights["BUG"] = 1.0
+
+
+@pytest.mark.parametrize("attribute", ["_canonical_document", "canonical_document"])
+def test_canonical_representation_cannot_be_replaced(
+    resolved_blueprint_json: str, attribute: str
+):
+    expected_hash = "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276"
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(resolved_blueprint_json)
+
+    with pytest.raises((AttributeError, TypeError, ValidationError)):
+        setattr(blueprint, attribute, "{}")
+
+    assert blueprint.canonical_json() == resolved_blueprint_json
+    assert canonical_sha256(json.loads(blueprint.canonical_json())) == expected_hash
 
 
 def test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document(
@@ -56,6 +81,9 @@ def test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document(
     assert stored_availability.starts_at.tzinfo is UTC
     assert stored_availability.ends_at.tzinfo is UTC
     assert blueprint.canonical_json() == document
+    assert canonical_sha256(json.loads(blueprint.canonical_json())) == (
+        "2d94d4cd6e1ec8c277c99ae45a460f832254b77fe9793ef39554c31923827f27"
+    )
 
 
 def test_canonical_helpers_have_stable_vectors():
@@ -110,13 +138,25 @@ def test_resolved_blueprint_rejects_bad_document_encoding(
 def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
     blueprint_document: dict[str, object], path: tuple[object, ...], value: object
 ):
-    changed = deepcopy(blueprint_document)
-    target = changed
-    for segment in path[:-1]:
-        target = target[segment]
-    target[path[-1]] = value
+    _rejects(_with_replacement(blueprint_document, path, value))
 
-    _rejects(changed)
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("team", "name"), 42),
+        (("content", "generation_enabled"), 0),
+        (("scrum", "cadence_days"), "14"),
+        (("members", 0, "daily_capacity_hours"), "6.0"),
+        (("members", 0, "max_concurrent_wip"), True),
+        (("timing", "entries", 0, "p50"), "4.0"),
+        (("risks", "profile_version"), 1.0),
+    ],
+)
+def test_resolved_blueprint_rejects_scalar_coercion(
+    blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+):
+    _rejects(_with_replacement(blueprint_document, path, value))
 
 
 @pytest.mark.parametrize(

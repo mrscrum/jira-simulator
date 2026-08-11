@@ -12,7 +12,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    PrivateAttr,
     RootModel,
     field_serializer,
     model_validator,
@@ -43,7 +42,12 @@ Probability = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
 class FrozenModel(BaseModel):
     """Base contract shared by every resolved snapshot object."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True, allow_inf_nan=False)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name.startswith("_"):
+            raise TypeError("frozen models do not allow private state mutation")
+        super().__setattr__(name, value)
 
 
 def _freeze_json(value: Any) -> Any:
@@ -65,7 +69,7 @@ def _thaw_json(value: Any) -> Any:
 class FrozenJsonMap(RootModel[dict[str, JsonScalar]]):
     """Immutable JSON object with scalar values."""
 
-    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+    model_config = ConfigDict(frozen=True, strict=True, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def freeze_root(self) -> "FrozenJsonMap":
@@ -89,7 +93,7 @@ class FrozenJsonMap(RootModel[dict[str, JsonScalar]]):
 class PositiveWeightMap(RootModel[dict[str, PositiveFloat]]):
     """Immutable non-empty positive weight object."""
 
-    model_config = ConfigDict(frozen=True, allow_inf_nan=False)
+    model_config = ConfigDict(frozen=True, strict=True, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def validate_and_freeze(self) -> "PositiveWeightMap":
@@ -324,8 +328,7 @@ class ScrumBlueprint(FrozenModel):
 class ResolvedTeamBlueprint(FrozenModel):
     """A canonical, fully resolved Scrum team snapshot."""
 
-    _canonical_document: str | None = PrivateAttr(default=None)
-
+    canonical_document: str = Field(exclude=True, repr=False)
     schema_version: Literal["2.0"]
     team: TeamBlueprintTeam
     jira: JiraBlueprint
@@ -356,15 +359,14 @@ class ResolvedTeamBlueprint(FrozenModel):
             raise ValueError("blueprint must be valid finite JSON") from error
         if canonical_json(raw_document) != document:
             raise ValueError("blueprint JSON is not canonical")
-        blueprint = cls.model_validate(raw_document)
-        blueprint._canonical_document = document
-        return blueprint
+        if not isinstance(raw_document, dict) or "canonical_document" in raw_document:
+            raise ValueError("blueprint root is invalid")
+        validated_document = canonical_json({**raw_document, "canonical_document": document})
+        return cls.model_validate_json(validated_document, strict=True)
 
     def canonical_json(self) -> str:
         """Return this frozen snapshot in canonical JSON form."""
-        if self._canonical_document is not None:
-            return self._canonical_document
-        return canonical_json(self.model_dump(mode="json"))
+        return self.canonical_document
 
 
 def _reject_non_finite(token: str) -> None:

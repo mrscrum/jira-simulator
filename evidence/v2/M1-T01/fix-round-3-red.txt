@@ -1,0 +1,226 @@
+.F.................FFFFFF.....                                           [100%]
+=================================== FAILURES ===================================
+____ test_canonical_representation_cannot_be_replaced[_canonical_document] _____
+
+resolved_blueprint_json = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+attribute = '_canonical_document'
+
+    @pytest.mark.parametrize("attribute", ["_canonical_document", "canonical_document"])
+    def test_canonical_representation_cannot_be_replaced(
+        resolved_blueprint_json: str, attribute: str
+    ):
+        expected_hash = "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276"
+        blueprint = ResolvedTeamBlueprint.from_canonical_json(resolved_blueprint_json)
+
+>       with pytest.raises((AttributeError, TypeError, ValidationError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (AttributeError, TypeError, ValidationError)
+
+tests/v2/unit/test_team_blueprint.py:57: Failed
+___________ test_resolved_blueprint_rejects_scalar_coercion[path1-0] ___________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('content', 'generation_enabled'), value = 0
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+__________ test_resolved_blueprint_rejects_scalar_coercion[path2-14] ___________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('scrum', 'cadence_days'), value = '14'
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+__________ test_resolved_blueprint_rejects_scalar_coercion[path3-6.0] __________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('members', 0, 'daily_capacity_hours'), value = '6.0'
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+_________ test_resolved_blueprint_rejects_scalar_coercion[path4-True] __________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('members', 0, 'max_concurrent_wip'), value = True
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+__________ test_resolved_blueprint_rejects_scalar_coercion[path5-4.0] __________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('timing', 'entries', 0, 'p50'), value = '4.0'
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+__________ test_resolved_blueprint_rejects_scalar_coercion[path6-1.0] __________
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('risks', 'profile_version'), value = 1.0
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "name"), 42),
+            (("content", "generation_enabled"), 0),
+            (("scrum", "cadence_days"), "14"),
+            (("members", 0, "daily_capacity_hours"), "6.0"),
+            (("members", 0, "max_concurrent_wip"), True),
+            (("timing", "entries", 0, "p50"), "4.0"),
+            (("risks", "profile_version"), 1.0),
+        ],
+    )
+    def test_resolved_blueprint_rejects_scalar_coercion(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+>       _rejects(_with_replacement(blueprint_document, path, value))
+
+tests/v2/unit/test_team_blueprint.py:159:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:18: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_team_blueprint.py::test_canonical_representation_cannot_be_replaced[_canonical_document]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path1-0]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path2-14]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path3-6.0]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path4-True]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path5-4.0]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_scalar_coercion[path6-1.0]
+7 failed, 23 passed in 0.13s

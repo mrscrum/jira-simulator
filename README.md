@@ -20,7 +20,8 @@ be atomically persisted as an isolated `v2_teams` aggregate with one immutable b
 run, and runtime shell. Revision `013` adds only `v2_*` tables and can downgrade to `012`; it does
 not alter v1 API behavior or invoke Jira/OpenAI. Aware boundary and availability offsets are
 normalized to UTC in typed state while the validated canonical input bytes remain the persisted
-document and hash source; naive instants are rejected.
+document and hash source; naive instants are rejected. The canonical document is immutable after
+construction, and the wire boundary rejects scalar type coercion.
 
 From `backend/`, run:
 

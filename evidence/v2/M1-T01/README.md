@@ -132,3 +132,66 @@ PY
 ```
 
 Result: `Functions over 30 lines: []`.
+
+## Fix round 3
+
+The canonical representation now lives in an excluded ordinary Pydantic field under the same
+frozen contract as the typed blueprint; private-name assignment is also blocked. Validation runs
+in strict JSON mode, so JSON arrays and ISO date/instant strings retain their legitimate wire
+meaning while scalar bool/string/number coercions are rejected. Valid offset instants still retain
+their exact submitted canonical bytes and SHA-256 while exposing UTC typed datetimes.
+
+RED, run from `backend/`:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-red.txt
+```
+
+Result: `7 failed, 23 passed in 0.13s`. One failure showed mutable `_canonical_document`; six
+showed accepted scalar coercions (`0` to bool, strings to integer/float member/timing values,
+`True` to integer WIP, and float to integer profile version).
+
+GREEN, using the exact six-file Task 1 command:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_utc_datetime.py tests/v2/unit/test_create_team.py tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_team_repository.py tests/v2/integration/test_migration_013.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-green.txt
+```
+
+Result: `42 passed, 1 warning in 1.20s`.
+
+Full safe suite and Ruff:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-full-suite.txt
+../.venv/bin/python -B -m ruff check --no-cache . 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-ruff.txt
+```
+
+Results: `560 passed, 43 skipped, 15 warnings in 27.23s`; Ruff: `All checks passed!`. The 15
+warnings are the documented baseline inventory.
+
+Alembic graph and fresh disposable round-trip:
+
+```bash
+set -o pipefail
+migration_dir=$(mktemp -d -t m1_t01_fix3.XXXXXX)
+migration_db="$migration_dir/simulator.db"
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic heads --verbose 2>&1 | tee ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic branches --verbose 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic history 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic upgrade 012 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic upgrade 013 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic downgrade 012 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic upgrade 013 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+DATABASE_URL="sqlite:///$migration_db" ../.venv/bin/python -B -m alembic current --verbose 2>&1 | tee -a ../evidence/v2/M1-T01/fix-round-3-alembic.txt
+```
+
+Result: sole head `013`, no branch output, linear history, successful
+`012 -> 013 -> 012 -> 013`, and final `Rev: 013 (head)`. As in round 2, this direct CLI proof is a
+fresh database; the passing focused migration test owns the populated row/schema preservation proof.
+
+The touched/new Python function scan used the exact heredoc recorded in Fix round 2, changing only
+the output filename to `fix-round-3-function-length.txt`; result:
+`Functions over 30 lines: []`.
