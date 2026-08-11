@@ -10,8 +10,9 @@ has not been verified against the live `mrscrum` Jira instance in the latest ass
 Read `docs/requirements-functionality-map.md` before planning implementation. It is the
 evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
-The approved additive v2 specification and execution plan now begin at `docs/v2/README.md` and are
-tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v2.
+The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
+tracked under `backlog/v2/`; its active near-term plan is
+`backlog/v2/m1-deterministic-kernel.md`. Historical Stage 4/5 plans are not executable for v2.
 
 ## Product Boundary
 
@@ -36,6 +37,11 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-10, the reviewed two-task persistence spine was closed without completing M1, and the
+next active plan was defined as two pure-domain deterministic-kernel slices: exact HMAC-U53 plus
+bounded dwell/touch sampling, followed by dual-clock/DST-safe calendar primitives. This was a
+planning-only change; it added no migration, production behavior, Jira access, or M1 sign-off.
 
 On 2026-08-10, M1 Task 2 review fix round 2 made the live-slice JSON boundary strict about object
 keys. `DraftEnvelope` and all three draft factories now reject integer, boolean, `None`, mixed, and
@@ -87,6 +93,8 @@ Local evidence:
   run, including autonomy, safety, priorities, verification, and morning handoff.
 - `docs/v2/README.md` — authority and resumption instructions.
 - `backlog/v2/README.md` — active milestone status.
+- `backlog/v2/m1-deterministic-kernel.md` — active Tasks 3/4 requirements, TDD commands, evidence,
+  and completion gates.
 - Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
   not the active contract or mandatory task sequence.
 - `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
@@ -111,10 +119,11 @@ Local evidence:
 
 ## Next Task
 
-The active near-term M1 persistence plan has no further approved implementation slice after Task 2.
-Keep M1 in progress, review the Task 1/Task 2 evidence, and define the next context-sized M1 slice
-from the high-level plan before writing more code. Any live Jira provisioning test still requires a
-Pavel-authorized disposable project/tenant.
+Implement Task 3 from `backlog/v2/m1-deterministic-kernel.md`: exact semantic RNG paths,
+`HMAC_SHA256_U53_V1`, and bounded dwell/touch samplers through strict RED -> GREEN -> REFACTOR. It is
+pure v2 domain work: no migration, persistence occurrence allocation, scheduler, Jira/OpenAI call,
+deployment, or UAT. After its separate review/commit, Task 4 adds the dual-clock/DST-safe calendar
+primitives. Keep M1 in progress throughout both tasks.
 
 ## Active Decisions and External Gates
 
@@ -158,6 +167,9 @@ Pavel-authorized disposable project/tenant.
   semantic replay must not allocate another row when canonical immutable content is identical.
 - Existing dirty documentation and untracked assessment/skill files belong to the current owner;
   do not stash, reset, clean, or overwrite them during worktree setup.
+- `DraftEnvelope` cyclic Python containers currently fail before session/state mutation with a raw
+  `RecursionError`; this deferred non-blocking validation Minor is outside deterministic Tasks 3/4
+  and should be fixed separately before an API accepts arbitrary v2 payload objects.
 
 ## Mandatory Development Flow
 

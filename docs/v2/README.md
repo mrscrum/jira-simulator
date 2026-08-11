@@ -1,6 +1,8 @@
 # Jira Team Simulator v2
 
-Implementation status: **NOT STARTED**
+Implementation status: **M1 IN PROGRESS** — the isolated persistence spine is implemented and
+reviewed locally through Alembic revision 014; the next deterministic-kernel slices are planned but
+not yet implemented.
 
 Pavel requested a high-level plan and explicitly left implementation detail to the capable model
 that will build it. The active product and architecture plan is therefore:
@@ -56,9 +58,9 @@ operation, unchanged carryover without an automatic penalty, or internal-only tr
 
 ## Current Execution Pointer
 
-The high-level plan is complete. No implementation code was changed. Before code starts, preserve
-and checkpoint the current dirty documentation worktree, verify the mandatory TDD skill required by
-`/AGENTS.md`, and use a designated disposable Jira project/tenant for the first provisioning test.
+The high-level plan remains authoritative. Follow the active context-sized plan linked from
+`/backlog/v2/README.md`; preserve unrelated work, verify the mandatory TDD skill required by
+`/AGENTS.md`, and keep live Jira work behind a separately authorized disposable project/tenant.
 
 ## Resumption Rule
 

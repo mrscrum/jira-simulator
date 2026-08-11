@@ -8,7 +8,7 @@ not a fixed microtask sequence.
 
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; active near-term plan:
-  [`m1-persistence-spine.md`](m1-persistence-spine.md)
+  [`m1-deterministic-kernel.md`](m1-deterministic-kernel.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -21,9 +21,10 @@ needed at that time, following `/AGENTS.md`, and update the relevant stage file 
 The existing stage files contain a detailed planning draft created before Pavel asked for a
 high-level plan. They are reference material only; their task IDs and sequencing are not binding.
 
-M1 implementation is currently limited to the two independently reviewable persistence slices in
-the active near-term plan. Completing them does not by itself complete M1.
+The reviewed persistence spine is complete through revision 014. M1 now continues with the two
+independently reviewable deterministic-kernel slices in the active near-term plan; completing those
+slices does not by itself complete M1.
 
-Before M1 begins, safely checkpoint the current dirty documentation worktree and verify the mandatory
-Superpowers TDD skill required by `/AGENTS.md`. Live Jira mutation always requires a designated
-disposable project/tenant and explicit authorization.
+Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
+by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and
+explicit authorization.
