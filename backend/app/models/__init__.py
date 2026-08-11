@@ -1,3 +1,5 @@
+import sys
+
 from app.models.base import Base
 from app.models.cross_team_dependency import CrossTeamDependency
 from app.models.daily_capacity_log import DailyCapacityLog
@@ -25,12 +27,38 @@ from app.models.timing_template import TimingTemplate, TimingTemplateEntry
 from app.models.touch_time_config import TouchTimeConfig
 from app.models.workflow import Workflow
 from app.models.workflow_step import WorkflowStep
-from app.v2.persistence.team_models import (
-    V2RunModel,
-    V2TeamBlueprintModel,
-    V2TeamModel,
-    V2TeamRuntimeModel,
-)
+
+_V2_LIVE_MODULE = "app.v2.persistence.live_models"
+_V2_TEAM_MODULE = "app.v2.persistence.team_models"
+_V2_LIVE_MODELS = {
+    "V2ActivityEventModel",
+    "V2GroundTruthRecordModel",
+    "V2ProjectionIntentModel",
+}
+_V2_TEAM_MODELS = {
+    "V2RunModel",
+    "V2TeamBlueprintModel",
+    "V2TeamModel",
+    "V2TeamRuntimeModel",
+}
+
+
+def _v2_model_import_is_active() -> bool:
+    return _V2_LIVE_MODULE in sys.modules or _V2_TEAM_MODULE in sys.modules
+
+
+if not _v2_model_import_is_active():
+    from app.v2.persistence.live_models import (
+        V2ActivityEventModel,
+        V2GroundTruthRecordModel,
+        V2ProjectionIntentModel,
+    )
+    from app.v2.persistence.team_models import (
+        V2RunModel,
+        V2TeamBlueprintModel,
+        V2TeamModel,
+        V2TeamRuntimeModel,
+    )
 
 __all__ = [
     "Base",
@@ -57,6 +85,9 @@ __all__ = [
     "TimingTemplate",
     "TimingTemplateEntry",
     "TouchTimeConfig",
+    "V2ActivityEventModel",
+    "V2GroundTruthRecordModel",
+    "V2ProjectionIntentModel",
     "V2RunModel",
     "V2TeamBlueprintModel",
     "V2TeamModel",
@@ -64,3 +95,15 @@ __all__ = [
     "Workflow",
     "WorkflowStep",
 ]
+
+
+def __getattr__(name: str) -> object:
+    if name in _V2_LIVE_MODELS:
+        from app.v2.persistence import live_models
+
+        return getattr(live_models, name)
+    if name in _V2_TEAM_MODELS:
+        from app.v2.persistence import team_models
+
+        return getattr(team_models, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

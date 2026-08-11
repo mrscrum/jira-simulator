@@ -204,3 +204,19 @@
 ### Fixed
 - Prevented missing credentials or one blocked integration path from stopping unrelated local work.
 - No application code or runtime behavior was changed.
+
+## [2026-08-10] M1 — Commit live slices atomically
+### Changed
+- Added immutable activity, ground-truth, projection-intent, runtime-advance, commit, and cursor-page
+  contracts with deterministic UUIDv5 identities, canonical payload hashes, and aware-UTC times.
+- Added a compare-and-swap v2 unit of work that advances one runtime and appends three ordered
+  ledgers in one transaction, with deterministic replay, conflict rollback, and stable pagination.
+- Added Alembic revision 014 with explicit runtime version backfill, three append-oriented v2
+  tables, and a complete independent downgrade to revision 013.
+- Added RED/GREEN, failure-injection, stale-writer, restart, projection-boundary, and populated
+  migration round-trip evidence without contacting Jira or OpenAI.
+### Fixed
+- Kept projection delivery outside the authoritative transaction so a post-commit adapter failure
+  cannot undo runtime, activity, evidence, or pending intent state.
+- Added fresh-process Alembic/public-import regressions, lazy persistence exports, and cycle-aware
+  additive v2 model registration so commands cannot enter an `app.models`/v2 mapping import cycle.

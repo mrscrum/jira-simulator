@@ -10,18 +10,26 @@ for the assessed boundaries and gaps.
 **Approved future plan:** The concise requirements, architecture, and milestone roadmap for the
 additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
 milestone status under [backlog/v2/](backlog/v2/README.md). These are planning artifacts only; none of the v2 behavior,
-including Codex control or Jira-side manual-intervention ingestion, is implemented beyond the
-local persistence shell described below.
+including a simulation engine, Codex control, transport delivery, or Jira-side manual-intervention
+ingestion, is implemented beyond the local persistence spine described below.
 
-## V2 persistence shell
+## V2 persistence spine
 
-The first additive v2 slice is implemented locally. A fully resolved canonical Scrum blueprint can
+The first two additive v2 persistence slices are implemented locally. A fully resolved canonical Scrum blueprint can
 be atomically persisted as an isolated `v2_teams` aggregate with one immutable blueprint, initial
-run, and runtime shell. Revision `013` adds only `v2_*` tables and can downgrade to `012`; it does
-not alter v1 API behavior or invoke Jira/OpenAI. Aware boundary and availability offsets are
+run, and runtime shell. Revision `013` owns that four-table shell. Revision `014` adds explicit
+runtime versions plus ordered activity, immutable ground-truth, and generic pending projection
+intent ledgers; it independently downgrades to `013`. Neither revision alters v1 API behavior or
+invokes Jira/OpenAI. Aware boundary, availability, runtime, and ledger offsets are
 normalized to UTC in typed state while the validated canonical input bytes remain the persisted
 document and hash source; naive instants are rejected. The canonical document is immutable after
 construction, and the wire boundary rejects scalar type coercion.
+
+`SqlAlchemyV2UnitOfWork` advances a team/run runtime with one optimistic compare-and-swap and
+commits all three caller-ordered ledger tuples in the same transaction. Semantic replay is a stable
+no-op only for identical canonical content; conflicts and stale writers roll back the whole slice.
+Each ledger pages by its own exclusive append-sequence cursor. Projection intents are transport
+neutral and remain `PENDING`; delivery adapters are deliberately outside this unit of work.
 
 From `backend/`, run:
 
@@ -143,10 +151,10 @@ contract.
 
 ## Data Model
 
-SQLAlchemy metadata currently defines 29 tables covering core team/workflow state, Jira queue and
+SQLAlchemy metadata currently defines 32 tables covering core team/workflow state, Jira queue and
 mapping state, distribution/move-left configuration, timing templates, precomputation runs,
-scheduled events, audit records, and the isolated four-table v2 persistence shell. Alembic has 13
-migrations (`001`–`013`).
+scheduled events, audit records, and the isolated seven-table v2 persistence spine. Alembic has 14
+migrations (`001`–`014`).
 
 SQLite support enables WAL mode and foreign keys. However, the current production Compose file
 forces PostgreSQL and stores it in a Docker named volume; this conflicts with the project rule that
@@ -181,3 +189,5 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - The API has no authentication and Nginx has no working TLS configuration.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
+- V2 currently provides persistence contracts only; it has no tick engine, scheduler wiring,
+  projection worker, API routes, Jira/OpenAI adapter, or live-provider validation.

@@ -171,3 +171,19 @@
 ## [2026-08-10] M1 — Task 1 review fix round 3
 - No new product assumptions made; this round implements the requested immutable canonical state
   and strict wire-type boundary without changing the approved snapshot content.
+
+## [2026-08-10] M1 — Commit live slices atomically
+- Chose a maximum ledger page size of 100 because the approved contract required a bounded limit
+  but did not specify the numeric ceiling.
+- Treated a replay identity as table-global semantic key plus team/run ownership, schema/type and
+  aggregate identity, occurred instant, canonical payload, and hash. Commit ID, recorded time, and
+  transaction position remain occurrence metadata and therefore do not invalidate an identical
+  replay.
+- Used a fetch-of-`limit + 1` cursor rule so `next_cursor` is returned only when another row exists;
+  cursors remain exclusive table-local append sequences.
+- Used 255 characters for semantic keys, 20 for schema/status values, and 50 for type identifiers,
+  following the existing v2 bounded-text convention where the brief did not assign lengths.
+- Chose `LookupError` when `get_runtime` cannot find a team because the approved interfaces named no
+  separate not-found domain error; stale compare-and-swap writes still use `StaleRuntimeVersion`.
+- No further M1 implementation slice is assumed. The active near-term plan ends after Tasks 1 and
+  2, while M1 intentionally remains in progress pending review and an approved next slice.

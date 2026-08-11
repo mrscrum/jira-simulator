@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
 
 from app.v2.domain.canonical_json import canonical_sha256, semantic_uuid
 from app.v2.domain.team_blueprint import ResolvedTeamBlueprint
@@ -61,7 +62,6 @@ class CreateTeamService:
         team_id = semantic_uuid(f"team/{blueprint_hash}")
         blueprint_id = semantic_uuid(f"blueprint/{team_id}/0")
         run_id = semantic_uuid(f"run/{team_id}/0")
-        runtime_id = semantic_uuid(f"runtime/{team_id}")
         team = V2Team(
             team_id,
             idempotency_key,
@@ -71,9 +71,22 @@ class CreateTeamService:
             requested_at,
         )
         run = V2Run(run_id, team_id, 0, "CREATED", requested_at)
-        runtime = TeamRuntime(
-            runtime_id, team_id, run_id, "CREATED", requested_at, None, requested_at, requested_at
-        )
+        runtime = CreateTeamService._new_runtime(team_id, run_id, requested_at)
         return PersistedTeamAggregate(
             team, blueprint_id, blueprint, blueprint_hash, requested_at, run, runtime
         )
+
+    @staticmethod
+    def _new_runtime(team_id: UUID, run_id: UUID, requested_at: datetime) -> TeamRuntime:
+        runtime = TeamRuntime(
+            semantic_uuid(f"runtime/{team_id}"),
+            team_id,
+            run_id,
+            0,
+            "CREATED",
+            requested_at,
+            None,
+            requested_at,
+            requested_at,
+        )
+        return runtime

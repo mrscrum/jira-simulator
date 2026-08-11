@@ -31,6 +31,7 @@ class TeamRuntime:
     id: UUID
     team_id: UUID
     run_id: UUID
+    version: int
     state: str
     simulation_time: datetime
     next_wake_at: datetime | None

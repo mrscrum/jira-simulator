@@ -25,7 +25,7 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 
 ## What Is Implemented
 
-- FastAPI backend with 76 OpenAPI operations and 25 SQLAlchemy tables.
+- FastAPI backend with 76 OpenAPI operations and 32 SQLAlchemy tables.
 - React UI for teams, members, workflows, timing templates, move-left configuration,
   dependencies, simulation controls, and sprint/event schedules.
 - Per-team project key/board, members, workflow, timing, sprint, calendar, and backlog settings.
@@ -37,16 +37,15 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 
 ## Most Recent Change
 
-On 2026-08-10, M1 Task 1 added revision 013 and the first isolated v2 persistence shell. The new
-`backend/app/v2/` package validates/canonicalizes a fully resolved Scrum snapshot, derives semantic
-IDs, and atomically persists a v2 team, blueprint, initial run, and runtime without legacy runtime
-tables. `backend/app/v2/persistence/team_repository.py` takes a session factory and returns domain
-objects. `backend/alembic/versions/013_add_v2_team_spine.py` owns all four v2 tables and downgrade.
-Task 1 review fixes made that snapshot deeply typed/frozen and now accept every aware datetime
-offset, normalize typed values to UTC, preserve the original validated canonical document/hash,
-freeze that canonical representation, and reject scalar wire coercion through strict JSON validation.
-Task 2 is next: live-slice ledgers and runtime optimistic version in migration 014. Do not invoke
-Jira/OpenAI or cross the legacy boundary except to register mappings on `Base`.
+On 2026-08-10, M1 Task 2 added revision 014 above the reviewed revision-013 team shell. Runtime
+rows now expose an explicit optimistic version, and `backend/app/v2/persistence/unit_of_work.py`
+uses one compare-and-swap plus one database transaction to advance runtime and append ordered
+activity, immutable ground truth, and generic pending projection intent. Deterministic semantic
+UUIDs, canonical payload hashes, deduplication conflicts/no-ops, stable append cursors, stale-writer
+rollback, disposed-engine restart, and post-commit adapter failure are covered by focused tests.
+`backend/alembic/versions/014_add_v2_live_slice_ledgers.py` backfills version zero without retaining
+a server default, owns all three new tables, and returns exactly to populated revision 013 on
+downgrade. V2 remains isolated from the legacy runtime and invokes no Jira/OpenAI adapter.
 
 On 2026-08-10, Pavel approved the v2 product direction and then asked to keep the plan high level,
 leaving implementation detail to the capable model that builds it. The active requirements,
@@ -58,7 +57,7 @@ runtime changes were made.
 
 Local evidence:
 
-- Backend: 560 passed, 43 skipped, 15 warnings.
+- Backend: 590 passed, 43 skipped, 15 baseline warnings.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.
@@ -85,14 +84,22 @@ Local evidence:
 - `backend/app/integrations/jira_client.py` — Jira REST/Agile API client.
 - `backend/app/integrations/scheduler.py` — background jobs and paused startup behavior.
 - `backend/app/api/routers/scheduled_events.py` — sprint/schedule management and diagnostics.
+- `backend/app/v2/domain/live_slice.py` — immutable live-slice drafts, stored records, runtime
+  advance, transaction command/result, and page contracts.
+- `backend/app/v2/persistence/unit_of_work.py` — the v2 persistence port and atomic SQLAlchemy
+  compare-and-swap implementation; it must not import or call an external adapter.
+- `backend/app/v2/persistence/live_models.py` — the three append-oriented ledger mappings.
+- `backend/alembic/versions/014_add_v2_live_slice_ledgers.py` — reversible runtime-version and
+  live-ledger migration above revision 013.
 - `frontend/src/App.tsx` — top-level UI section routing.
 - `docker-compose.yml` — current PostgreSQL deployment, conflicting with SQLite-on-EBS rules.
 
 ## Next Task
 
-M1 Task 2 is next: add atomic live-slice/evidence/projection persistence above reviewed revision
-013. It must use migration 014 and preserve Task 1's aggregate boundary. Any live Jira provisioning
-test requires a Pavel-authorized disposable project/tenant.
+The active near-term M1 persistence plan has no further approved implementation slice after Task 2.
+Keep M1 in progress, review the Task 1/Task 2 evidence, and define the next context-sized M1 slice
+from the high-level plan before writing more code. Any live Jira provisioning test still requires a
+Pavel-authorized disposable project/tenant.
 
 ## Active Decisions and External Gates
 
@@ -130,6 +137,10 @@ test requires a Pavel-authorized disposable project/tenant.
 - Jira provisioning and sprint creation need explicit idempotency/read-back tests before relying on
   them in autonomous operation.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
+- V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
+  never import or invoke an adapter inside `commit_tick_slice`.
+- Treat `append_sequence` as the only pagination order. `occurred_at` may be equal or late, and
+  semantic replay must not allocate another row when canonical immutable content is identical.
 - Existing dirty documentation and untracked assessment/skill files belong to the current owner;
   do not stash, reset, clean, or overwrite them during worktree setup.
 

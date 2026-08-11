@@ -56,6 +56,7 @@ class V2TeamRuntimeModel(Base):
     run_id: Mapped[str] = mapped_column(
         ForeignKey("v2_runs.id", ondelete="CASCADE"), unique=True, nullable=False
     )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
     state: Mapped[str] = mapped_column(String(20), nullable=False)
     simulation_time: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     next_wake_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
