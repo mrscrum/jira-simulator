@@ -163,3 +163,7 @@
 
 ## [2026-08-10] M1 — Task 1 review fix round 1
 - No new product assumptions made; this round implemented the approved Task 1 invariants and review findings.
+
+## [2026-08-10] M1 — Task 1 review fix round 2
+- No new product assumptions made; this round implements the specified aware-offset normalization
+  while retaining the approved canonical input and hash rules.

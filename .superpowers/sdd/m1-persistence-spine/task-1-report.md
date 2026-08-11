@@ -91,3 +91,63 @@ GREEN used the identical command. Output: `19 passed in 0.38s`.
 - Confirmed revision 013 remains additive and its reverse downgrade owns only the four v2 tables.
 - Confirmed no Task 2/migration 014, live provider, deployment, push, or UAT work entered the diff.
 - The full suite retains only the documented 15 baseline warnings.
+
+## Fix round 2 — 2026-08-10
+
+### Review findings resolved
+
+- Replaced UTC-only blueprint validation with aware-instant validation followed by UTC
+  normalization. Valid `-07:00` Scrum and member-availability instants now construct successfully;
+  naive versions still fail.
+- Canonicality is checked against the parsed submitted JSON before typed datetime normalization.
+  The validated original canonical document is retained for byte-for-byte re-encoding, persistence,
+  and SHA-256 identity, while the typed datetime values are UTC.
+- Added domain and service regressions for all three offset instants, normalized typed values,
+  unchanged canonical bytes, and the hash of the submitted canonical value.
+
+### RED / GREEN
+
+RED command, run from `backend/` with `set -o pipefail`:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_create_team.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-2-red.txt
+```
+
+Exact result: `2 failed, 23 passed in 0.22s`. Both failures were expected: `_require_utc` rejected
+the valid `2026-08-13T09:00:00-07:00`, `2026-08-20T09:00:00-07:00`, and
+`2026-08-20T17:00:00-07:00` inputs as “instant must be aware UTC.”
+
+GREEN exact Task 1 command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_team_blueprint.py tests/v2/unit/test_utc_datetime.py tests/v2/unit/test_create_team.py tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_team_repository.py tests/v2/integration/test_migration_013.py -q 2>&1 | tee ../evidence/v2/M1-T01/fix-round-2-green.txt
+```
+
+Exact result: `33 passed, 1 warning in 1.27s`.
+
+### Full verification and evidence
+
+- Full command: `PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m
+  pytest -p no:cacheprovider tests -q 2>&1 | tee
+  ../evidence/v2/M1-T01/fix-round-2-full-suite.txt`.
+- Exact full result: `551 passed, 43 skipped, 15 warnings in 27.23s`.
+- Ruff command: `../.venv/bin/python -B -m ruff check --no-cache . 2>&1 | tee
+  ../evidence/v2/M1-T01/fix-round-2-ruff.txt`; exact result: `All checks passed!`.
+- Alembic `heads --verbose` reported `Rev: 013 (head)` with parent `012`; `branches --verbose`
+  produced no branch; `history` remained linear from `001` through `013`.
+- On one fresh disposable SQLite URL, `upgrade 012`, `upgrade 013`, `downgrade 012`, `upgrade 013`,
+  and `current --verbose` all exited zero; the final exact current result was `Rev: 013 (head)`.
+- The AST scan over Python files changed since `91fe2acf8a860e4a4cc764b9b3ac435bc6fd16d5`
+  printed exactly `Functions over 30 lines: []`.
+- `evidence/v2/M1-T01/README.md` now records the exact focused/full/Ruff/Alembic graph and
+  round-trip/function-scan commands actually run, their exact results, and the boundary between the
+  fresh CLI migration proof and the populated migration integration proof.
+
+### Self-review and concerns
+
+- Confirmed canonical byte/hash identity still distinguishes canonical offset spellings even when
+  they represent the same UTC instant; this follows the brief's input-byte identity rule.
+- Confirmed the repository suite still reloads the canonical fixture; the new offset-specific
+  canonical/typed/hash behavior is covered directly in the domain and service unit tests.
+- Confirmed no migration, Task 2, Jira/OpenAI, deployment, push, or UAT change entered this round.
+- The full suite retains only the documented 15 baseline warnings.

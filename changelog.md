@@ -176,6 +176,14 @@
 - Rejects nested extras, non-UTC blueprint instants, incomplete timing/risk materialization, invalid
   workflow references, unsupported activities, unordered timing anchors, and overlapping availability.
 
+## [2026-08-10] M1 — Task 1 review fix round 2
+### Changed
+- Normalize every aware blueprint boundary and availability instant to UTC in the typed snapshot.
+- Preserve the validated canonical input document and its SHA-256 identity across normalization.
+- Added exact focused/full/Ruff/Alembic/function-length command evidence for the review fix.
+### Fixed
+- Valid aware blueprint instants with non-zero UTC offsets are no longer rejected.
+
 ## [2026-08-10] V2 Stage 0 — Add independent implementation prompt
 ### Changed
 - Added a ready-to-paste v2 implementation prompt with direct links to the active requirements,

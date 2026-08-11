@@ -42,6 +42,8 @@ On 2026-08-10, M1 Task 1 added revision 013 and the first isolated v2 persistenc
 IDs, and atomically persists a v2 team, blueprint, initial run, and runtime without legacy runtime
 tables. `backend/app/v2/persistence/team_repository.py` takes a session factory and returns domain
 objects. `backend/alembic/versions/013_add_v2_team_spine.py` owns all four v2 tables and downgrade.
+Task 1 review fixes made that snapshot deeply typed/frozen and now accept every aware datetime
+offset, normalize typed values to UTC, and preserve the original validated canonical document/hash.
 Task 2 is next: live-slice ledgers and runtime optimistic version in migration 014. Do not invoke
 Jira/OpenAI or cross the legacy boundary except to register mappings on `Base`.
 
@@ -55,7 +57,7 @@ runtime changes were made.
 
 Local evidence:
 
-- Backend: 549 passed, 43 skipped, 15 warnings.
+- Backend: 551 passed, 43 skipped, 15 warnings.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.

@@ -1,5 +1,6 @@
 """Application service for atomic v2 team aggregate creation."""
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -56,7 +57,7 @@ class CreateTeamService:
     def _new_aggregate(
         idempotency_key: str, blueprint: ResolvedTeamBlueprint, requested_at: datetime
     ) -> PersistedTeamAggregate:
-        blueprint_hash = canonical_sha256(blueprint.model_dump(mode="json"))
+        blueprint_hash = canonical_sha256(json.loads(blueprint.canonical_json()))
         team_id = semantic_uuid(f"team/{blueprint_hash}")
         blueprint_id = semantic_uuid(f"blueprint/{team_id}/0")
         run_id = semantic_uuid(f"run/{team_id}/0")

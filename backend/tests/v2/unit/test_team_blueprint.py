@@ -1,6 +1,7 @@
 import json
 import math
 from copy import deepcopy
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -33,6 +34,28 @@ def test_resolved_blueprint_round_trips_as_deeply_frozen_model(
         blueprint.members[0].roles[0] = "Mutated"
     with pytest.raises(TypeError):
         blueprint.backlog.issue_type_weights["BUG"] = 1.0
+
+
+def test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document(
+    blueprint_document: dict[str, object],
+):
+    changed = deepcopy(blueprint_document)
+    changed["scrum"]["first_boundary"] = "2026-08-13T09:00:00-07:00"
+    availability = changed["members"][1]["availability"][0]
+    availability["starts_at"] = "2026-08-20T09:00:00-07:00"
+    availability["ends_at"] = "2026-08-20T17:00:00-07:00"
+    document = _canonical_document(changed)
+
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(document)
+    stored_availability = blueprint.members[1].availability[0]
+
+    assert blueprint.scrum.first_boundary == datetime(2026, 8, 13, 16, tzinfo=UTC)
+    assert stored_availability.starts_at == datetime(2026, 8, 20, 16, tzinfo=UTC)
+    assert stored_availability.ends_at == datetime(2026, 8, 21, tzinfo=UTC)
+    assert blueprint.scrum.first_boundary.tzinfo is UTC
+    assert stored_availability.starts_at.tzinfo is UTC
+    assert stored_availability.ends_at.tzinfo is UTC
+    assert blueprint.canonical_json() == document
 
 
 def test_canonical_helpers_have_stable_vectors():
@@ -81,7 +104,7 @@ def test_resolved_blueprint_rejects_bad_document_encoding(
         (("timing", "entries"), []),
         (("risks", "rules"), []),
         (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
-        (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00"),
     ],
 )
 def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(

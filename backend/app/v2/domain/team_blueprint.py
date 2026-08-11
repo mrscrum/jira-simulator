@@ -12,6 +12,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     RootModel,
     field_serializer,
     model_validator,
@@ -28,8 +29,8 @@ WEEKDAYS = ("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
 
 
 def _require_utc(value: datetime) -> datetime:
-    if value.tzinfo is None or value.utcoffset() != UTC.utcoffset(value):
-        raise ValueError("instant must be aware UTC")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("instant must be aware")
     return value.astimezone(UTC)
 
 
@@ -323,6 +324,8 @@ class ScrumBlueprint(FrozenModel):
 class ResolvedTeamBlueprint(FrozenModel):
     """A canonical, fully resolved Scrum team snapshot."""
 
+    _canonical_document: str | None = PrivateAttr(default=None)
+
     schema_version: Literal["2.0"]
     team: TeamBlueprintTeam
     jira: JiraBlueprint
@@ -351,13 +354,16 @@ class ResolvedTeamBlueprint(FrozenModel):
             raw_document = json.loads(document, parse_constant=_reject_non_finite)
         except (json.JSONDecodeError, ValueError) as error:
             raise ValueError("blueprint must be valid finite JSON") from error
-        blueprint = cls.model_validate(raw_document)
-        if blueprint.canonical_json() != document:
+        if canonical_json(raw_document) != document:
             raise ValueError("blueprint JSON is not canonical")
+        blueprint = cls.model_validate(raw_document)
+        blueprint._canonical_document = document
         return blueprint
 
     def canonical_json(self) -> str:
         """Return this frozen snapshot in canonical JSON form."""
+        if self._canonical_document is not None:
+            return self._canonical_document
         return canonical_json(self.model_dump(mode="json"))
 
 
