@@ -80,6 +80,10 @@ release-cause traces carry all evidence facts without Task 8 reconstruction. Pre
 touch completion releases a stray owner at segment start with `PREEXISTING_TOUCH_COMPLETE` and no
 labor/queue; only credit-driven completion releases at segment end with `TOUCH_COMPLETED`. Task 8
 includes the former solely for owner normalization and rejects owner-bearing zero-required visits.
+Capacity boundaries are the closed six-value set `REQUEST_END`, `WORKDAY_END`,
+`CONFIGURED_AVAILABILITY_CHANGE`, `RUNTIME_OVERLAY_CHANGE`, `DAILY_CAPACITY_EXHAUSTION`, and
+`TOUCH_COMPLETION`. No separate date-end cause exists: configured workdays are ordered within one
+local date and cannot use `24:00`, so `WORKDAY_END` strictly precedes date rollover.
 
 Each extracted task brief repeats its applicable authority/shared contract. Task 8 uses exact
 `DraftEnvelope.schema_version="1.0"`, frozen canonical resolution/selection/visit-progress and owner-

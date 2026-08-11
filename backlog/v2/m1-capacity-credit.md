@@ -87,7 +87,7 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
 - A capacity segment is a strictly positive half-open `[start, end)` interval in aware UTC and
   belongs to one team business date. Its start must itself be a working instant; a non-working start
   rejects instead of jumping. Task 7 ignores every structural/exhaustion candidate `<= start` and
-  chooses the first candidate strictly after start among requested end, workday/date,
+  chooses the first candidate strictly after start among requested end, workday close,
   configured-availability, runtime-overlay, daily-capacity-exhaustion, and touch-completion
   boundaries. If capacity is already exhausted at start, it processes the next positive structural
   or requested segment with zero labor and exact denial queue. Task 8 commits exactly the returned
@@ -249,7 +249,6 @@ class AvailabilityContributorKind(StrEnum):
 class CapacityProcessedBoundaryCause(StrEnum):
     REQUEST_END = "REQUEST_END"
     WORKDAY_END = "WORKDAY_END"
-    BUSINESS_DATE_END = "BUSINESS_DATE_END"
     CONFIGURED_AVAILABILITY_CHANGE = "CONFIGURED_AVAILABILITY_CHANGE"
     RUNTIME_OVERLAY_CHANGE = "RUNTIME_OVERLAY_CHANGE"
     DAILY_CAPACITY_EXHAUSTION = "DAILY_CAPACITY_EXHAUSTION"
@@ -417,6 +416,10 @@ result. Runtime contributors retain null blueprint SHA.
 
 `processed_boundary_causes` is a non-empty tuple of every tied cause at the selected strictly
 positive end, in the declaration order above; causes whose candidate is `<= start` are absent.
+Those six declared values are the complete closed set. No separate date-end cause exists or may be
+aliased, synthesized, or serialized: `CalendarBlueprint` requires same-local-date
+`workday_start < workday_end`, rejects `24:00`, and therefore the configured `WORKDAY_END` always
+strictly precedes the next local date.
 Queue evidence uses only the three closed reasons and records business microseconds; no field or
 payload calls queue time dwell. Ownership changes are exact events: a release always has its exact
 `OwnershipReleaseCause`, assignment always has `release_cause=None`, invalid/unavailable prior-owner
@@ -433,7 +436,7 @@ segment therefore emits assignment at start and `TOUCH_COMPLETED` release at end
   complete state against that exact blueprint before selecting anything. The request interval is
   aware UTC, positive, inside the authenticated holiday horizon, and starts at a working instant; a
   non-working start is invalid and is never advanced implicitly. Compute candidates from requested
-  end, local business-date/workday, configured/runtime availability, daily-capacity exhaustion, and
+  end, local workday close, configured/runtime availability, daily-capacity exhaustion, and
   touch completion; discard every candidate `<= interval.start`, then choose the minimum remaining
   end. The returned half-open segment must satisfy `start < end`, belongs to one business date, and
   represents only one common segment. An exact boundary at start selects the new half-open state.
@@ -572,7 +575,47 @@ segment therefore emits assignment at start and `TOUCH_COMPLETED` release at end
   queue/consumption, and `OPEN`/same-status/ownerless output. The zero-required owner vector rejects
   before result construction.
 - [ ] Parameterize `test_allocator_segment_boundaries` across configured/runtime boundaries, daily
-  exhaustion, workday/date/DST boundaries, touch completion, and tied causes. Add named
+  exhaustion, workday/DST boundaries, touch completion, and tied causes. Add exact named
+  `test_capacity_processed_boundary_cause_is_exact_six_value_enum`, asserting:
+
+  ```python
+  assert tuple(cause.value for cause in CapacityProcessedBoundaryCause) == (
+      "REQUEST_END",
+      "WORKDAY_END",
+      "CONFIGURED_AVAILABILITY_CHANGE",
+      "RUNTIME_OVERLAY_CHANGE",
+      "DAILY_CAPACITY_EXHAUSTION",
+      "TOUCH_COMPLETION",
+  )
+  ```
+
+  Then add
+  `test_request_before_workday_close_uses_request_end`,
+  `test_workday_close_before_request_uses_workday_end`,
+  `test_request_exactly_at_workday_close_orders_tied_causes`,
+  `test_spring_dst_workday_close_uses_business_calendar_end`,
+  `test_fall_dst_workday_close_uses_business_calendar_end`, and
+  `test_processed_segment_stays_within_one_business_date_and_working_interval`. The tie case asserts
+  exactly `(CapacityProcessedBoundaryCause.REQUEST_END,
+  CapacityProcessedBoundaryCause.WORKDAY_END)` in enum declaration order. Use
+  `America/Los_Angeles` Sunday workdays with spring `2026-03-08 01:00-03:00` resolving to
+  `[2026-03-08T09:00:00Z, 2026-03-08T10:00:00Z)` and fall
+  `2026-11-01 00:30-02:30` resolving to
+  `[2026-11-01T07:30:00Z, 2026-11-01T10:30:00Z)`. For every positive result assert:
+
+  ```python
+  start = result.processed_interval.start
+  end = result.processed_interval.end
+  business_date = calendar.business_date(start)
+  working = calendar.working_interval(business_date)
+  assert working is not None
+  assert calendar.business_date(start) == calendar.business_date(
+      end - timedelta(microseconds=1)
+  )
+  assert end <= working.end
+  ```
+
+  Also add named
   `test_exact_boundary_start_uses_new_half_open_state_and_next_positive_boundary`,
   `test_nonworking_start_rejects_instead_of_jumping`, and
   `test_capacity_exhausted_at_start_advances_positive_segment_with_capacity_queue`. Assert the
@@ -734,6 +777,13 @@ one call to `commit_authoritative_slice`.
   exhausted at start produces zero labor plus denial queue through the next positive structural or
   request boundary. Commit exactly that segment and never loop to the original target inside the
   transaction; a Task 8 commit can never bump runtime version without advancing the UTC cursor.
+- The processed-boundary cause set is closed to exactly `REQUEST_END`, `WORKDAY_END`,
+  `CONFIGURED_AVAILABILITY_CHANGE`, `RUNTIME_OVERLAY_CHANGE`, `DAILY_CAPACITY_EXHAUSTION`, and
+  `TOUCH_COMPLETION`, in that enum order. Same-local-date ordered working hours make `WORKDAY_END`
+  strictly earlier than the next local date, so Task 8 must neither accept nor fabricate a separate
+  date-end alias. Every processed interval satisfies
+  `business_date(start) == business_date(end - 1 microsecond)` and ends no later than that date's
+  authenticated working-interval end.
 - For an equal or later target, authenticate `BusinessCalendar.working_interval` from the coherent
   view. Equality may report `CapacityCreditTargetReached` only when the cursor is inside the interval
   or exactly at its end; this permits a terminal retry at workday end but rejects other non-working
@@ -1433,6 +1483,7 @@ The fixed digest table is:
   `test_capacity_credit_dependencies_are_frozen`,
   `test_service_passes_exact_request_to_injected_allocator_once`,
   `test_service_calls_allocator_and_committer_once_for_first_bounded_segment`,
+  `test_service_serializes_tied_request_and_workday_end_causes_in_enum_order`,
   `test_service_preserves_four_field_order_in_selection_ground_truth`,
   `test_service_sticky_exhausted_owner_a_reports_capacity_with_idle_member_b`, and
   `test_service_lower_owned_visit_records_contention_progress_while_higher_visit_gets_credit`,
@@ -1446,8 +1497,10 @@ The fixed digest table is:
   `captured_request.blueprint is view.blueprint`, `captured_request.state is view.state`, and
   `captured_request == expected_request` before returning its one result. Assert exactly one
   allocator call and exactly one committer call. The frozen-dependency test rejects attribute
-  replacement and proves the service retains the exact bundle. The one-member/two-owned-visits
-  service vector emits positive credit
+  replacement and proves the service retains the exact bundle. The tied-boundary service vector
+  preserves exactly `("REQUEST_END", "WORKDAY_END")` in progress ground truth, with no date-end
+  alias, and asserts the one-business-date/working-interval-end invariant. The one-member/two-owned-
+  visits service vector emits positive credit
   only for the higher order and one queue-only `CONTENTION` progress draft for the lower order. The
   preexisting-complete vector emits start-time `PREEXISTING_TOUCH_COMPLETE` activity and one owner-
   only progress record with null labor/proficiency/queue, unchanged balances/consumption, and an
