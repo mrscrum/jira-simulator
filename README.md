@@ -129,7 +129,9 @@ checks, the Alembic sole-head/empty-branch/linear-history checks, and the no-mig
 The live v2 core can now advance one bounded Scrum interval from a coherent persisted snapshot and
 commit the result through the accepted Task 6 transaction. The pure calculation uses configured
 business time, responsibilities/proficiency, sticky eligible ownership, availability intervals and
-runtime overlays, daily capacity, max WIP, and simulator rank. It persists queue, pause, credited
+runtime overlays, daily capacity, max WIP, and simulator rank. Overlapping availability uses the
+minimum active fraction once after the minimum pre-fraction capacity ceiling, and processing splits
+at configured/runtime availability boundaries. It persists queue, pause, credited
 touch, and business-date consumption separately; a visit advances only after both authenticated
 dwell and touch are complete. Zero-touch route steps are crossed directly, while a later timed step
 gets exactly one new visit, authenticated sample, and explicit visit-counter claim.
@@ -138,7 +140,9 @@ gets exactly one new visit, authenticated sample, and explicit visit-counter cla
 and recalculation. Runtime CAS, sparse Scrum after-images, counter claims, activity, causal ground
 truth, and pending Jira transition intents commit atomically; injected failures roll the complete
 transaction back. The cursor stops at the current fixed sprint end for the lifecycle slice to
-handle. This code performs no network call, evaluates no risk policy, and delivers no Jira intent.
+handle, or at the earliest meaningful visit completion so the next tick retains the residual
+request interval. Ground truth includes human-readable causal reasons and clock/timing/config
+context. This code performs no network call, evaluates no risk policy, and delivers no Jira intent.
 
 From `backend/`, run:
 

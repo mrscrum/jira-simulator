@@ -386,3 +386,9 @@
   progress remain internal evidence because v2 handoffs are not Jira assignee changes.
 - Seeded only per-work-item visit counters during bootstrap. Sprint/item counters remain deferred to
   the lifecycle slice because this task allocates neither a sprint nor a work item.
+
+## [2026-08-11] M1 — Preserve pragmatic tick semantics
+
+- No assumptions made. Minimum active availability, pre-fraction ceiling semantics, availability
+  boundary splitting, earliest shared completion, residual interval handling, and causal payload
+  requirements were supplied explicitly by review findings.

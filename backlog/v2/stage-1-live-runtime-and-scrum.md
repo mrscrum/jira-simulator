@@ -39,3 +39,5 @@ Status: IN PROGRESS
   contiguous ranked scope through configured minimum capacity.
 - Incremental ticks stop at the fixed sprint end; lifecycle/carryover and scheduler/restart behavior
   remain the next pragmatic slice.
+- Review fix round 1 preserves minimum-fraction/pre-fraction-cap availability, stops at the earliest
+  shared completion boundary, retains residual tick time, and emits causal ground truth.

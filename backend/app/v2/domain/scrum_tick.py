@@ -1,5 +1,6 @@
 """Pure incremental advancement for one persisted Scrum team."""
 
+import math
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
@@ -70,6 +71,7 @@ class _BusinessSegment:
 
 @dataclass(frozen=True)
 class _TickResult:
+    ends_at: datetime
     visits: tuple[StatusVisitState, ...]
     work_items: tuple[WorkItemState, ...]
     samples: tuple[StatusVisitSample, ...]
@@ -83,6 +85,7 @@ class _LedgerItem:
     request: TickRequest
     work: WorkItemState
     visit: StatusVisitState
+    original_visit: StatusVisitState
     semantic_key: str
     summary: str
 
@@ -98,9 +101,9 @@ def calculate_scrum_tick(
     )
     cursor = aggregate.runtime.simulation_time
     effective_end = _effective_end(state, request.ends_at)
-    segments = _business_segments(calendar, cursor, effective_end)
+    segments = _business_segments(state, calendar, cursor, effective_end)
     result = _advance_visits(state, effective_end, segments, calendar, draws)
-    live_slice = _live_slice(state, request, effective_end, result)
+    live_slice = _live_slice(state, request, result.ends_at, result)
     write_set = ScrumStateWriteSet(
         member_business_date_consumption=result.consumption,
         work_items=result.work_items,
@@ -130,7 +133,10 @@ def _effective_end(state: LiveTeamState, requested_end: datetime) -> datetime:
 
 
 def _business_segments(
-    calendar: BusinessCalendar, starts_at: datetime, ends_at: datetime
+    state: LiveTeamState,
+    calendar: BusinessCalendar,
+    starts_at: datetime,
+    ends_at: datetime,
 ) -> tuple[_BusinessSegment, ...]:
     if starts_at == ends_at:
         return ()
@@ -144,9 +150,32 @@ def _business_segments(
             start = max(starts_at, working.start)
             end = min(ends_at, working.end)
             if start < end:
-                segments.append(_BusinessSegment(day, start, end))
+                boundaries = _availability_boundaries(state, start, end)
+                segments.extend(
+                    _BusinessSegment(day, left, right)
+                    for left, right in zip(boundaries, boundaries[1:], strict=False)
+                )
         day += timedelta(days=1)
     return tuple(segments)
+
+
+def _availability_boundaries(
+    state: LiveTeamState, starts_at: datetime, ends_at: datetime
+) -> tuple[datetime, ...]:
+    configured = tuple(
+        interval
+        for member in state.aggregate.blueprint.members
+        for interval in member.availability
+    )
+    intervals = (*configured, *state.scrum.member_availability_overlays)
+    boundaries = {starts_at, ends_at}
+    boundaries.update(
+        instant
+        for interval in intervals
+        for instant in (interval.starts_at, interval.ends_at)
+        if starts_at < instant < ends_at
+    )
+    return tuple(sorted(boundaries))
 
 
 def _advance_visits(
@@ -164,11 +193,81 @@ def _advance_visits(
     }
     original = dict(visits)
     consumption = _consumption_map(state)
+    committed_end = effective_end
     for segment in segments:
-        visits = _advance_segment(state, work_by_id, visits, consumption, segment)
+        probe_consumption = dict(consumption)
+        probe = _advance_segment(state, work_by_id, visits, probe_consumption, segment)
+        boundary = _completion_boundary(state, calendar, segment, visits, probe, work_by_id)
+        if boundary is None:
+            visits = probe
+            consumption = probe_consumption
+            continue
+        shortened = replace(segment, end=boundary)
+        visits = _advance_segment(state, work_by_id, visits, consumption, shortened)
+        committed_end = boundary
+        break
     return _finish_visits(
-        state, work_by_id, original, visits, consumption, effective_end, calendar, draws
+        state, work_by_id, original, visits, consumption, committed_end, calendar, draws
     )
+
+
+def _completion_boundary(
+    state: LiveTeamState,
+    calendar: BusinessCalendar,
+    segment: _BusinessSegment,
+    before: dict[UUID, StatusVisitState],
+    after: dict[UUID, StatusVisitState],
+    work_by_id: dict[UUID, WorkItemState],
+) -> datetime | None:
+    samples = {sample.visit_id: sample for sample in state.scrum.status_visit_samples}
+    used_by_member: dict[UUID, int] = {}
+    candidates: list[datetime] = []
+    ordered = sorted(before.values(), key=lambda item: work_by_id[item.work_item_id].simulator_rank)
+    for visit in ordered:
+        updated = after[visit.id]
+        touch_at = _touch_completion(state, segment, visit, updated, used_by_member)
+        credited = updated.credited_labor_microseconds - visit.credited_labor_microseconds
+        if updated.member_id is not None:
+            used_by_member[updated.member_id] = used_by_member.get(updated.member_id, 0) + credited
+        if touch_at is None:
+            continue
+        dwell_at = _dwell_completion(calendar, segment, visit, samples[visit.id])
+        completion = max(touch_at, dwell_at)
+        if completion <= segment.end:
+            candidates.append(completion)
+    return min(candidates) if candidates else None
+
+
+def _touch_completion(
+    state: LiveTeamState,
+    segment: _BusinessSegment,
+    before: StatusVisitState,
+    after: StatusVisitState,
+    used_by_member: dict[UUID, int],
+) -> datetime | None:
+    if after.remaining_work_microseconds:
+        return None
+    if before.remaining_work_microseconds == 0:
+        return segment.start
+    if after.member_id is None:
+        return None
+    identity = next(item for item in state.scrum.member_identities if item.id == after.member_id)
+    fraction = _effective_fraction(state, identity, segment)
+    prior_labor = used_by_member.get(identity.id, 0)
+    elapsed = math.ceil((prior_labor + before.remaining_work_microseconds) / fraction)
+    return segment.start + timedelta(microseconds=elapsed)
+
+
+def _dwell_completion(
+    calendar: BusinessCalendar,
+    segment: _BusinessSegment,
+    visit: StatusVisitState,
+    sample: StatusVisitSample,
+) -> datetime:
+    elapsed = calendar.elapsed(UtcInterval(visit.entered_at, segment.start)).business
+    service = max(0, _microseconds(elapsed) - visit.pause_microseconds)
+    required = round(sample.dwell_sampled_hours * MICROSECONDS_PER_HOUR)
+    return segment.start + timedelta(microseconds=max(0, required - service))
 
 
 def _advance_segment(
@@ -321,24 +420,8 @@ def _remaining_segment_capacity(
 def _available_microseconds(
     state: LiveTeamState, identity: MemberIdentity, segment: _BusinessSegment
 ) -> int:
-    member = state.aggregate.blueprint.members[identity.blueprint_index]
-    intervals = (*member.availability, *_member_overlays(state, identity.id))
-    boundaries = {segment.start, segment.end}
-    for interval in intervals:
-        boundaries.update(
-            instant
-            for instant in (interval.starts_at, interval.ends_at)
-            if segment.start < instant < segment.end
-        )
-    available = 0.0
-    ordered = sorted(boundaries)
-    for start, end in zip(ordered, ordered[1:], strict=False):
-        fraction = 1.0
-        for interval in intervals:
-            if interval.starts_at <= start < interval.ends_at:
-                fraction *= interval.availability_fraction
-        available += _microseconds(end - start) * fraction
-    return round(available)
+    fraction = _effective_fraction(state, identity, segment)
+    return round(segment.microseconds * fraction)
 
 
 def _daily_ceiling(
@@ -347,13 +430,29 @@ def _daily_ceiling(
     member = state.aggregate.blueprint.members[identity.blueprint_index]
     ceilings = [round(member.daily_capacity_hours * MICROSECONDS_PER_HOUR)]
     for interval in member.availability:
-        if interval.starts_at < segment.end and segment.start < interval.ends_at:
+        if _active(interval, segment):
             ceilings.append(round(interval.daily_capacity_hours_override * MICROSECONDS_PER_HOUR))
     for overlay in _member_overlays(state, identity.id):
-        if overlay.starts_at < segment.end and segment.start < overlay.ends_at:
-            if overlay.daily_capacity_ceiling_microseconds is not None:
-                ceilings.append(overlay.daily_capacity_ceiling_microseconds)
-    return min(ceilings)
+        if _active(overlay, segment) and overlay.daily_capacity_ceiling_microseconds is not None:
+            ceilings.append(overlay.daily_capacity_ceiling_microseconds)
+    return round(min(ceilings) * _effective_fraction(state, identity, segment))
+
+
+def _effective_fraction(
+    state: LiveTeamState, identity: MemberIdentity, segment: _BusinessSegment
+) -> float:
+    member = state.aggregate.blueprint.members[identity.blueprint_index]
+    intervals = (*member.availability, *_member_overlays(state, identity.id))
+    fractions = [
+        interval.availability_fraction
+        for interval in intervals
+        if _active(interval, segment)
+    ]
+    return min((1.0, *fractions))
+
+
+def _active(interval: object, segment: _BusinessSegment) -> bool:
+    return interval.starts_at <= segment.start < interval.ends_at
 
 
 def _member_overlays(
@@ -406,6 +505,7 @@ def _finish_visits(
             changed.append(visit)
     consumption_changes = _consumption_changes(state, consumption)
     return _TickResult(
+        effective_end,
         tuple(changed),
         tuple(work_changes),
         tuple(samples),
@@ -574,6 +674,7 @@ def _ledger_drafts(
 ]:
     work_changes = {item.id: item for item in result.work_items}
     work_by_id = {item.id: item for item in state.scrum.work_items}
+    original_visits = {item.id: item for item in state.scrum.status_visits}
     activity = []
     truth = []
     projection = []
@@ -583,7 +684,13 @@ def _ledger_drafts(
         work = work_changes.get(visit.work_item_id, work_by_id[visit.work_item_id])
         key = _ledger_key(state, visit, request.ends_at)
         ledger_item = _LedgerItem(
-            state, request, work, visit, key, _summary(state, work, visit)
+            state,
+            request,
+            work,
+            visit,
+            original_visits[visit.id],
+            key,
+            _summary(state, work, visit),
         )
         activity.append(_activity_draft(ledger_item))
         truth.append(_ground_truth_draft(ledger_item))
@@ -606,16 +713,121 @@ def _activity_draft(item: _LedgerItem) -> ActivityEventDraft:
 
 
 def _ground_truth_draft(item: _LedgerItem) -> GroundTruthRecordDraft:
+    original = item.original_visit
+    touch_delta = item.visit.credited_labor_microseconds - original.credited_labor_microseconds
+    causal_member = item.visit.member_id or original.member_id
+    calendar = BusinessCalendar.from_blueprint(
+        item.state.aggregate.blueprint.team.timezone,
+        item.state.aggregate.blueprint.calendar,
+    )
+    business_delta = calendar.elapsed(
+        UtcInterval(item.state.aggregate.runtime.simulation_time, item.request.ends_at)
+    ).business
     payload = {
-        "member_id": None if item.visit.member_id is None else str(item.visit.member_id),
-        "queue_microseconds": item.visit.queue_microseconds,
-        "remaining_work_microseconds": item.visit.remaining_work_microseconds,
+        "work_item_id": str(item.work.id),
+        "reason": _causal_reason(item),
+        "member_id": None if causal_member is None else str(causal_member),
         "status": item.work.current_status_key,
+        "business_delta_microseconds": _microseconds(business_delta),
+        "queue_delta_microseconds": item.visit.queue_microseconds - original.queue_microseconds,
+        "pause_delta_microseconds": item.visit.pause_microseconds - original.pause_microseconds,
+        "touch_delta_microseconds": touch_delta,
+        "remaining_before_microseconds": original.remaining_work_microseconds,
+        "remaining_after_microseconds": item.visit.remaining_work_microseconds,
+        "timing_context": _timing_context(item),
     }
     envelope = DraftEnvelope(item.semantic_key, "1.0", item.request.ends_at, payload)
     return GroundTruthRecordDraft.create(
         envelope, GroundTruthDetails("ISSUE_STATE", "SIMULATOR_V2")
     )
+
+
+def _causal_reason(item: _LedgerItem) -> str:
+    if item.work.current_status_key != item.visit.status_key:
+        return "TRANSITIONED"
+    original = item.original_visit
+    queue_delta = item.visit.queue_microseconds - original.queue_microseconds
+    if queue_delta:
+        return _queue_reason(item)
+    if item.visit.remaining_work_microseconds == 0:
+        return "DWELLING"
+    touch_delta = item.visit.credited_labor_microseconds - original.credited_labor_microseconds
+    return "PROGRESSED" if touch_delta else "DWELLING"
+
+
+def _queue_reason(item: _LedgerItem) -> str:
+    state = item.state
+    identities = tuple(
+        identity
+        for identity in state.scrum.member_identities
+        if _proficiency(
+            state.aggregate.blueprint.members[identity.blueprint_index],
+            item.visit.activity_key,
+        )
+        is not None
+    )
+    if not identities:
+        return "NO_CAPABLE_MEMBER"
+    segment = _causal_segment(item)
+    available = tuple(
+        identity
+        for identity in identities
+        if _effective_fraction(state, identity, segment) > 0
+    )
+    if not available:
+        return "UNAVAILABLE"
+    consumption = _consumption_map(state)
+    exhausted = all(
+        _remaining_capacity(state, identity, segment, consumption) == 0
+        for identity in available
+    )
+    if exhausted:
+        return "DAILY_CAPACITY"
+    return "WIP_LIMIT"
+
+
+def _causal_segment(item: _LedgerItem) -> _BusinessSegment:
+    state = item.state
+    calendar = BusinessCalendar.from_blueprint(
+        state.aggregate.blueprint.team.timezone, state.aggregate.blueprint.calendar
+    )
+    instant = item.request.ends_at - timedelta.resolution
+    business_date = calendar.business_date(instant)
+    working = calendar.working_interval(business_date)
+    if working is None:
+        return _BusinessSegment(business_date, instant, item.request.ends_at)
+    start = max(state.aggregate.runtime.simulation_time, working.start)
+    return _BusinessSegment(business_date, start, item.request.ends_at)
+
+
+def _timing_context(item: _LedgerItem) -> dict[str, object]:
+    sample = next(
+        value
+        for value in item.state.scrum.status_visit_samples
+        if value.visit_id == item.original_visit.id
+    )
+    member_id = item.visit.member_id or item.original_visit.member_id
+    member = None
+    if member_id is not None:
+        identity = next(
+            value for value in item.state.scrum.member_identities if value.id == member_id
+        )
+        member = item.state.aggregate.blueprint.members[identity.blueprint_index]
+    segment = _causal_segment(item)
+    return {
+        "activity": item.original_visit.activity_key,
+        "dwell_sampled_hours": sample.dwell_sampled_hours,
+        "touch_sampled_hours": sample.touch_sampled_hours,
+        "required_work_microseconds": sample.required_work_microseconds,
+        "daily_capacity_hours": None if member is None else member.daily_capacity_hours,
+        "max_concurrent_wip": None if member is None else member.max_concurrent_wip,
+        "availability_fraction": (
+            None if member_id is None else _effective_fraction(item.state, identity, segment)
+        ),
+        "effective_daily_capacity_microseconds": (
+            None if member_id is None else _daily_ceiling(item.state, identity, segment)
+        ),
+    }
 
 
 def _projection_draft(item: _LedgerItem) -> ProjectionIntentDraft:

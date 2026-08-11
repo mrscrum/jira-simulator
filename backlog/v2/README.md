@@ -21,7 +21,9 @@ UAT/load fixture only.
   Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan.
   The coherent bootstrap/read and incremental atomic Scrum-tick slices are complete with
   first-boundary, DST cadence, ranked capacity/WIP allocation, direct zero-touch transitions, and
-  exactly one stale-runtime retry; next work is lifecycle/scheduler/restart, followed by Jira
+  exactly one stale-runtime retry. Review fix round 1 preserves minimum-fraction availability,
+  pre-fraction capacity, earliest shared completion, residual tick time, and causal evidence; next
+  work is lifecycle/scheduler/restart, followed by Jira
   delivery, then vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth

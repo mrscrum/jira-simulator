@@ -562,3 +562,19 @@
 - Zero-touch forward steps transition directly without fabricated visits or timing samples.
 - Stale runtime races now reload and recalculate once; a second stale result propagates without a
   third attempt. No migration, network call, risk evaluation, scheduler, or Jira delivery was added.
+
+## [2026-08-11] M1 — Preserve pragmatic tick semantics
+
+### Changed
+
+- Availability processing now splits at configured/runtime boundaries, uses the minimum active
+  fraction, and applies that fraction once after the minimum pre-fraction daily ceiling.
+- A long tick stops the whole slice at its earliest meaningful dwell-and-touch completion boundary,
+  advances concurrent visits only to that boundary, and leaves the residual interval for a retry.
+- Causal ground truth now records concise reason, clock deltas, remaining work, member/status, and
+  timing/capacity context for queued, progressed, dwelling, and transitioned work.
+
+### Fixed
+
+- Prevented compounded availability fractions, post-fraction ceiling selection, lost residual tick
+  time, and ground-truth records that could not explain why work queued or transitioned.

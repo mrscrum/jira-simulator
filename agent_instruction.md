@@ -74,6 +74,13 @@ work item's actual next visit ordinal so a completed initial timed visit can ope
 with one authenticated sample and explicit claim. Real SQLite success/rollback coverage is included.
 No migration, network call, risk evaluation, scheduler, deployment, or UAT occurred.
 
+Review fix round 1 preserves the pragmatic semantics: active configured/runtime fractions combine
+by minimum, the minimum pre-fraction daily ceiling is scaled once, processing splits at availability
+boundaries, and a tick stops all concurrent progress at the earliest meaningful visit completion.
+Residual time remains for the next tick. Ground truth now distinguishes unavailable, no-capable,
+WIP-limit, daily-capacity, dwelling, progressed, and transitioned causes with concise deltas and
+timing/config context. No deferred risk/scheduler/Jira behavior was added.
+
 ## Accepted Task 1–6 History
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
