@@ -113,9 +113,7 @@ class JiraClientV2IntentAdapter:
         issue = matches[0] if matches else await self._create_marked_issue(payload, marker)
         return (_resource_mapping(pending, "ISSUE", issue_id, issue),)
 
-    async def _create_marked_issue(
-        self, payload: dict[str, object], marker: str
-    ) -> dict:
+    async def _create_marked_issue(self, payload: dict[str, object], marker: str) -> dict:
         fields = dict(_object(payload, "fields", default={}))
         labels = list(fields.get("labels", []))
         if marker not in labels:
@@ -132,7 +130,8 @@ class JiraClientV2IntentAdapter:
         self, pending: PendingJiraIntent, payload: dict[str, object]
     ) -> tuple[JiraResourceMapping, ...]:
         sprint_id = _uuid(payload, "sprint_id", pending.intent.aggregate_id)
-        board_id = _integer(payload, "board_id")
+        board = self._required_mapping(pending, "BOARD", _uuid(payload, "board_id"))
+        board_id = int(board.jira_id)
         marker = _marker(sprint_id)
         matches = [
             sprint
@@ -217,13 +216,9 @@ class JiraClientV2IntentAdapter:
         internal_kind: str,
         internal_id: UUID,
     ) -> JiraResourceMapping:
-        mapping = self._mappings.find_mapping(
-            pending.intent.team_id, internal_kind, internal_id
-        )
+        mapping = self._mappings.find_mapping(pending.intent.team_id, internal_kind, internal_id)
         if mapping is None:
-            raise JiraDeliveryProviderError(
-                f"missing {internal_kind} mapping for {internal_id}"
-            )
+            raise JiraDeliveryProviderError(f"missing {internal_kind} mapping for {internal_id}")
         return mapping
 
 
@@ -262,25 +257,14 @@ def _string(payload: dict[str, object], key: str) -> str:
     return value
 
 
-def _integer(payload: dict[str, object], key: str) -> int:
-    value = payload.get(key)
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise JiraDeliveryProviderError(f"{key} must be an integer")
-    return value
-
-
-def _object(
-    payload: dict[str, object], key: str, default: dict[str, object]
-) -> dict[str, object]:
+def _object(payload: dict[str, object], key: str, default: dict[str, object]) -> dict[str, object]:
     value = payload.get(key, default)
     if not isinstance(value, dict):
         raise JiraDeliveryProviderError(f"{key} must be an object")
     return value
 
 
-def _uuid(
-    payload: dict[str, object], key: str, default: UUID | None = None
-) -> UUID:
+def _uuid(payload: dict[str, object], key: str, default: UUID | None = None) -> UUID:
     value = payload.get(key)
     if value is None and default is not None:
         return default

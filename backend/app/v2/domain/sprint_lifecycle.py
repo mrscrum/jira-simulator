@@ -334,17 +334,42 @@ def _build_projection_intents(
         dependency = [] if not intents else [intents[-1].semantic_key]
         sprint = context.previous if operation == "COMPLETE_SPRINT" else context.current
         key = _boundary_key(state, context.current.ordinal, operation.lower())
-        envelope = DraftEnvelope(
-            key,
-            "1.0",
-            context.boundary,
-            {"sprint_id": str(sprint.id), "depends_on": dependency},
-        )
+        payload = _projection_payload(context, operation, dependency)
+        envelope = DraftEnvelope(key, "1.0", context.boundary, payload)
         details = ProjectionDetails(
             "JIRA", operation, sprint.id, state.aggregate.runtime.version + 1, "PENDING"
         )
         intents.append(ProjectionIntentDraft.create(envelope, details))
     return tuple(intents)
+
+
+def _projection_payload(
+    context: _TransitionContext,
+    operation: str,
+    dependency: list[str],
+) -> dict[str, object]:
+    sprint = context.previous if operation == "COMPLETE_SPRINT" else context.current
+    payload: dict[str, object] = {
+        "sprint_id": str(sprint.id),
+        "depends_on": dependency,
+    }
+    if operation == "CREATE_SPRINT":
+        project_key = context.state.aggregate.blueprint.jira.project_key
+        payload.update(
+            {
+                "board_id": str(context.state.aggregate.team.id),
+                "name": f"SIM-{project_key}-{sprint.id.hex[:12]}",
+                "start_at": sprint.planned_start_at.isoformat(),
+                "end_at": sprint.planned_end_at.isoformat(),
+            }
+        )
+    if operation == "SCOPE_SPRINT":
+        payload["issue_ids"] = [
+            str(entry.work_item_id)
+            for entry in context.write_set.sprint_scope
+            if entry.sprint_id == sprint.id and entry.removed_at is None
+        ]
+    return payload
 
 
 def _boundary_key(state: LiveTeamState, ordinal: int, suffix: str) -> str:

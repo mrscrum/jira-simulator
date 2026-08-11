@@ -644,3 +644,23 @@
   `START_SPRINT`.
 - Sprint preflight now discovers a stable v2 marker beyond Jira's first response page instead of
   creating a duplicate sprint.
+
+## [2026-08-11] M1 — Prove the pragmatic live Scrum loop
+
+### Changed
+
+- Added versioned, deterministic causal evaluation for sampled long stays, review rejection,
+  cancellation, external-dependency pauses, and member-unavailability overlays through the existing
+  authoritative tick state, claims, evidence, and Jira-intent boundary.
+- Enriched local lifecycle and issue-transition intents with the logical fields needed by the
+  concrete adapter, which now resolves sprint board UUIDs through persisted Jira resource mappings.
+- Added a public-surface fake Jira acceptance that provisions one team, crosses two sprint
+  boundaries, restarts without catch-up work, survives an outage, and drains through the real
+  scheduler, unit-of-work, store, worker, and adapter seams.
+
+### Fixed
+
+- Provider success followed by a failed local receipt can now be replayed in the vertical scenario
+  without duplicating projects, issues, or sprints.
+- Risk pauses exclude only their selected visit from progress, while unrelated work continues; Jira
+  payloads retain semantic UUID dependencies and never embed provider resource IDs.

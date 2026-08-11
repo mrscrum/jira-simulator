@@ -12,8 +12,8 @@ additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-leve
 milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation now includes
 the persistence/deterministic kernel, coherent Scrum bootstrap, incremental ticks, fixed sprint
 lifecycle, persisted scheduler/restart path, and retryable outbound Jira delivery described below.
-Codex control, Jira-side manual-intervention ingestion, and live-provider acceptance are not
-implemented.
+The first causal-risk policy and fake-Jira multi-sprint acceptance are also implemented. Codex
+control, Jira-side manual-intervention ingestion, and live-provider acceptance are not implemented.
 
 ## V2 persistence spine
 
@@ -144,7 +144,8 @@ truth, and pending Jira transition intents commit atomically; injected failures 
 transaction back. The cursor stops at the current fixed sprint end for the lifecycle slice to
 handle, or at the earliest meaningful visit completion so the next tick retains the residual
 request interval. Ground truth includes human-readable causal reasons and clock/timing/config
-context. This code performs no network call, evaluates no risk policy, and delivers no Jira intent.
+context. Versioned due risks are evaluated before ordinary progress and remain network-free; Jira
+intents are only persisted here for later delivery.
 
 ## V2 fixed sprint lifecycle and scheduler
 
@@ -193,6 +194,26 @@ incomplete scope intents remain retryable and block dependent start. Board-sprin
 all Jira pages and stops on a non-advancing cursor. APScheduler registers one async delivery poller
 after v2 restart reconciliation. Fake-client tests cover provider-success/local-commit-crash reuse;
 no live Jira call, credential access, deployment, comments, or inbound reconciliation was performed.
+
+## V2 causal risks and fake-Jira vertical
+
+The live tick now evaluates only due versioned blueprint rules for five focused behaviors: sampled
+long-stay evidence, review rejection to a configured earlier route step, cancellation, deterministic
+external-dependency pause, and member unavailability. Decisions use persisted deterministic draws
+and relevant size, description quality, complexity, dependency, rework, availability, utilization,
+and WIP factors. Mechanical outcomes reuse accepted work, visit, overlay, semantic-counter, and
+natural-decision state. Causal ground truth retains the exact policy/profile, factors, probability,
+draw, eligible people, wait/progress deltas, cause, and logical Jira intent. Deterministic fallback
+text describes committed mechanics; no language model participates in decisions.
+
+Lifecycle and status-transition payloads contain local semantic UUID dependencies plus logical Jira
+fields. The concrete adapter resolves board, sprint, and issue mappings at delivery time, so provider
+IDs do not leak into domain intents. A public-surface fake Jira acceptance exercises the production
+scheduler, live store, Task 6 unit of work, outbox store, worker, and concrete adapter across project,
+board, issue, sprint, scope, start, complete, and transition delivery. It crosses two sprint ends,
+restarts without catch-up work, retains intents during a provider outage, drains after recovery, and
+proves provider-success/local-receipt replay does not duplicate resources. This is local fake
+acceptance only; no live Jira, deployment, push, or UAT was performed.
 
 From `backend/`, run:
 
@@ -392,7 +413,8 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - Newly created Jira sprint IDs are not available when add/start/complete events are generated.
 - Event dispatch does not enforce sprint activation or per-team pause/deactivation.
 - The advertised simulation acceleration controls do not scale the active scheduled-event path.
-- Dysfunction and cross-team dependency effects are configuration/data only.
+- V1 dysfunction and cross-team dependency effects remain configuration/data only; v2 implements
+  only the five first-loop causal risks described above.
 - Real-Jira integration tests are skipped in normal local and CI runs.
 - The frontend has broad functionality but only two automated tests.
 - The API has no authentication and Nginx has no working TLS configuration.
@@ -401,6 +423,6 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
   decision/timing/calendar primitives, coherent bootstrap, atomic incremental ticks, fixed sprint
   lifecycle/carryover, persisted scheduler/restart execution, and retryable outbound projection
-  delivery. It does not yet evaluate risk policies, enrich every lifecycle intent for the vertical
-  Jira scenario, expose v2 API routes, call OpenAI, reconcile real Jira observations, or validate a
-  live provider.
+  delivery, plus the first causal-risk policy and fake-Jira vertical. It does not yet expose v2 API
+  routes, call OpenAI, ingest/reconcile real Jira observations, add internal transcripts, or validate
+  a live provider.

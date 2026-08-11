@@ -8,6 +8,7 @@ Status: IN PROGRESS
 - [x] Honor initial Scrum boundary, DST cadence, and minimum-capacity bootstrap policy — completed 2026-08-11
 - [x] Incrementally advance Scrum ticks and commit each slice atomically — completed 2026-08-11
 - [x] Fixed sprint lifecycle, persisted due-team scheduling, and restart without downtime replay — completed 2026-08-11
+- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
 - [ ] V2-S1-T01 — Add isolated blueprint, calendar, policy, and runtime persistence
 - [ ] V2-S1-T02 — Add member responsibility and availability persistence
 - [ ] V2-S1-T03 — Add canonical route and timing-catalog persistence
@@ -42,9 +43,12 @@ Status: IN PROGRESS
   carryover ahead of ranked backlog, and emits dependent complete/create/scope/start intents.
 - Persisted due-team scheduling uses one sequential team path; restart reconciles first, advances
   elapsed boundaries with zero work, records downtime, and preserves existing pending intents.
-- Jira projection delivery is the next pragmatic slice; the local observation reconciler remains an
-  injected no-op until inbound Jira support is connected.
+- Jira projection delivery and the first fake-Jira vertical are complete; the local observation
+  reconciler remains an injected no-op until inbound Jira support is connected.
 - Task 3 review fix round 1 drains exclusive due-team keyset pages beyond 100 and commits restart
   downtime evidence before zero-work lifecycle-only transitions and the final scheduling rebase.
 - Review fix round 1 preserves minimum-fraction/pre-fraction-cap availability, stops at the earliest
   shared completion boundary, retains residual tick time, and emits causal ground truth.
+- The fake-Jira vertical now proves dependency-ordered project/board/issue/sprint delivery, two
+  lifecycle boundaries, restart without catch-up, outage recovery, and provider-success/local-
+  receipt replay without duplicate resources through production seams.

@@ -1,7 +1,7 @@
 """Pure incremental advancement for one persisted Scrum team."""
 
 import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
@@ -25,11 +25,13 @@ from app.v2.domain.live_slice import (
     RuntimeAdvance,
     TickSliceCommit,
 )
+from app.v2.domain.risks import RiskEvaluation, evaluate_due_risks
 from app.v2.domain.sampling import sample_touch, touch_bounds
 from app.v2.domain.scrum_state import (
     MemberAvailabilityOverlay,
     MemberBusinessDateConsumption,
     MemberIdentity,
+    ScrumStateSnapshot,
     ScrumStateWriteSet,
     SemanticCounterKind,
     SprintLifecycle,
@@ -140,16 +142,25 @@ def calculate_scrum_tick(
     )
     cursor = aggregate.runtime.simulation_time
     effective_end = _effective_end(state, request.ends_at)
-    segments = _business_segments(state, calendar, cursor, effective_end)
-    result = _advance_visits(state, effective_end, segments, calendar, draws)
-    live_slice = _live_slice(state, request, result.ends_at, result)
-    write_set = ScrumStateWriteSet(
+    risks = evaluate_due_risks(state, effective_end, draws)
+    working = _with_write_set(state, risks.state)
+    segments = _business_segments(working, calendar, cursor, effective_end)
+    blocked = _risk_blocked_visits(state, risks)
+    result = _advance_visits(working, effective_end, segments, calendar, draws, blocked)
+    live_slice = _with_risk_ledgers(_live_slice(working, request, result.ends_at, result), risks)
+    progress = ScrumStateWriteSet(
         member_business_date_consumption=result.consumption,
         work_items=result.work_items,
         status_visits=result.visits,
         status_visit_samples=result.samples,
     )
-    return AuthoritativeTickSliceCommit(live_slice, write_set, result.claims, ())
+    write_set = _merge_write_sets(risks.state, progress)
+    return AuthoritativeTickSliceCommit(
+        live_slice,
+        write_set,
+        (*risks.counter_claims, *result.claims),
+        risks.natural_decision_claims,
+    )
 
 
 def _lifecycle_commit(
@@ -256,6 +267,7 @@ def _advance_visits(
     segments: tuple[_BusinessSegment, ...],
     calendar: BusinessCalendar,
     draws: DrawSource,
+    blocked_visit_ids: frozenset[UUID],
 ) -> _TickResult:
     work_by_id = {item.id: item for item in state.scrum.work_items}
     visits = {
@@ -269,7 +281,9 @@ def _advance_visits(
     committed_end = effective_end
     for segment in segments:
         probe_consumption = dict(consumption)
-        probe = _advance_segment(state, work_by_id, visits, probe_consumption, segment)
+        probe = _advance_segment(
+            state, work_by_id, visits, probe_consumption, segment, blocked_visit_ids
+        )
         boundary = _completion_boundary(state, calendar, segment, visits, probe.visits, work_by_id)
         if boundary is None:
             queue_causes.extend(probe.queue_causes)
@@ -277,7 +291,9 @@ def _advance_visits(
             consumption = probe_consumption
             continue
         shortened = replace(segment, end=boundary)
-        advanced = _advance_segment(state, work_by_id, visits, consumption, shortened)
+        advanced = _advance_segment(
+            state, work_by_id, visits, consumption, shortened, blocked_visit_ids
+        )
         queue_causes.extend(advanced.queue_causes)
         visits = advanced.visits
         committed_end = boundary
@@ -366,13 +382,15 @@ def _advance_segment(
     visits: dict[UUID, StatusVisitState],
     consumption: dict[tuple[UUID, date], int],
     segment: _BusinessSegment,
+    blocked_visit_ids: frozenset[UUID],
 ) -> _SegmentAdvance:
     ordered = sorted(
-        visits.values(), key=lambda visit: work_by_id[visit.work_item_id].simulator_rank
+        (visit for visit in visits.values() if visit.id not in blocked_visit_ids),
+        key=lambda visit: work_by_id[visit.work_item_id].simulator_rank,
     )
     assignments = _assign_owners(state, ordered, segment, consumption)
     context = _AllocationContext(state, segment, consumption, dict(consumption))
-    advanced: dict[UUID, StatusVisitState] = {}
+    advanced = {visit_id: visits[visit_id] for visit_id in blocked_visit_ids if visit_id in visits}
     causes: list[_QueueCause] = []
     for assignment in assignments:
         updated, cause = _advance_visit(context, assignment)
@@ -939,7 +957,16 @@ def _timing_context(item: _LedgerItem) -> dict[str, object]:
 
 
 def _projection_draft(item: _LedgerItem) -> ProjectionIntentDraft:
-    payload = {"issue_id": str(item.work.id), "status": item.work.current_status_key}
+    status = next(
+        value
+        for value in item.state.aggregate.blueprint.workflow.statuses
+        if value.key == item.work.current_status_key
+    )
+    payload = {
+        "depends_on": [],
+        "issue_id": str(item.work.id),
+        "status": status.jira_name,
+    }
     envelope = DraftEnvelope(item.semantic_key, "1.0", item.request.ends_at, payload)
     details = ProjectionDetails(
         "JIRA",
@@ -976,6 +1003,58 @@ def _utc(value: datetime, label: str) -> datetime:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{label} must be an aware datetime")
     return value.astimezone(UTC)
+
+
+def _with_write_set(state: LiveTeamState, write_set: ScrumStateWriteSet) -> LiveTeamState:
+    values = {}
+    for field in fields(ScrumStateSnapshot):
+        existing = getattr(state.scrum, field.name)
+        changes = getattr(write_set, field.name)
+        records = {_state_identity(item): item for item in existing}
+        records.update({_state_identity(item): item for item in changes})
+        values[field.name] = tuple(records.values())
+    snapshot = ScrumStateSnapshot(**values)
+    return LiveTeamState(state.aggregate, snapshot)
+
+
+def _merge_write_sets(first: ScrumStateWriteSet, second: ScrumStateWriteSet) -> ScrumStateWriteSet:
+    values = {}
+    for field in fields(ScrumStateWriteSet):
+        records = {_state_identity(item): item for item in getattr(first, field.name)}
+        records.update({_state_identity(item): item for item in getattr(second, field.name)})
+        values[field.name] = tuple(records.values())
+    return ScrumStateWriteSet(**values)
+
+
+def _state_identity(value: object) -> object:
+    if isinstance(value, MemberBusinessDateConsumption):
+        return value.member_id, value.business_date
+    if hasattr(value, "id"):
+        return value.id
+    if hasattr(value, "visit_id"):
+        return value.visit_id
+    return value.scope
+
+
+def _risk_blocked_visits(state: LiveTeamState, risks: RiskEvaluation) -> frozenset[UUID]:
+    original = {visit.id: visit for visit in state.scrum.status_visits}
+    return frozenset(
+        visit.id
+        for visit in risks.state.status_visits
+        if visit.id in original and visit.pause_microseconds > original[visit.id].pause_microseconds
+    )
+
+
+def _with_risk_ledgers(live_slice: TickSliceCommit, risks: RiskEvaluation) -> TickSliceCommit:
+    return replace(
+        live_slice,
+        activity=(*live_slice.activity, *risks.activity),
+        ground_truth=(*live_slice.ground_truth, *risks.ground_truth),
+        projection_intents=(
+            *live_slice.projection_intents,
+            *risks.projection_intents,
+        ),
+    )
 
 
 def _microseconds(duration: timedelta) -> int:

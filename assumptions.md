@@ -423,3 +423,15 @@
 
 - No assumptions made. Required incomplete-scope retry behavior and complete public Jira sprint
   pagination were supplied explicitly by the review findings.
+
+## [2026-08-11] M1 — Prove the pragmatic live Scrum loop
+
+- Used the configured positive `duration_days` for member unavailability; when omitted, used the
+  existing deterministic draw stream to select one through three days because no fallback duration
+  was specified.
+- Closed a cancelled visit with zero remaining work and no fabricated additional credited labor,
+  because the accepted visit invariant requires every closed visit's work balance to be terminal.
+- Seeded only the existing natural cancellation and member-unavailability decision counters during
+  bootstrap; no separate proof/counter protocol or migration was introduced.
+- Built provisioning intents in the acceptance fixture through the public immutable intent and real
+  unit-of-work boundaries because production team creation does not yet own Jira provisioning.

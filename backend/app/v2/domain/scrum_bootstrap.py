@@ -375,7 +375,38 @@ def _initial_counters(
         )
         for item in work_items
     )
-    return (sprint_counter, *visit_counters)
+    cancellation_counters = tuple(
+        SemanticCounter(
+            aggregate.team.id,
+            aggregate.runtime.run_id,
+            SemanticCounterScope(
+                SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+                item.id,
+                DecisionType.RISK_CANCELLATION_OUTCOME.value,
+            ),
+            0,
+        )
+        for item in work_items
+    )
+    unavailability_counters = tuple(
+        SemanticCounter(
+            aggregate.team.id,
+            aggregate.runtime.run_id,
+            SemanticCounterScope(
+                SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+                member.id,
+                DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME.value,
+            ),
+            0,
+        )
+        for member in _member_identities(aggregate)
+    )
+    return (
+        sprint_counter,
+        *visit_counters,
+        *cancellation_counters,
+        *unavailability_counters,
+    )
 
 
 def _route_for(blueprint: ResolvedTeamBlueprint, issue_type: str):

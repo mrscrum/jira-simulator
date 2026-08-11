@@ -4,6 +4,7 @@
 Status: NOT STARTED
 
 ## Tasks
+- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
 - [ ] V2-S4-T01 — Add durable verified Jira webhook intake
 - [ ] V2-S4-T02 — Register webhooks and normalize/deduplicate Jira interventions
 - [ ] V2-S4-T03 — Adopt manual sprint topology and scope membership
@@ -33,3 +34,9 @@ Status: NOT STARTED
 - Transcripts remain internal and produce no Jira comments.
 - Full manual Jira intervention support is deliberately after Gate G3 so basic Codex/statistical
   Scrum arrives first, but it remains mandatory for the Scrum MVP release at Gate G5.
+- The first pragmatic risk policy evaluates versioned blueprint rules at persisted triggers for
+  sampled long stay, configured review return, cancellation, external dependency, and member
+  unavailability. It records causal factors/draw/deltas/intents and uses deterministic fallback
+  text without calling a language model.
+- The remaining detailed Stage 4 task list is still non-active reference scope; inbound Jira,
+  generated content, transcripts, APIs, and named scenario breadth remain later slices.

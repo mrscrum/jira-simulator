@@ -18,6 +18,7 @@ from app.v2.application.jira_delivery import (
 from app.v2.domain.canonical_json import canonical_json, canonical_sha256, semantic_uuid
 from app.v2.domain.jira_delivery import (
     JiraDeliverySuccess,
+    JiraResourceMapping,
     PendingJiraIntent,
 )
 from app.v2.domain.live_slice import ProjectionIntent
@@ -117,7 +118,7 @@ async def test_sprint_preflight_prevents_duplicate_after_local_commit_crash():
         operation="CREATE_SPRINT",
         aggregate_id=sprint_id,
         payload={
-            "board_id": 7,
+            "board_id": str(TEAM_ONE),
             "depends_on": [],
             "end_at": "2026-08-25T17:00:00+00:00",
             "name": "Sprint 1",
@@ -126,7 +127,7 @@ async def test_sprint_preflight_prevents_duplicate_after_local_commit_crash():
         },
     )
     client = _FakeJiraClient()
-    adapter = JiraClientV2IntentAdapter(client, _EmptyMappings(), lambda: NOW)
+    adapter = JiraClientV2IntentAdapter(client, _BoardMappings(), lambda: NOW)
 
     first = await adapter.deliver(pending)
     second = await adapter.deliver(pending)
@@ -147,7 +148,7 @@ async def test_sprint_preflight_reuses_marker_from_later_jira_page():
         operation="CREATE_SPRINT",
         aggregate_id=sprint_id,
         payload={
-            "board_id": 7,
+            "board_id": str(TEAM_ONE),
             "depends_on": [],
             "end_at": "2026-08-25T17:00:00+00:00",
             "name": "Sprint 1",
@@ -158,12 +159,22 @@ async def test_sprint_preflight_reuses_marker_from_later_jira_page():
     client = JiraClient("https://test.atlassian.net", "user@test.com", "token")
     pages = [
         _jira_response(
-            {"values": [{"id": 201, "name": "Older"}], "isLast": False,
-             "startAt": 0, "maxResults": 1, "total": 2}
+            {
+                "values": [{"id": 201, "name": "Older"}],
+                "isLast": False,
+                "startAt": 0,
+                "maxResults": 1,
+                "total": 2,
+            }
         ),
         _jira_response(
-            {"values": [{"id": 202, "name": f"Sprint 1 [{marker}]"}], "isLast": True,
-             "startAt": 1, "maxResults": 1, "total": 2}
+            {
+                "values": [{"id": 202, "name": f"Sprint 1 [{marker}]"}],
+                "isLast": True,
+                "startAt": 1,
+                "maxResults": 1,
+                "total": 2,
+            }
         ),
     ]
     try:
@@ -172,9 +183,9 @@ async def test_sprint_preflight_reuses_marker_from_later_jira_page():
             patch.object(client, "create_sprint", new_callable=AsyncMock) as create,
         ):
             request.side_effect = pages
-            result = await JiraClientV2IntentAdapter(
-                client, _EmptyMappings(), lambda: NOW
-            ).deliver(pending)
+            result = await JiraClientV2IntentAdapter(client, _BoardMappings(), lambda: NOW).deliver(
+                pending
+            )
     finally:
         await client.close()
 
@@ -254,6 +265,13 @@ class _RecordingWorker:
 class _EmptyMappings:
     def find_mapping(self, team_id: UUID, internal_kind: str, internal_id: UUID):
         del team_id, internal_kind, internal_id
+        return None
+
+
+class _BoardMappings:
+    def find_mapping(self, team_id: UUID, internal_kind: str, internal_id: UUID):
+        if (team_id, internal_kind, internal_id) == (TEAM_ONE, "BOARD", TEAM_ONE):
+            return JiraResourceMapping(TEAM_ONE, "BOARD", TEAM_ONE, "7", None)
         return None
 
 

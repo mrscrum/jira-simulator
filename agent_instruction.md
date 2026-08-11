@@ -20,9 +20,9 @@ The approved additive v2 specification and execution plan now begin at `docs/v2/
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
 `backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
 two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is preserved planning history only.
-The retryable Jira-delivery slice at revision 016 is complete. Choose the next reviewable vertical-
-proof/realism slice from the approved pragmatic-v2 design. Historical Stage 4/5 plans are not
-executable for v2.
+The retryable Jira-delivery slice at revision 016 and the first causal-risk/fake-Jira vertical are
+complete. Choose the next reviewable inbound-observation, content, transcript, or API slice from the
+approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for v2.
 
 ## Product Boundary
 
@@ -70,9 +70,26 @@ executable for v2.
 - Revision 016 retry/delivery receipts and semantic Jira resource mappings, plus a short-transaction
   FIFO/dependency store, sequential retryable worker, provider-visible idempotent create preflight,
   and one async delivery poller registered after restart reconciliation.
+- Versioned due-trigger risk evaluation for sampled long stay, configured review return,
+  cancellation, deterministic external-dependency pause, and member-unavailability overlays, with
+  deterministic causal evidence and no language-model decision path.
+- A fake-Jira multi-sprint acceptance through the production scheduler/UOW/outbox/store/worker/
+  adapter seams, including restart, retained outage work, recovery drain, and idempotent
+  provider-success/local-receipt retry.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the fifth pragmatic v2 slice completed the first live-loop vertical. The tick kernel
+now evaluates configured risk rules only at their persisted trigger and applies five representative
+mechanical outcomes through accepted Scrum state and Task 6 claims. Ground truth records policy
+version, factors, deterministic draw, eligible people, causal clock deltas, reason, and logical Jira
+intent; fallback text is deterministic and no LLM is called. Lifecycle/progress intents carry local
+semantic UUIDs and logical Jira fields, and the concrete adapter resolves persisted provider
+mappings. The fake Jira scenario provisions a project, board, and issues, crosses two sprint ends,
+restarts without downtime credit, retains work during an outage, drains on recovery, and proves a
+failed local receipt after provider success does not duplicate resources. Revision 016 remains the
+sole migration head; no live Jira, deployment, push, or UAT occurred.
 
 On 2026-08-11, the fourth pragmatic v2 slice added retryable outbound Jira delivery without
 changing authoritative state or projection rows. Revision 016 owns only delivery receipts and
@@ -405,9 +422,10 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Implement the next pragmatic v2 slice: fake-Jira multi-sprint vertical proof, then the required
-causal risks/content/transcript realism in focused increments. Preserve revision-016 delivery and
-the accepted Task 6 transaction boundary; do not call Jira from lifecycle/tick commits.
+Select the next focused pragmatic v2 slice from inbound Jira observation/reconciliation, structured
+content, internal transcripts, or v2 APIs. Preserve revision-016 delivery, local semantic intent
+payloads, deterministic risk mechanics, and the accepted Task 6 transaction boundary; do not call
+Jira from lifecycle/tick commits.
 
 ## Active Decisions and External Gates
 
@@ -445,6 +463,9 @@ the accepted Task 6 transaction boundary; do not call Jira from lifecycle/tick c
   delivery, and must not manufacture missed daily work.
 - Jira provisioning and sprint creation have fake-client idempotency/read-back coverage but still
   require designated-sandbox live acceptance before autonomous operation.
+- Domain Jira intents carry local semantic UUIDs only. Provider Jira IDs are resolved from
+  `v2_jira_resource_mappings` inside the concrete adapter; never write provider IDs into lifecycle,
+  risk, or tick payloads.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
 - V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
   neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.

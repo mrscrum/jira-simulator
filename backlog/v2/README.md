@@ -28,8 +28,10 @@ UAT/load fixture only.
   zero-work restart boundaries. Revision 016 and retryable Jira delivery are complete with strict
   per-team FIFO/dependencies, cross-team continuation, provider-visible create preflight, persisted
   pacing, and one post-reconciliation delivery job. Review fix round 1 keeps incomplete scope
-  retryable/blocking and exhausts public Jira sprint pages before create; next work is vertical
-  proof and realism
+  retryable/blocking and exhausts public Jira sprint pages before create. The first causal-risk and
+  fake-Jira vertical now proves two sprint boundaries, restart without catch-up, outage recovery,
+  retained intent drain, and provider-success/local-receipt replay without duplicate resources;
+  next work is a focused inbound-observation, content, transcript, or API slice
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT
@@ -80,7 +82,10 @@ revision 016 receipts/mappings and fake-provider retry/idempotency coverage with
 authority or projection rows. M1 remains in progress. The former
 [`m1-capacity-credit.md`](m1-capacity-credit.md) Tasks 7/8 are preserved as superseded planning
 history and are not implementation or acceptance authority. The next task is the approved
-vertical-proof and realism slice rather than the superseded capacity-credit matrix.
+focused inbound-observation/content/transcript/API slice rather than the superseded capacity-credit
+matrix. The completed first realism vertical uses versioned deterministic rules for sampled long
+stay, review return, cancellation, dependency pause, and member unavailability; it adds no schema
+above sole head revision 016.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and
