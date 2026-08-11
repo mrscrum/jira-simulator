@@ -336,3 +336,23 @@
   and made ORM-created and migration-created Task 5 schemas match exactly.
 - No lifecycle transition, counter allocation, UOW integration, scheduler, Jira/OpenAI call,
   deployment, UAT, revision 016, or M1 completion was added.
+
+## [2026-08-11] M1 — Bind authoritative Scrum state
+### Changed
+- Sealed Task 5 values against runtime subclassing and scalar-subclass validation bypasses, and
+  exposed the immutable trusted sampling input required by the public sample factory.
+- Bound status samples to the persisted blueprint seed, exact team/run/visit decision coordinates,
+  timing cell, sampler algorithms, formula results, and nearest-ties-to-even integer microseconds.
+- Added typed work-item/member ownership columns, composite foreign keys, and exact owner-shape
+  checks to semantic counters and natural evaluations in ORM metadata and revision 015.
+- Added pre-DML blueprint graph/reference and aggregate uniqueness validation, persisted-state
+  authentication on reload, and complete review-fix regression/evidence coverage.
+### Fixed
+- Forged or substituted draw provenance, blueprint configuration, owner identities, scalar
+  subclasses, duplicate active/open/current state, and duplicate natural occurrences now reject
+  before Task 5 writes.
+- Repeated workflow statuses now bind visits to the exact matching status/activity route step.
+- SQLite's boolean-as-integer behavior is documented narrowly; strict boolean rejection is enforced
+  at the public domain/mapper boundary rather than overclaimed as a raw-SQL guarantee.
+- Task 6, revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1
+  completion remain untouched.

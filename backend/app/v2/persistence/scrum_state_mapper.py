@@ -1,5 +1,6 @@
 """Caller-owned-session mapping for detached authoritative Scrum state."""
 
+import json
 from dataclasses import fields
 from enum import StrEnum
 from uuid import UUID
@@ -7,7 +8,13 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.v2.domain.deterministic_rng import CreationKind, DecisionType
+from app.v2.domain.canonical_json import canonical_sha256
+from app.v2.domain.deterministic_rng import (
+    CreationKind,
+    DecisionType,
+    run_rng_id,
+    team_rng_id,
+)
 from app.v2.domain.scrum_state import (
     FactorKind,
     MemberAvailabilityOverlay,
@@ -31,6 +38,7 @@ from app.v2.domain.scrum_state import (
     WorkItemState,
     WorkPriority,
 )
+from app.v2.domain.team_blueprint import ResolvedTeamBlueprint
 from app.v2.persistence.scrum_state_models import (
     V2MemberAvailabilityOverlayModel,
     V2MemberBusinessDateConsumptionModel,
@@ -44,6 +52,7 @@ from app.v2.persistence.scrum_state_models import (
     V2WorkItemFactorModel,
     V2WorkItemModel,
 )
+from app.v2.persistence.team_models import V2RunModel, V2TeamBlueprintModel, V2TeamModel
 
 ENUM_FIELDS = {
     "creation_kind": CreationKind,
@@ -81,9 +90,14 @@ class SqlAlchemyScrumStateMapper:
     def add(self, session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot:
         if not isinstance(session, Session):
             raise TypeError("session must be a caller-owned Session")
-        if not isinstance(state, ScrumStateWriteSet):
+        if type(state) is not ScrumStateWriteSet:
             raise TypeError("state must be a ScrumStateWriteSet")
         state.validate()
+        coordinates = _state_coordinates(state)
+        if coordinates is not None:
+            with session.no_autoflush:
+                blueprint = _load_authority(session, *coordinates)
+            state.validate_against(blueprint)
         for spec, items in zip(LOAD_SPECS, state._collection_values(), strict=True):
             _add_collection(session, items, spec[0])
             session.flush()
@@ -92,10 +106,58 @@ class SqlAlchemyScrumStateMapper:
     def load(self, session: Session, query: ScrumStateQuery) -> ScrumStateSnapshot:
         if not isinstance(session, Session):
             raise TypeError("session must be a caller-owned Session")
-        if not isinstance(query, ScrumStateQuery):
+        if type(query) is not ScrumStateQuery:
             raise TypeError("query must be a ScrumStateQuery")
-        collections = tuple(_load_collection(session, query, spec) for spec in LOAD_SPECS)
-        return ScrumStateSnapshot(*collections)
+        with session.no_autoflush:
+            blueprint = _load_authority(session, query.team_id, query.run_id)
+            collections = tuple(_load_collection(session, query, spec) for spec in LOAD_SPECS)
+        snapshot = ScrumStateSnapshot(*collections)
+        snapshot.validate_against(blueprint)
+        return snapshot
+
+
+def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None] | None:
+    records = tuple(item for items in state._collection_values() for item in items)
+    if not records:
+        return None
+    team_id = records[0].team_id
+    run_id = next((item.run_id for item in records if hasattr(item, "run_id")), None)
+    return team_id, run_id
+
+
+def _load_authority(
+    session: Session, team_id: UUID, run_id: UUID | None
+) -> ResolvedTeamBlueprint:
+    team = session.get(V2TeamModel, str(team_id))
+    blueprint_row = session.scalar(
+        select(V2TeamBlueprintModel).where(V2TeamBlueprintModel.team_id == str(team_id))
+    )
+    if team is None or blueprint_row is None:
+        raise ValueError("persisted team/run blueprint authority is incomplete")
+    blueprint = _validated_blueprint(team, blueprint_row)
+    if run_id is not None:
+        _validate_run(session, team_id, run_id)
+    return blueprint
+
+
+def _validated_blueprint(
+    team: V2TeamModel, row: V2TeamBlueprintModel
+) -> ResolvedTeamBlueprint:
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(row.canonical_json)
+    digest = canonical_sha256(json.loads(row.canonical_json))
+    if row.sha256 != digest or team.blueprint_sha256 != digest:
+        raise ValueError("persisted blueprint digest does not match its canonical document")
+    if team.id != str(team_rng_id(digest)) or row.schema_version != blueprint.schema_version:
+        raise ValueError("persisted team does not match its canonical blueprint")
+    return blueprint
+
+
+def _validate_run(session: Session, team_id: UUID, run_id: UUID) -> None:
+    run = session.get(V2RunModel, str(run_id))
+    if run is None or run.team_id != str(team_id):
+        raise ValueError("persisted team/run ownership does not match")
+    if run.id != str(run_rng_id(team_id, run.ordinal)):
+        raise ValueError("persisted team/run semantic identity does not match")
 
 
 def _add_collection(session: Session, items: tuple[object, ...], model_type: type) -> None:
@@ -112,7 +174,7 @@ def _ordered_snapshot(state: ScrumStateWriteSet) -> ScrumStateSnapshot:
 
 
 def _semantic_order(record: object, names: tuple[str, ...]) -> tuple[object, ...]:
-    if isinstance(record, SemanticCounter):
+    if type(record) is SemanticCounter:
         scope = record.scope
         return scope.kind.value, str(scope.scope_id), scope.scope_key
     return tuple(_sortable(getattr(record, name)) for name in names)
@@ -127,8 +189,8 @@ def _sortable(value: object) -> object:
 
 
 def _record_values(record: object) -> dict[str, object]:
-    if isinstance(record, SemanticCounter):
-        return {
+    if type(record) is SemanticCounter:
+        values = {
             "team_id": str(record.team_id),
             "run_id": str(record.run_id),
             "kind": record.scope.kind.value,
@@ -136,7 +198,33 @@ def _record_values(record: object) -> dict[str, object]:
             "scope_key": record.scope.scope_key,
             "next_value": record.next_value,
         }
+        return {**values, **_counter_owner_values(record)}
+    if type(record) is NaturalDecisionEvaluation:
+        values = {
+            field.name: _stored_value(getattr(record, field.name))
+            for field in fields(record)
+        }
+        return {**values, **_evaluation_owner_values(record)}
     return {field.name: _stored_value(getattr(record, field.name)) for field in fields(record)}
+
+
+def _counter_owner_values(counter: SemanticCounter) -> dict[str, str | None]:
+    scope = counter.scope
+    if scope.kind is SemanticCounterKind.VISIT_ORDINAL:
+        return {"work_item_id": str(scope.scope_id), "member_id": None}
+    if scope.kind is SemanticCounterKind.NATURAL_DECISION_OCCURRENCE:
+        if scope.scope_key == DecisionType.RISK_CANCELLATION_OUTCOME.value:
+            return {"work_item_id": str(scope.scope_id), "member_id": None}
+        return {"work_item_id": None, "member_id": str(scope.scope_id)}
+    return {"work_item_id": None, "member_id": None}
+
+
+def _evaluation_owner_values(
+    evaluation: NaturalDecisionEvaluation,
+) -> dict[str, str | None]:
+    if evaluation.decision_type is DecisionType.RISK_CANCELLATION_OUTCOME:
+        return {"work_item_id": str(evaluation.semantic_entity_id), "member_id": None}
+    return {"work_item_id": None, "member_id": str(evaluation.semantic_entity_id)}
 
 
 def _stored_value(value: object) -> object:
@@ -167,7 +255,17 @@ def _domain_record(model: object, value_type: type) -> object:
         field.name: _domain_value(field.name, getattr(model, field.name), value_type)
         for field in fields(value_type)
     }
+    if value_type is StatusVisitSample:
+        return _raw_status_sample(values)
     return value_type(**values)
+
+
+def _raw_status_sample(values: dict[str, object]) -> StatusVisitSample:
+    sample = object.__new__(StatusVisitSample)
+    for field_name, value in values.items():
+        object.__setattr__(sample, field_name, value)
+    sample.validate()
+    return sample
 
 
 def _domain_value(field_name: str, value: object, value_type: type) -> object:

@@ -25,14 +25,8 @@ MAX_COUNTER_NEXT_VALUE = 2**53
 MAX_SQLITE_INTEGER = 2**63 - 1
 MAX_FINITE_FLOAT = "1.7976931348623157e308"
 RUN_OWNERSHIP = ("v2_runs.team_id", "v2_runs.id")
-DECISION_TYPES_SQL = (
-    "('BACKLOG_ISSUE_TYPE','BACKLOG_STORY_POINTS','BACKLOG_PRIORITY',"
-    "'ITEM_DESCRIPTION_QUALITY','ITEM_LATENT_COMPLEXITY','STATUS_DWELL','STATUS_TOUCH',"
-    "'SCRUM_CAPACITY_TARGET','RISK_EXTERNAL_DEPENDENCY_OUTCOME',"
-    "'RISK_EXTERNAL_DEPENDENCY_DURATION','RISK_CANCELLATION_OUTCOME',"
-    "'RISK_REVIEW_REJECTION_OUTCOME','RISK_REWORK_DURATION',"
-    "'RISK_MEMBER_UNAVAILABLE_OUTCOME','RISK_MEMBER_UNAVAILABLE_DURATION',"
-    "'FORCED_REWORK_DURATION','KANBAN_ARRIVAL_GAP','KANBAN_CLASS_OF_SERVICE')"
+NATURAL_DECISION_TYPES_SQL = (
+    "('RISK_CANCELLATION_OUTCOME','RISK_MEMBER_UNAVAILABLE_OUTCOME')"
 )
 SPRINT_OBSERVED_CHECK = (
     "(lifecycle = 'PLANNED' AND observed_start_at IS NULL AND observed_end_at IS NULL) OR "
@@ -67,12 +61,47 @@ COUNTER_SCOPE_CHECK = (
     "('INITIAL_BACKLOG','SCRUM_REPLENISHMENT','KANBAN_ARRIVAL',"
     "'AGENT_CREATED','JIRA_IMPORTED')) OR "
     "(kind = 'VISIT_ORDINAL' AND scope_key = 'VISIT') OR "
-    f"(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key IN {DECISION_TYPES_SQL})"
+    f"(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key IN {NATURAL_DECISION_TYPES_SQL})"
+)
+COUNTER_OWNER_CHECK = (
+    "(kind IN ('SPRINT_ORDINAL','ITEM_SEQUENCE') "
+    "AND work_item_id IS NULL AND member_id IS NULL) OR "
+    "(kind = 'VISIT_ORDINAL' AND scope_id = work_item_id AND work_item_id IS NOT NULL "
+    "AND member_id IS NULL) OR "
+    "(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key = 'RISK_CANCELLATION_OUTCOME' "
+    "AND scope_id = work_item_id AND work_item_id IS NOT NULL AND member_id IS NULL) OR "
+    "(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key = "
+    "'RISK_MEMBER_UNAVAILABLE_OUTCOME' AND scope_id = member_id AND member_id IS NOT NULL "
+    "AND work_item_id IS NULL)"
+)
+EVALUATION_OWNER_CHECK = (
+    "(decision_type = 'RISK_CANCELLATION_OUTCOME' AND semantic_entity_id = work_item_id "
+    "AND work_item_id IS NOT NULL AND member_id IS NULL) OR "
+    "(decision_type = 'RISK_MEMBER_UNAVAILABLE_OUTCOME' AND semantic_entity_id = member_id "
+    "AND member_id IS NOT NULL AND work_item_id IS NULL)"
 )
 
 
 def _run_foreign_key(name: str) -> ForeignKeyConstraint:
     return ForeignKeyConstraint(["team_id", "run_id"], RUN_OWNERSHIP, name=name, ondelete="CASCADE")
+
+
+def _work_owner_foreign_key(name: str) -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ["team_id", "run_id", "work_item_id"],
+        ["v2_work_items.team_id", "v2_work_items.run_id", "v2_work_items.id"],
+        name=name,
+        ondelete="CASCADE",
+    )
+
+
+def _member_owner_foreign_key(name: str) -> ForeignKeyConstraint:
+    return ForeignKeyConstraint(
+        ["team_id", "member_id"],
+        ["v2_member_identities.team_id", "v2_member_identities.id"],
+        name=name,
+        ondelete="CASCADE",
+    )
 
 
 class V2MemberIdentityModel(Base):
@@ -454,11 +483,14 @@ class V2SemanticCounterModel(Base):
     __tablename__ = "v2_semantic_counters"
     __table_args__ = (
         _run_foreign_key("fk_v2_counters_team_run"),
+        _work_owner_foreign_key("fk_v2_counters_work_item"),
+        _member_owner_foreign_key("fk_v2_counters_member"),
         CheckConstraint(
             _integer_range("next_value", MAX_COUNTER_NEXT_VALUE),
             name="ck_v2_semantic_counters_next_value",
         ),
         CheckConstraint(COUNTER_SCOPE_CHECK, name="ck_v2_semantic_counters_scope"),
+        CheckConstraint(COUNTER_OWNER_CHECK, name="ck_v2_semantic_counters_owner"),
     )
 
     team_id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -466,6 +498,8 @@ class V2SemanticCounterModel(Base):
     kind: Mapped[str] = mapped_column(String(40), primary_key=True)
     scope_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     scope_key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    work_item_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    member_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     next_value: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
@@ -473,6 +507,8 @@ class V2NaturalDecisionEvaluationModel(Base):
     __tablename__ = "v2_natural_decision_evaluations"
     __table_args__ = (
         _run_foreign_key("fk_v2_evaluations_team_run"),
+        _work_owner_foreign_key("fk_v2_evaluations_work_item"),
+        _member_owner_foreign_key("fk_v2_evaluations_member"),
         UniqueConstraint(
             "team_id",
             "run_id",
@@ -494,9 +530,10 @@ class V2NaturalDecisionEvaluationModel(Base):
             name="ck_v2_evaluations_occurrence",
         ),
         CheckConstraint(
-            f"decision_type IN {DECISION_TYPES_SQL}",
+            f"decision_type IN {NATURAL_DECISION_TYPES_SQL}",
             name="ck_v2_evaluations_decision_type",
         ),
+        CheckConstraint(EVALUATION_OWNER_CHECK, name="ck_v2_evaluations_owner"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -504,6 +541,8 @@ class V2NaturalDecisionEvaluationModel(Base):
     run_id: Mapped[str] = mapped_column(String(36), nullable=False)
     decision_type: Mapped[str] = mapped_column(String(60), nullable=False)
     semantic_entity_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    work_item_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    member_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     business_date: Mapped[date] = mapped_column(Date, nullable=False)
     occurrence: Mapped[int] = mapped_column(Integer, nullable=False)
     commit_id: Mapped[str] = mapped_column(String(36), nullable=False)

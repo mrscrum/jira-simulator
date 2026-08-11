@@ -1,0 +1,752 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[active_sprint] _
+
+self = <sqlalchemy.engine.base.Connection object at 0x108cde180>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108506a20>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108cf8b00>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x108cf8d70>
+parameters = [('a7f24acf-7179-565e-ae21-aad23463f697', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 1, 'ACTIVE', '2026-08-10 18:30:00.000000', ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108506a20>
+cursor = <sqlite3.Cursor object at 0x108cebf40>
+statement = 'INSERT INTO v2_sprints (id, team_id, run_id, ordinal, lifecycle, planned_start_at, planned_end_at, observed_start_at, observed_end_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('a7f24acf-7179-565e-ae21-aad23463f697', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 1, 'ACTIVE', '2026-08-10 18:30:00.000000', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108cf8b00>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlite3.IntegrityError: UNIQUE constraint failed: v2_sprints.team_id, v2_sprints.run_id
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-126/test_mapper_rejects_semantic_a0/v2.db), autoflush=True, expire_on_commit=True)
+case = 'active_sprint'
+
+    @pytest.mark.parametrize(
+        "case",
+        ["active_sprint", "open_visit", "current_scope", "evaluation_occurrence"],
+    )
+    def test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+>       _assert_rejected_before_task5_write(
+            v2_session_factory,
+            _semantic_conflict_state(case),
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:389:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:285: in _assert_rejected_before_task5_write
+    SqlAlchemyScrumStateMapper().add(session, state)
+app/v2/persistence/scrum_state_mapper.py:103: in add
+    session.flush()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+../.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:1049: in _emit_insert_statements
+    result = connection.execute(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938: in _exec_single_context
+    self.dialect.do_executemany(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108506a20>
+cursor = <sqlite3.Cursor object at 0x108cebf40>
+statement = 'INSERT INTO v2_sprints (id, team_id, run_id, ordinal, lifecycle, planned_start_at, planned_end_at, observed_start_at, observed_end_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('a7f24acf-7179-565e-ae21-aad23463f697', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 1, 'ACTIVE', '2026-08-10 18:30:00.000000', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108cf8b00>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: v2_sprints.team_id, v2_sprints.run_id
+E       [SQL: INSERT INTO v2_sprints (id, team_id, run_id, ordinal, lifecycle, planned_start_at, planned_end_at, observed_start_at, observed_end_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: [('a7f24acf-7179-565e-ae21-aad23463f697', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 0, 'ACTIVE', '2026-08-10 18:30:00.000000', '2026-08-24 18:30:00.000000', '2026-08-10 18:30:00.000000', None, '2026-08-10 18:30:00.000000', '2026-08-10 18:30:00.000000'), ('c23ebd7d-a0bf-5c30-8b86-dfac73a5c1c7', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 1, 'ACTIVE', '2026-08-10 18:30:00.000000', '2026-08-24 18:30:00.000000', '2026-08-10 18:30:00.000000', None, '2026-08-10 18:30:00.000000', '2026-08-10 18:30:00.000000')]]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+_ test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[open_visit] _
+
+self = <sqlalchemy.engine.base.Connection object at 0x108d72e40>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10850c770>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108557ec0>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x1090d9430>
+parameters = [('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', '8f317d4f-8156-5b43-9571-6b3b32d32304', 1, 'OPEN', ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10850c770>
+cursor = <sqlite3.Cursor object at 0x10997fd40>
+statement = 'INSERT INTO v2_status_visits (id, team_id, run_id, work_item_id, ordinal, lifecycle, status_key, activity_key, member...roseconds, pause_microseconds, credited_labor_microseconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', '8f317d4f-8156-5b43-9571-6b3b32d32304', 1, 'OPEN', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108557ec0>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlite3.IntegrityError: UNIQUE constraint failed: v2_status_visits.team_id, v2_status_visits.run_id, v2_status_visits.work_item_id
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-126/test_mapper_rejects_semantic_a1/v2.db), autoflush=True, expire_on_commit=True)
+case = 'open_visit'
+
+    @pytest.mark.parametrize(
+        "case",
+        ["active_sprint", "open_visit", "current_scope", "evaluation_occurrence"],
+    )
+    def test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+>       _assert_rejected_before_task5_write(
+            v2_session_factory,
+            _semantic_conflict_state(case),
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:389:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:285: in _assert_rejected_before_task5_write
+    SqlAlchemyScrumStateMapper().add(session, state)
+app/v2/persistence/scrum_state_mapper.py:103: in add
+    session.flush()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+../.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:1049: in _emit_insert_statements
+    result = connection.execute(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938: in _exec_single_context
+    self.dialect.do_executemany(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x10850c770>
+cursor = <sqlite3.Cursor object at 0x10997fd40>
+statement = 'INSERT INTO v2_status_visits (id, team_id, run_id, work_item_id, ordinal, lifecycle, status_key, activity_key, member...roseconds, pause_microseconds, credited_labor_microseconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', '8f317d4f-8156-5b43-9571-6b3b32d32304', 1, 'OPEN', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108557ec0>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: v2_status_visits.team_id, v2_status_visits.run_id, v2_status_visits.work_item_id
+E       [SQL: INSERT INTO v2_status_visits (id, team_id, run_id, work_item_id, ordinal, lifecycle, status_key, activity_key, member_id, entered_at, closed_at, required_work_microseconds, elapsed_work_microseconds, remaining_work_microseconds, queue_microseconds, pause_microseconds, credited_labor_microseconds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: [('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', '8f317d4f-8156-5b43-9571-6b3b32d32304', 0, 'OPEN', 'DEVELOPMENT', 'development', 'e3410d9a-7955-59cf-9ef8-4b3b858ff9e8', '2026-08-10 18:30:00.000000', None, 8647914917, 1800000000, 6847914917, 300000000, 0, 1800000000), ('c3da03dc-049e-5d2c-8bc4-4aa6504e3812', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', '8f317d4f-8156-5b43-9571-6b3b32d32304', 1, 'OPEN', 'DEVELOPMENT', 'development', 'e3410d9a-7955-59cf-9ef8-4b3b858ff9e8', '2026-08-10 18:30:00.000000', None, 8647914917, 1800000000, 6847914917, 300000000, 0, 1800000000)]]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+_ test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[current_scope] _
+
+self = <sqlalchemy.engine.base.Connection object at 0x1090da690>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108d715b0>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108d79580>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x108d79160>
+parameters = [('22469049-b337-599b-9ca7-71a0b63e8491', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...e', 'c23ebd7d-a0bf-5c30-8b86-dfac73a5c1c7', '8f317d4f-8156-5b43-9571-6b3b32d32304', '2026-08-10 18:30:00.000000', ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108d715b0>
+cursor = <sqlite3.Cursor object at 0x108cea240>
+statement = 'INSERT INTO v2_sprint_scope (id, team_id, run_id, sprint_id, work_item_id, added_at, removed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+parameters = [('22469049-b337-599b-9ca7-71a0b63e8491', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...e', 'c23ebd7d-a0bf-5c30-8b86-dfac73a5c1c7', '8f317d4f-8156-5b43-9571-6b3b32d32304', '2026-08-10 18:30:00.000000', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108d79580>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlite3.IntegrityError: UNIQUE constraint failed: v2_sprint_scope.team_id, v2_sprint_scope.run_id, v2_sprint_scope.work_item_id
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-126/test_mapper_rejects_semantic_a2/v2.db), autoflush=True, expire_on_commit=True)
+case = 'current_scope'
+
+    @pytest.mark.parametrize(
+        "case",
+        ["active_sprint", "open_visit", "current_scope", "evaluation_occurrence"],
+    )
+    def test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+>       _assert_rejected_before_task5_write(
+            v2_session_factory,
+            _semantic_conflict_state(case),
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:389:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:285: in _assert_rejected_before_task5_write
+    SqlAlchemyScrumStateMapper().add(session, state)
+app/v2/persistence/scrum_state_mapper.py:103: in add
+    session.flush()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+../.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:1049: in _emit_insert_statements
+    result = connection.execute(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938: in _exec_single_context
+    self.dialect.do_executemany(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108d715b0>
+cursor = <sqlite3.Cursor object at 0x108cea240>
+statement = 'INSERT INTO v2_sprint_scope (id, team_id, run_id, sprint_id, work_item_id, added_at, removed_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+parameters = [('22469049-b337-599b-9ca7-71a0b63e8491', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...e', 'c23ebd7d-a0bf-5c30-8b86-dfac73a5c1c7', '8f317d4f-8156-5b43-9571-6b3b32d32304', '2026-08-10 18:30:00.000000', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x108d79580>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: v2_sprint_scope.team_id, v2_sprint_scope.run_id, v2_sprint_scope.work_item_id
+E       [SQL: INSERT INTO v2_sprint_scope (id, team_id, run_id, sprint_id, work_item_id, added_at, removed_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: [('22469049-b337-599b-9ca7-71a0b63e8491', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 'a7f24acf-7179-565e-ae21-aad23463f697', '8f317d4f-8156-5b43-9571-6b3b32d32304', '2026-08-10 18:30:00.000000', None), ('5837cfb3-a94f-55f8-bd52-d9833b3cd68c', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 'c23ebd7d-a0bf-5c30-8b86-dfac73a5c1c7', '8f317d4f-8156-5b43-9571-6b3b32d32304', '2026-08-10 18:30:00.000000', None)]]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+_ test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[evaluation_occurrence] _
+
+self = <sqlalchemy.engine.base.Connection object at 0x109019010>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x1080e86b0>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10901b440>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x10901b0e0>
+parameters = [('e1942542-c655-5704-bc9e-251671eb3c9f', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...0e', 'RISK_CANCELLATION_OUTCOME', '8f317d4f-8156-5b43-9571-6b3b32d32304', '8f317d4f-8156-5b43-9571-6b3b32d32304', ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x1080e86b0>
+cursor = <sqlite3.Cursor object at 0x10916ff40>
+statement = 'INSERT INTO v2_natural_decision_evaluations (id, team_id, run_id, decision_type, semantic_entity_id, work_item_id, member_id, business_date, occurrence, commit_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('e1942542-c655-5704-bc9e-251671eb3c9f', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...0e', 'RISK_CANCELLATION_OUTCOME', '8f317d4f-8156-5b43-9571-6b3b32d32304', '8f317d4f-8156-5b43-9571-6b3b32d32304', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10901b440>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlite3.IntegrityError: UNIQUE constraint failed: v2_natural_decision_evaluations.team_id, v2_natural_decision_evaluations.run_id, v2_natural_decision_evaluations.decision_type, v2_natural_decision_evaluations.semantic_entity_id, v2_natural_decision_evaluations.occurrence
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-126/test_mapper_rejects_semantic_a3/v2.db), autoflush=True, expire_on_commit=True)
+case = 'evaluation_occurrence'
+
+    @pytest.mark.parametrize(
+        "case",
+        ["active_sprint", "open_visit", "current_scope", "evaluation_occurrence"],
+    )
+    def test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+>       _assert_rejected_before_task5_write(
+            v2_session_factory,
+            _semantic_conflict_state(case),
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:389:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:285: in _assert_rejected_before_task5_write
+    SqlAlchemyScrumStateMapper().add(session, state)
+app/v2/persistence/scrum_state_mapper.py:103: in add
+    session.flush()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4353: in flush
+    self._flush(objects)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4488: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+../.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py:122: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/session.py:4449: in _flush
+    flush_context.execute()
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:465: in execute
+    rec.execute(self)
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py:641: in execute
+    util.preloaded.orm_persistence.save_obj(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:94: in save_obj
+    _emit_insert_statements(
+../.venv/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py:1049: in _emit_insert_statements
+    result = connection.execute(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1421: in execute
+    return meth(
+../.venv/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:526: in _execute_on_connection
+    return connection._execute_clauseelement(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1643: in _execute_clauseelement
+    ret = self._execute_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1848: in _execute_context
+    return self._exec_single_context(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1938: in _exec_single_context
+    self.dialect.do_executemany(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x1080e86b0>
+cursor = <sqlite3.Cursor object at 0x10916ff40>
+statement = 'INSERT INTO v2_natural_decision_evaluations (id, team_id, run_id, decision_type, semantic_entity_id, work_item_id, member_id, business_date, occurrence, commit_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = [('e1942542-c655-5704-bc9e-251671eb3c9f', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10...0e', 'RISK_CANCELLATION_OUTCOME', '8f317d4f-8156-5b43-9571-6b3b32d32304', '8f317d4f-8156-5b43-9571-6b3b32d32304', ...)]
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x10901b440>
+
+    def do_executemany(self, cursor, statement, parameters, context=None):
+>       cursor.executemany(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: v2_natural_decision_evaluations.team_id, v2_natural_decision_evaluations.run_id, v2_natural_decision_evaluations.decision_type, v2_natural_decision_evaluations.semantic_entity_id, v2_natural_decision_evaluations.occurrence
+E       [SQL: INSERT INTO v2_natural_decision_evaluations (id, team_id, run_id, decision_type, semantic_entity_id, work_item_id, member_id, business_date, occurrence, commit_id, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: [('e1942542-c655-5704-bc9e-251671eb3c9f', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 'RISK_CANCELLATION_OUTCOME', '8f317d4f-8156-5b43-9571-6b3b32d32304', '8f317d4f-8156-5b43-9571-6b3b32d32304', None, '2026-08-10', 0, 'f1b0ea44-886c-5367-adb2-b629242ec173', '2026-08-10 18:30:00.000000'), ('e88f6753-ec94-511d-8fd9-9de01e9c1702', '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', 'RISK_CANCELLATION_OUTCOME', '8f317d4f-8156-5b43-9571-6b3b32d32304', '8f317d4f-8156-5b43-9571-6b3b32d32304', None, '2026-08-11', 0, 'f1b0ea44-886c-5367-adb2-b629242ec173', '2026-08-10 18:30:00.000000')]]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+../.venv/lib/python3.12/site-packages/sqlalchemy/engine/default.py:949: IntegrityError
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[active_sprint]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[open_visit]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[current_scope]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_rejects_semantic_and_partial_uniqueness_conflicts_before_write[evaluation_occurrence]
+4 failed in 0.94s

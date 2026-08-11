@@ -45,9 +45,22 @@ team/run ownership, duration state uses checked signed 64-bit integer microsecon
 coordinates use true safe integers. Partial uniqueness enforces one active sprint, one current
 scope row per item, and one open visit per item.
 
+The reviewed boundary seals every Task 5 value against ordinary subclass, replacement, mapping,
+copy, and reconstruction mutation paths. Status samples are created only from exact trusted Task 3
+draws, then reauthenticated on restart against the persisted blueprint seed, team/run/visit
+coordinates, timing cell, sampler versions, parameters, formulas, and exact half-even
+hours-to-microseconds conversion. Semantic counters and natural evaluations carry typed
+work-item/member owner columns with matching revision-015 composite foreign keys and owner-shape
+checks. SQLite represents bound booleans as integers, so strict boolean rejection is guaranteed by
+the public domain and mapper validation boundary; database checks separately reject non-integer
+numeric storage classes and out-of-range values.
+
 `SqlAlchemyScrumStateMapper` accepts a caller-owned SQLAlchemy `Session`, validates the complete
-tuple-only write set before its first insert, flushes constraints without commit/rollback, returns
-detached values in deterministic semantic order, and reloads the same state after engine disposal.
+tuple-only write set and persisted blueprint authority before its first insert, flushes constraints
+without commit/rollback, returns detached values in deterministic semantic order, and reloads the
+same state after engine disposal. It rejects mixed or missing parents, invalid member positions,
+route/status/activity mismatches, unsupported natural owners, duplicate semantic coordinates, and
+conflicting active/open/current after-images before Task 5 DML.
 Aware offset instants normalize to UTC while naive instants reject. The canonical resolved blueprint
 remains the only home for names, roles, configured capacity/WIP, responsibilities, proficiency,
 routes, timing grids, calendar, and policy configuration. Revision `015` independently downgrades to

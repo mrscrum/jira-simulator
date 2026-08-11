@@ -273,3 +273,13 @@
   string lengths. No server-generated identity, counter default, or timestamp was introduced.
 - No Task 6 atomic integration, transition/allocation behavior, revision 016, external call,
   deployment, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 5 review fix round 1
+- Exported `StatusVisitSampleInput` because the new public sealed sample factory otherwise required
+  callers to depend on an unexported construction contract.
+- Treated repeated route statuses as valid when the exact `(status_key, required_activity)` step
+  exists, because the reviewed blueprint contract permits repeated status visits.
+- Kept SQLite boolean handling truthful: bound booleans use SQLite's integer storage class, while
+  Task 5's exact public Python type checks reject them before mapper writes.
+- Made no Task 6, lifecycle/allocation, revision 016, external-system, deployment, UAT, or M1
+  completion assumption; all other choices were supplied by the review findings.

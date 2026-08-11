@@ -78,7 +78,8 @@ Important numeric boundaries are explicit:
 
 - ordinary deterministic coordinates are non-negative safe integers through `2^53 - 1`;
 - semantic-counter `next_value` alone may equal `2^53` as the exhausted sentinel;
-- persisted durations are true SQLite integers in `0..2^63 - 1`, never booleans or reals;
+- persisted durations use SQLite integer storage in `0..2^63 - 1`; public validation rejects
+  booleans, and SQL checks reject real storage values;
 - factor/unit fractions are finite and bounded to `[0, 1]`; sampled hours are finite and
   non-negative;
 - aware instants normalize to UTC; naive instants reject.
@@ -216,3 +217,103 @@ Static results:
 
 The exact outputs are retained beside this README. No staging, commit, push, deployment, live-system
 access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016 occurred during verification.
+
+## Fix round 1 — authoritative binding evidence
+
+Review-fix base: `a46b615` (`feat(v2): persist authoritative scrum state`). This round hardens only
+Task 5 domain and persistence boundaries plus the existing revision 015. It creates no revision 016
+and implements no Task 6 operation, UI, adapter, external call, deployment, push, or UAT action.
+
+### RED evidence
+
+The review regressions were written before production changes. The exact consolidated command,
+executed from `backend/`, was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-1-red.txt
+```
+
+`review-fix-round-1-red.txt` records exit `1` and `141 failed, 97 passed in 14.88s`. The expected
+failures covered exact/sealed type enforcement, subclass and `isinstance` bypasses, authenticated
+Task 3 sample origin, typed natural owners, exact microsecond rounding, persisted-blueprint graph
+validation, reference/aggregate coherence, load-time authority checks, and pre-DML uniqueness.
+
+Supplemental tests also preceded their fixes:
+
+- `review-fix-round-1-export-red.txt`: `1 failed in 0.11s` because
+  `StatusVisitSampleInput` was not yet in the closed public domain export.
+- `review-fix-round-1-aggregate-red.txt`: `4 failed in 0.94s` because active-sprint, open-visit,
+  current-scope, and evaluation-occurrence conflicts reached SQLite rather than rejecting before
+  Task 5 DML.
+- `review-fix-round-1-scalar-red.txt`: `1 failed in 0.17s` because a forged `UUID` subclass was
+  accepted.
+- `review-fix-round-1-route-red.txt`: `1 failed in 0.20s` because repeated status keys exposed a
+  status-only route lookup rather than exact status/activity-step matching.
+
+### Binding and integrity proof
+
+- Every public and nested Task 5 record, trusted factory input, aggregate tuple member, write set,
+  snapshot, query, enum, UUID, integer, and floating boundary is exact-type checked. Task 5 values
+  cannot be runtime-subclassed, yet remain frozen/slotted, copy/deepcopy stable, replace-validating,
+  and pickle/reconstruction resistant.
+- A status-visit sample can be created only through the sealed trusted input. Its Task 3
+  `UniformDraw` origins are regenerated with the persisted blueprint seed and exact
+  team/run/entity/decision/occurrence/draw coordinates. The precise timing-grid cell,
+  linear-uniform algorithm/version/parameters, canonical messages, HMAC-derived integers/unit
+  values, inner and outer hashes, sampled hours, and required-work digest all authenticate on create
+  and reload. Mutation of low/high bounds, messages, coordinates, algorithms, versions, parameters,
+  results, or hashes rejects.
+- Natural counter/evaluation rows now carry nullable typed `work_item_id`/`member_id` ownership in
+  the ORM and the existing revision 015. Composite foreign keys and row-shape checks bind visit and
+  cancellation semantics to work items and member-unavailable semantics to members. Only
+  cancellation and member-unavailable outcome evaluations are supported. No revision 016 exists.
+- Hours-to-microseconds conversion uses `float.as_integer_ratio()` and integer nearest-ties-to-even
+  rounding into the non-negative signed-64-bit range. Exact vectors include
+  `2**-11 -> 1_757_812` and `3 * 2**-11 -> 5_273_438`. Required visit work equals the authenticated
+  touch sample exactly.
+- Before emitting Task 5 DML, the caller-session mapper validates the actual persisted team,
+  blueprint, and optional run; member indexes/responsibilities; exact status/activity route steps;
+  timing cells; references; duplicate or mixed team/run identities; open-state relationships; and
+  semantic plus partial uniqueness. Loading rejects missing/mixed authority and reauthenticates all
+  sample evidence against that blueprint.
+
+SQLite boolean-storage correction: SQLite stores a bound Python boolean with integer storage class.
+Consequently, raw SQL cannot distinguish bound `True` from stored integer `1`. Exact boolean
+rejection is proved at the public domain and mapper validation boundaries; SQL checks prove true
+integer storage and reject non-boolean real values. This correction supersedes earlier language in
+this evidence file that could be read as claiming SQLite itself rejects a bound boolean.
+
+### GREEN and final command results
+
+The final Task 5 command was identical to the consolidated RED command except that it wrote
+`review-fix-round-1-green.txt`:
+
+```text
+245 passed in 14.09s
+```
+
+All final pytest commands used `set -o pipefail`, `PYTHONDONTWRITEBYTECODE=1`,
+`INTEGRATION_TESTS=false`, the repository virtual environment, `-B`, and pytest cache disabled.
+Their retained outputs are:
+
+- `review-fix-round-1-task1-focused.txt`: `56 passed, 1 warning in 1.34s`.
+- `review-fix-round-1-task2-focused.txt`: `186 passed in 10.41s`.
+- `review-fix-round-1-task3-focused.txt`: `251 passed in 0.43s`.
+- `review-fix-round-1-task4-focused.txt`: `146 passed in 0.27s`.
+- `review-fix-round-1-green.txt`: `245 passed in 14.09s`.
+- `review-fix-round-1-v2-suite.txt`: `783 passed, 1 warning in 16.89s`.
+- `review-fix-round-1-full-suite.txt`: `1301 passed, 43 skipped, 15 warnings in 44.96s`.
+- `review-fix-round-1-ruff.txt`: exit `0`, `All checks passed!`.
+- `review-fix-round-1-alembic-heads.txt`: sole `015 (head)` with parent `014`;
+  `review-fix-round-1-alembic-branches.txt`: empty; history remains linear.
+- `review-fix-round-1-alembic-roundtrip.txt`: `4 passed in 1.35s`, covering populated round trip and
+  ORM/revision-015 parity.
+- `review-fix-round-1-code-shape.txt`: `11` changed Python files, no function over 30 lines and no
+  function accepting more than three arguments.
+- `review-fix-round-1-architecture.txt`: `15 passed in 0.23s`.
+- `review-fix-round-1-cold-import.txt`: `41 passed in 8.76s`.
+
+The 15 full-suite warnings remain the prior baseline categories. No secret, external provider,
+Jira/OpenAI account, production database, live system, deployment target, or remote Git branch was
+accessed during this fix or its verification.

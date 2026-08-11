@@ -2,8 +2,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import sqlalchemy as sa
 from sqlalchemy import MetaData, create_engine, event, inspect, select
+from sqlalchemy.exc import IntegrityError
 
 from alembic import command
 from app.models import Base
@@ -12,7 +14,7 @@ from tests.v2.integration.test_migration_013 import (
     _alembic_config,
     _seed_every_legacy_table,
 )
-from tests.v2.scrum_state_support import MEMBER_ID, NOW, RUN_ID, TEAM_ID
+from tests.v2.scrum_state_support import ITEM_ID, MEMBER_ID, MEMBER_INDEX, NOW, RUN_ID, TEAM_ID
 
 TASK5_TABLES = {
     "v2_member_identities",
@@ -59,6 +61,19 @@ def test_revision_015_matches_every_task5_orm_schema_detail(tmp_path):
     migrated_engine.dispose()
 
 
+def test_migrated_015_rejects_missing_typed_counter_and_evaluation_owners(tmp_path):
+    database_path = tmp_path / "migrated-owner-fks.db"
+    config = _alembic_config(Path(__file__).parents[3], database_path)
+    command.upgrade(config, "015")
+    engine = _foreign_key_engine(f"sqlite:///{database_path}")
+    _seed_migrated_owner_parents(engine)
+    for statement, values in _invalid_owner_inserts():
+        with engine.begin() as connection, pytest.raises(IntegrityError):
+            assert connection.scalar(sa.text("PRAGMA foreign_keys")) == 1
+            connection.execute(sa.text(statement), values)
+    engine.dispose()
+
+
 def test_populated_014_round_trip_preserves_every_prior_row_and_schema(tmp_path):
     database_path = tmp_path / "migration-015.db"
     backend_root = Path(__file__).parents[3]
@@ -94,6 +109,109 @@ def _seed_task_one_and_two(engine) -> None:
         _seed_team_and_blueprint(connection, timestamp, payload_hash)
         _seed_run_and_runtime(connection, timestamp)
         _seed_ledgers(connection, timestamp, payload_hash)
+
+
+def _seed_migrated_owner_parents(engine) -> None:
+    timestamp = NOW.isoformat()
+    with engine.begin() as connection:
+        _seed_team_and_blueprint(connection, timestamp, canonical_sha256({}))
+        connection.execute(
+            sa.text("INSERT INTO v2_runs VALUES (:run,:team,0,'ACTIVE',:at)"),
+            {"run": str(RUN_ID), "team": str(TEAM_ID), "at": timestamp},
+        )
+        connection.execute(
+            sa.text("INSERT INTO v2_member_identities VALUES (:member,:team,:position)"),
+            {"member": str(MEMBER_ID), "team": str(TEAM_ID), "position": MEMBER_INDEX},
+        )
+        _seed_migrated_work_item(connection, timestamp)
+
+
+def _seed_migrated_work_item(connection, timestamp: str) -> None:
+    connection.execute(
+        sa.text(
+            "INSERT INTO v2_work_items VALUES "
+            "(:item,:team,:run,'INITIAL_BACKLOG',0,'STORY',3,'HIGH',0,'ACTIVE',"
+            "'DEVELOPMENT',:at,:at)"
+        ),
+        {"item": str(ITEM_ID), "team": str(TEAM_ID), "run": str(RUN_ID), "at": timestamp},
+    )
+
+
+def _invalid_owner_inserts() -> tuple[tuple[str, dict[str, object]], ...]:
+    missing = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    counter = (
+        "INSERT INTO v2_semantic_counters "
+        "(team_id,run_id,kind,scope_id,scope_key,work_item_id,member_id,next_value) "
+        "VALUES (:team,:run,:kind,:owner,:key,:work,:member,0)"
+    )
+    evaluation = (
+        "INSERT INTO v2_natural_decision_evaluations "
+        "(id,team_id,run_id,decision_type,semantic_entity_id,work_item_id,member_id,"
+        "business_date,occurrence,commit_id,recorded_at) VALUES "
+        "(:id,:team,:run,:decision,:owner,:work,:member,'2026-08-10',0,:commit,:at)"
+    )
+    common = {"team": str(TEAM_ID), "run": str(RUN_ID), "owner": missing}
+    return _invalid_counter_rows(counter, common) + _invalid_evaluation_rows(evaluation, common)
+
+
+def _invalid_counter_rows(statement: str, common: dict[str, object]):
+    return (
+        (statement, _counter_parameters(common, ("VISIT_ORDINAL", "VISIT"), "work")),
+        (
+            statement,
+            _counter_parameters(
+                common,
+                ("NATURAL_DECISION_OCCURRENCE", "RISK_CANCELLATION_OUTCOME"),
+                "work",
+            ),
+        ),
+        (
+            statement,
+            _counter_parameters(
+                common,
+                ("NATURAL_DECISION_OCCURRENCE", "RISK_MEMBER_UNAVAILABLE_OUTCOME"),
+                "member",
+            ),
+        ),
+    )
+
+
+def _counter_parameters(
+    common: dict[str, object], coordinate: tuple[str, str], owner_field: str
+) -> dict[str, object]:
+    kind, key = coordinate
+    parameters = {**common, "kind": kind, "key": key, "work": None, "member": None}
+    parameters[owner_field] = common["owner"]
+    return parameters
+
+
+def _invalid_evaluation_rows(statement: str, common: dict[str, object]):
+    base = {
+        **common,
+        "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "commit": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        "at": NOW.isoformat(),
+    }
+    return (
+        (
+            statement,
+            _evaluation_parameters(base, "RISK_CANCELLATION_OUTCOME", "work"),
+        ),
+        (
+            statement,
+            _evaluation_parameters(base, "RISK_MEMBER_UNAVAILABLE_OUTCOME", "member"),
+        ),
+    )
+
+
+def _evaluation_parameters(
+    base: dict[str, object], decision: str, owner_field: str
+) -> dict[str, object]:
+    parameters = {**base, "decision": decision, "work": None, "member": None}
+    parameters[owner_field] = base["owner"]
+    if owner_field == "member":
+        parameters["id"] = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+    return parameters
 
 
 def _foreign_key_engine(database_url: str):
@@ -311,9 +429,10 @@ def _seed_one_task5_row(engine) -> None:
     with engine.begin() as connection:
         connection.execute(
             sa.text(
-                "INSERT INTO v2_member_identities (id,team_id,blueprint_index) VALUES (:id,:team,0)"
+                "INSERT INTO v2_member_identities (id,team_id,blueprint_index) "
+                "VALUES (:id,:team,:position)"
             ),
-            {"id": str(MEMBER_ID), "team": str(TEAM_ID)},
+            {"id": str(MEMBER_ID), "team": str(TEAM_ID), "position": MEMBER_INDEX},
         )
 
 

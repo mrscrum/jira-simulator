@@ -69,7 +69,8 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed 2026-08-11
+- [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and review-hardened
+  2026-08-11
 - [ ] Task 6 — Commit authoritative Scrum state atomically
 
 ## Deferred Validation Hardening Outside These Tasks
@@ -79,6 +80,22 @@ mutating state, but the recursive JSON-key guard currently surfaces raw `Recursi
 the normal invalid-JSON `ValueError`. Preserve this reviewed non-blocking Minor for a dedicated
 validation-hardening micro-fix before an API accepts arbitrary v2 payload objects. Neither Task 5 nor
 Task 6 changes that payload boundary.
+
+## Task 5 Review-Fix Contract
+
+Task 5 review fix round 1 is part of the completed revision-015 boundary. All public and nested
+Task 5 values reject runtime subclassing and exact scalar-type substitutions. `StatusVisitSample`
+uses a sealed public factory input containing the exact persisted blueprint, work item, visit, and
+two authenticated Task 3 draws; creation and reload reproduce the keyed coordinates, timing cell,
+sampler versions, formulas, and nearest-ties-to-even signed-range microseconds.
+
+Semantic counters and natural evaluations retain their public semantic entity coordinates but add
+nullable typed `work_item_id`/`member_id` owner columns in ORM metadata and revision 015. Exact
+owner-shape checks plus composite foreign keys bind visit and cancellation state to a same-run work
+item and member-unavailability state to a same-team member. The mapper resolves the exact persisted
+team, blueprint, and run in the caller session and validates references, blueprint routes/statuses/
+activities/timing, natural owners, and semantic/partial uniqueness before Task 5 DML. Task 6 must
+consume this reviewed contract without changing revision 015 or weakening restart authentication.
 
 ## Task 5: Persist authoritative Scrum state at revision 015
 
@@ -148,7 +165,8 @@ Alembic revision 015.
 - `StatusVisitSample` is immutable and one-to-one with a visit. It retains timing profile/version,
   sampler versions, dwell anchors/touch bounds, both Task 3 explicit unit draws and complete canonical
   draw provenance, sampled float hours, and the exact persisted required microseconds/hash used by
-  `StatusVisitState`.
+  `StatusVisitState`. Its sealed factory and restart mapper authenticate all retained values against
+  the persisted blueprint seed and exact timing cell.
 - `ScrumStateSnapshot` is the detached aggregate returned by the mapper. `ScrumStateWriteSet` is a
   frozen tuple-only collection of complete after-images that Task 6 will persist; it contains no
   callable, SQLAlchemy object, transition decision, or external intent.
@@ -210,10 +228,12 @@ Alembic revision 015.
   dwell/touch parameter and draw provenance JSON plus SHA-256, sampled finite floats, and exact
   required microseconds matching the visit state.
 - `v2_semantic_counters`: composite team/run/scope identity and checked `next_value` in `0..2^53`,
-  where only `2^53` is the exhausted sentinel; no server default and no autoincrement identity.
+  where only `2^53` is the exhausted sentinel; nullable typed work/member owner columns plus exact
+  owner-shape and composite-FK validation; no server default and no autoincrement identity.
 - `v2_natural_decision_evaluations`: semantic UUID primary key; composite team/run, exact decision
   type, semantic entity, business date, committed occurrence, commit UUID, and recorded time; unique
-  eligibility identity and unique committed occurrence coordinate.
+  eligibility identity and unique committed occurrence coordinate; exact supported work/member
+  owner shape enforced by composite foreign keys.
 - All partial unique indexes are declared identically in ORM metadata and migration 015. Upgrade
   creates parents before children; downgrade drops children before parents.
 
@@ -231,8 +251,10 @@ class SqlAlchemyScrumStateMapper:
     def add(self, session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot: ...
 ```
 
-`load` returns detached immutable values in deterministic semantic order. `add` validates the full
-write set before the first SQL statement, inserts only Task 5 state, flushes so constraints surface
+`load` returns detached immutable values in deterministic semantic order and reauthenticates stored
+samples against the persisted blueprint. `add` validates the full write set structurally before its
+first SQL statement, loads team/blueprint/run authority without autoflush, completes blueprint and
+reference validation before Task 5 DML, inserts only Task 5 state, flushes so constraints surface
 inside the caller's transaction, and returns the detached persisted subset. The caller decides to
 commit or roll back; a mapper exception leaves that decision with the caller.
 

@@ -5,12 +5,24 @@ from dataclasses import FrozenInstanceError, fields, replace
 from datetime import UTC, datetime, timedelta, timezone
 from enum import StrEnum
 from functools import total_ordering
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
+from app.v2.domain import scrum_state as scrum_state_module
 from app.v2.domain.canonical_json import canonical_json, canonical_sha256
-from app.v2.domain.deterministic_rng import MAX_SAFE_INTEGER, CreationKind, DecisionType
+from app.v2.domain.deterministic_rng import (
+    MAX_SAFE_INTEGER,
+    CreationKind,
+    DecisionOccurrence,
+    DecisionType,
+    DeterministicRandomStream,
+    item_rng_id,
+    member_rng_id,
+    run_rng_id,
+    team_rng_id,
+    visit_rng_id,
+)
 from app.v2.domain.scrum_state import (
     FactorKind,
     MemberAvailabilityOverlay,
@@ -35,8 +47,11 @@ from app.v2.domain.scrum_state import (
     WorkItemState,
     WorkPriority,
 )
+from app.v2.domain.team_blueprint import ResolvedTeamBlueprint
 from tests.v2.immutable_value_testing import tampered_pickle
 from tests.v2.scrum_state_support import (
+    BLUEPRINT,
+    BLUEPRINT_JSON,
     BUSINESS_DATE,
     ITEM_ID,
     LATER,
@@ -55,6 +70,25 @@ from tests.v2.scrum_state_support import (
     make_visit,
     make_work_item,
     make_write_set,
+)
+
+TASK5_VALUE_TYPES = (
+    SimulatorRank,
+    MemberIdentity,
+    MemberAvailabilityOverlay,
+    MemberBusinessDateConsumption,
+    WorkItemState,
+    WorkItemFactor,
+    SprintState,
+    SprintScopeEntry,
+    StatusVisitState,
+    StatusVisitSample,
+    SemanticCounterScope,
+    SemanticCounter,
+    NaturalDecisionEvaluation,
+    ScrumStateQuery,
+    ScrumStateWriteSet,
+    ScrumStateSnapshot,
 )
 
 
@@ -81,6 +115,56 @@ def test_closed_enums_are_exact(enum_type: type[StrEnum], values: tuple[str, ...
     assert tuple(item.value for item in enum_type) == values
     with pytest.raises(ValueError):
         enum_type("UNAPPROVED")
+
+
+@pytest.mark.parametrize("value_type", TASK5_VALUE_TYPES)
+def test_task5_values_reject_runtime_subclassing(value_type: type):
+    with pytest.raises(TypeError, match="subclass"):
+        type(f"Forged{value_type.__name__}", (value_type,), {})
+
+
+def test_task5_scalar_subclasses_cannot_bypass_strict_validation():
+    class ForgedUuid(UUID):
+        def __ne__(self, _other):
+            return False
+
+    class ForgedText(str):
+        pass
+
+    class ForgedInstant(datetime):
+        pass
+
+    forged_uuid = ForgedUuid(str(uuid4()))
+    forged_instant = ForgedInstant(2026, 8, 10, 18, 30, tzinfo=UTC)
+    with pytest.raises(TypeError, match="UUID"):
+        MemberIdentity(forged_uuid, TEAM_ID, 0)
+    with pytest.raises(TypeError, match="string"):
+        replace(make_work_item(), current_status_key=ForgedText("DEVELOPMENT"))
+    with pytest.raises(TypeError, match="datetime"):
+        replace(make_work_item(), created_at=forged_instant)
+
+
+def test_trusted_sample_input_is_slotted_immutable_and_sealed():
+    sample_input_type = getattr(scrum_state_module, "StatusVisitSampleInput")
+    sample_input = _sample_input_with_seed(BLUEPRINT, 8_647_914_917, BLUEPRINT.seed)
+    assert not hasattr(sample_input, "__dict__")
+    assert copy.copy(sample_input) is sample_input
+    assert copy.deepcopy(sample_input) is sample_input
+    with pytest.raises((FrozenInstanceError, AttributeError, TypeError)):
+        sample_input.blueprint = None
+    with pytest.raises(TypeError, match="cannot be pickled"):
+        pickle.dumps(sample_input)
+    with pytest.raises(TypeError, match="subclass"):
+        type("ForgedStatusVisitSampleInput", (sample_input_type,), {})
+
+
+def test_status_sample_direct_construction_and_replace_are_rejected():
+    sample = make_sample()
+    values = tuple(getattr(sample, field.name) for field in fields(sample))
+    with pytest.raises(TypeError, match="trusted"):
+        StatusVisitSample(*values)
+    with pytest.raises(TypeError, match="trusted"):
+        replace(sample, touch_sampled_hours=sample.touch_sampled_hours)
 
 
 def test_semantic_identities_must_match_their_coordinates():
@@ -209,12 +293,13 @@ def test_status_visit_requires_balanced_microseconds_and_coherent_close_time():
         replace(make_visit(), remaining_work_microseconds=1)
     with pytest.raises(ValueError, match="closed_at"):
         replace(make_visit(), closed_at=LATER)
+    visit = make_visit()
     closed = replace(
-        make_visit(),
+        visit,
         lifecycle=StatusVisitLifecycle.CLOSED,
         closed_at=LATER,
         remaining_work_microseconds=0,
-        elapsed_work_microseconds=7_200_000_000,
+        elapsed_work_microseconds=visit.required_work_microseconds,
     )
     assert closed.closed_at == LATER
 
@@ -237,22 +322,22 @@ def test_sprint_scope_removed_time_follows_added_time():
 def test_sample_rejects_noncanonical_provenance_and_wrong_digest(field_name: str):
     sample = make_sample()
     document = getattr(sample, field_name)
-    with pytest.raises(ValueError, match="canonical"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, **{field_name: document + " "})
     digest_name = field_name.replace("_json", "_sha256")
-    with pytest.raises(ValueError, match="digest"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, **{digest_name: "f" * 64})
 
 
 def test_sample_links_explicit_draws_formulas_and_required_work_hash():
     sample = make_sample()
-    with pytest.raises(ValueError, match="unit"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, dwell_unit_value=0.5)
-    with pytest.raises(ValueError, match="sampled"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, touch_sampled_hours=2.5)
-    with pytest.raises(ValueError, match="required"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, required_work_sha256="0" * 64)
-    with pytest.raises(ValueError, match="required"):
+    with pytest.raises((TypeError, ValueError)):
         replace(sample, required_work_microseconds=1)
 
 
@@ -261,7 +346,7 @@ def test_sample_draw_provenance_is_bound_to_visit_and_canonical_message():
     document = json.loads(sample.dwell_draw_json)
     document["entity_id"] = str(uuid4())
     forged_json = canonical_json(document)
-    with pytest.raises(ValueError, match="visit"):
+    with pytest.raises((TypeError, ValueError)):
         replace(
             sample,
             dwell_draw_json=forged_json,
@@ -277,12 +362,101 @@ def test_sample_draw_message_rejects_boolean_coordinates(field_name: str):
     message[field_name] = False
     document["canonical_message"] = canonical_json(message)
     forged_json = canonical_json(document)
-    with pytest.raises(TypeError, match="integer"):
+    with pytest.raises((TypeError, ValueError)):
         replace(
             sample,
             dwell_draw_json=forged_json,
             dwell_draw_sha256=canonical_sha256(document),
         )
+
+
+def _blueprint_with_touch_hours(hours: float) -> ResolvedTeamBlueprint:
+    document = json.loads(BLUEPRINT_JSON)
+    timing_entry = document["timing"]["entries"][0]
+    timing_entry["touch_min"] = hours
+    timing_entry["touch_max"] = hours
+    return ResolvedTeamBlueprint.from_canonical_json(canonical_json(document))
+
+
+def _sample_input_with_seed(
+    blueprint: ResolvedTeamBlueprint, required_microseconds: int, seed: str
+):
+    team_id = team_rng_id(canonical_sha256(json.loads(blueprint.canonical_json())))
+    run_id = run_rng_id(team_id, 0)
+    work_item_id = item_rng_id(team_id, CreationKind.INITIAL_BACKLOG, 0)
+    visit_id = visit_rng_id(work_item_id, 0)
+    work_item = replace(
+        make_work_item(), id=work_item_id, team_id=team_id, run_id=run_id
+    )
+    visit = replace(
+        make_visit(), id=visit_id, team_id=team_id, run_id=run_id,
+        work_item_id=work_item_id, member_id=None,
+        required_work_microseconds=required_microseconds, elapsed_work_microseconds=0,
+        remaining_work_microseconds=required_microseconds,
+    )
+    stream = DeterministicRandomStream(seed, team_id, run_id)
+    dwell = stream.draw(DecisionOccurrence(visit_id, DecisionType.STATUS_DWELL, 0), 0)
+    touch = stream.draw(DecisionOccurrence(visit_id, DecisionType.STATUS_TOUCH, 0), 0)
+    input_type = getattr(scrum_state_module, "StatusVisitSampleInput")
+    return input_type(blueprint, work_item, visit, dwell, touch)
+
+
+@pytest.mark.parametrize(
+    "hours,expected_microseconds",
+    [(0.0, 0), (2**-11, 1_757_812), (3 * 2**-11, 5_273_438)],
+)
+def test_touch_hours_convert_to_exact_half_even_microseconds(hours, expected_microseconds):
+    blueprint = _blueprint_with_touch_hours(hours)
+    sample_input = _sample_input_with_seed(
+        blueprint, expected_microseconds, blueprint.seed
+    )
+    sample = StatusVisitSample.create(sample_input)
+    assert sample.required_work_microseconds == expected_microseconds
+
+
+def test_touch_hours_reject_signed_64_microsecond_overflow():
+    overflowing_hours = (2**63 / 3_600_000_000) + 1
+    blueprint = _blueprint_with_touch_hours(overflowing_hours)
+    sample_input = _sample_input_with_seed(blueprint, 0, blueprint.seed)
+    with pytest.raises(ValueError, match="signed SQLite"):
+        StatusVisitSample.create(sample_input)
+
+
+def test_status_sample_rejects_otherwise_consistent_draws_from_the_wrong_seed():
+    with pytest.raises(ValueError, match="authenticated"):
+        _sample_input_with_seed(BLUEPRINT, 8_647_914_917, "wrong-seed")
+
+
+def test_repeated_route_status_matches_the_exact_activity_step():
+    document = json.loads(BLUEPRINT_JSON)
+    route = document["workflow"]["routes"][0]
+    route["steps"].insert(
+        1,
+        {"required_activity": "analysis", "status_key": "DEVELOPMENT"},
+    )
+    document["workflow"]["statuses"][1]["activities"].append("analysis")
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(canonical_json(document))
+    team_id = team_rng_id(canonical_sha256(document))
+    run_id = run_rng_id(team_id, 0)
+    item_id = item_rng_id(team_id, CreationKind.INITIAL_BACKLOG, 0)
+    member_id = member_rng_id(team_id, 1)
+    work = replace(make_work_item(), id=item_id, team_id=team_id, run_id=run_id)
+    member = replace(make_member(), id=member_id, team_id=team_id)
+    visit = replace(
+        make_visit(),
+        id=visit_rng_id(item_id, 0),
+        team_id=team_id,
+        run_id=run_id,
+        work_item_id=item_id,
+        member_id=member_id,
+    )
+    state = ScrumStateWriteSet(
+        member_identities=(member,),
+        work_items=(work,),
+        status_visits=(visit,),
+    )
+
+    state.validate_against(blueprint)
 
 
 @pytest.mark.parametrize("value", [2**63, True, 0.5])
@@ -313,6 +487,22 @@ def test_natural_evaluation_rejects_wrong_types_and_naive_recording_time():
         replace(make_evaluation(), decision_type="RISK_CANCELLATION_OUTCOME")
     with pytest.raises(ValueError, match="aware"):
         replace(make_evaluation(), recorded_at=NOW.replace(tzinfo=None))
+
+
+@pytest.mark.parametrize(
+    "decision_type",
+    [DecisionType.RISK_REVIEW_REJECTION_OUTCOME, DecisionType.STATUS_DWELL],
+)
+def test_natural_state_rejects_decision_types_without_supported_owner(decision_type):
+    with pytest.raises(ValueError, match="supported natural"):
+        replace(make_evaluation(), decision_type=decision_type)
+    scope = SemanticCounterScope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+        ITEM_ID,
+        decision_type.value,
+    )
+    with pytest.raises(ValueError, match="supported natural"):
+        SemanticCounter(TEAM_ID, RUN_ID, scope, 0)
 
 
 def test_all_values_are_slotted_frozen_copy_stable_and_reconstruction_safe():
@@ -348,13 +538,14 @@ def test_write_set_is_tuple_only_deeply_immutable_and_snapshot_is_detached():
 
 
 def test_write_set_validates_sample_required_work_against_its_visit():
-    sample = replace(
-        make_sample(),
-        required_work_microseconds=1,
-        required_work_sha256=canonical_sha256({"required_work_microseconds": 1}),
+    visit = make_visit()
+    mismatched_visit = replace(
+        visit,
+        required_work_microseconds=visit.required_work_microseconds + 1,
+        remaining_work_microseconds=visit.remaining_work_microseconds + 1,
     )
     with pytest.raises(ValueError, match="visit required work"):
-        replace(make_write_set(), status_visit_samples=(sample,))
+        replace(make_write_set(), status_visits=(mismatched_visit,))
 
 
 def test_blueprint_configuration_is_absent_from_authoritative_state_contracts():

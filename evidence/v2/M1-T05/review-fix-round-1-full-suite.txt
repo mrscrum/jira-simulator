@@ -1,0 +1,36 @@
+sssssssssssssssssssssssssssssssssssssssssss............................. [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 16%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 32%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 53%]
+........................................................................ [ 58%]
+........................................................................ [ 64%]
+........................................................................ [ 69%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+........................................................................ [ 91%]
+........................................................................ [ 96%]
+................................................                         [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/unit/test_jira_bootstrapper.py: 13 warnings
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/integrations/jira_bootstrapper.py:57: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await self._ensure_custom_fields(session, team)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_models_jira.py::TestJiraConfig::test_key_is_primary_key
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/unit/test_models_jira.py:55: SAWarning: New instance <JiraConfig at 0x10f606000> with identity key (<class 'app.models.jira_config.JiraConfig'>, ('test_key',), None) conflicts with persistent instance <JiraConfig at 0x10f6044d0>
+    session.commit()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1301 passed, 43 skipped, 15 warnings in 44.96s

@@ -21,14 +21,8 @@ MAX_COUNTER_NEXT_VALUE = 2**53
 MAX_SQLITE_INTEGER = 2**63 - 1
 MAX_FINITE_FLOAT = "1.7976931348623157e308"
 RUN_REFERENCE = ["v2_runs.team_id", "v2_runs.id"]
-DECISION_TYPES_SQL = (
-    "('BACKLOG_ISSUE_TYPE','BACKLOG_STORY_POINTS','BACKLOG_PRIORITY',"
-    "'ITEM_DESCRIPTION_QUALITY','ITEM_LATENT_COMPLEXITY','STATUS_DWELL','STATUS_TOUCH',"
-    "'SCRUM_CAPACITY_TARGET','RISK_EXTERNAL_DEPENDENCY_OUTCOME',"
-    "'RISK_EXTERNAL_DEPENDENCY_DURATION','RISK_CANCELLATION_OUTCOME',"
-    "'RISK_REVIEW_REJECTION_OUTCOME','RISK_REWORK_DURATION',"
-    "'RISK_MEMBER_UNAVAILABLE_OUTCOME','RISK_MEMBER_UNAVAILABLE_DURATION',"
-    "'FORCED_REWORK_DURATION','KANBAN_ARRIVAL_GAP','KANBAN_CLASS_OF_SERVICE')"
+NATURAL_DECISION_TYPES_SQL = (
+    "('RISK_CANCELLATION_OUTCOME','RISK_MEMBER_UNAVAILABLE_OUTCOME')"
 )
 SPRINT_OBSERVED_CHECK = (
     "(lifecycle = 'PLANNED' AND observed_start_at IS NULL AND observed_end_at IS NULL) OR "
@@ -63,7 +57,24 @@ COUNTER_SCOPE_CHECK = (
     "('INITIAL_BACKLOG','SCRUM_REPLENISHMENT','KANBAN_ARRIVAL',"
     "'AGENT_CREATED','JIRA_IMPORTED')) OR "
     "(kind = 'VISIT_ORDINAL' AND scope_key = 'VISIT') OR "
-    f"(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key IN {DECISION_TYPES_SQL})"
+    f"(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key IN {NATURAL_DECISION_TYPES_SQL})"
+)
+COUNTER_OWNER_CHECK = (
+    "(kind IN ('SPRINT_ORDINAL','ITEM_SEQUENCE') "
+    "AND work_item_id IS NULL AND member_id IS NULL) OR "
+    "(kind = 'VISIT_ORDINAL' AND scope_id = work_item_id AND work_item_id IS NOT NULL "
+    "AND member_id IS NULL) OR "
+    "(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key = 'RISK_CANCELLATION_OUTCOME' "
+    "AND scope_id = work_item_id AND work_item_id IS NOT NULL AND member_id IS NULL) OR "
+    "(kind = 'NATURAL_DECISION_OCCURRENCE' AND scope_key = "
+    "'RISK_MEMBER_UNAVAILABLE_OUTCOME' AND scope_id = member_id AND member_id IS NOT NULL "
+    "AND work_item_id IS NULL)"
+)
+EVALUATION_OWNER_CHECK = (
+    "(decision_type = 'RISK_CANCELLATION_OUTCOME' AND semantic_entity_id = work_item_id "
+    "AND work_item_id IS NOT NULL AND member_id IS NULL) OR "
+    "(decision_type = 'RISK_MEMBER_UNAVAILABLE_OUTCOME' AND semantic_entity_id = member_id "
+    "AND member_id IS NOT NULL AND work_item_id IS NULL)"
 )
 
 
@@ -528,13 +539,18 @@ def _create_semantic_counters() -> None:
         sa.Column("kind", sa.String(40), primary_key=True),
         sa.Column("scope_id", sa.String(36), primary_key=True),
         sa.Column("scope_key", sa.String(60), primary_key=True),
+        sa.Column("work_item_id", sa.String(36), nullable=True),
+        sa.Column("member_id", sa.String(36), nullable=True),
         sa.Column("next_value", sa.Integer(), nullable=False),
         _run_foreign_key("fk_v2_counters_team_run"),
+        _work_item_foreign_key("fk_v2_counters_work_item"),
+        _member_owner_foreign_key("fk_v2_counters_member"),
         sa.CheckConstraint(
             _integer_range("next_value", MAX_COUNTER_NEXT_VALUE),
             name="ck_v2_semantic_counters_next_value",
         ),
         sa.CheckConstraint(COUNTER_SCOPE_CHECK, name="ck_v2_semantic_counters_scope"),
+        sa.CheckConstraint(COUNTER_OWNER_CHECK, name="ck_v2_semantic_counters_owner"),
     )
 
 
@@ -543,6 +559,14 @@ def _create_natural_evaluations() -> None:
         "v2_natural_decision_evaluations",
         *_evaluation_columns(),
         _run_foreign_key("fk_v2_evaluations_team_run"),
+        _work_item_foreign_key("fk_v2_evaluations_work_item"),
+        _member_owner_foreign_key("fk_v2_evaluations_member"),
+        *_evaluation_constraints(),
+    )
+
+
+def _evaluation_constraints() -> list[sa.Constraint]:
+    return [
         sa.UniqueConstraint(
             "team_id",
             "run_id",
@@ -564,10 +588,11 @@ def _create_natural_evaluations() -> None:
             name="ck_v2_evaluations_occurrence",
         ),
         sa.CheckConstraint(
-            f"decision_type IN {DECISION_TYPES_SQL}",
+            f"decision_type IN {NATURAL_DECISION_TYPES_SQL}",
             name="ck_v2_evaluations_decision_type",
         ),
-    )
+        sa.CheckConstraint(EVALUATION_OWNER_CHECK, name="ck_v2_evaluations_owner"),
+    ]
 
 
 def _evaluation_columns() -> list[sa.Column]:
@@ -577,6 +602,8 @@ def _evaluation_columns() -> list[sa.Column]:
         sa.Column("run_id", sa.String(36), nullable=False),
         sa.Column("decision_type", sa.String(60), nullable=False),
         sa.Column("semantic_entity_id", sa.String(36), nullable=False),
+        sa.Column("work_item_id", sa.String(36), nullable=True),
+        sa.Column("member_id", sa.String(36), nullable=True),
         sa.Column("business_date", sa.Date(), nullable=False),
         sa.Column("occurrence", sa.Integer(), nullable=False),
         sa.Column("commit_id", sa.String(36), nullable=False),

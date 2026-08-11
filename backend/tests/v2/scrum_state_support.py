@@ -1,5 +1,7 @@
+import json
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from uuid import UUID
 
 from app.v2.domain.canonical_json import canonical_json, canonical_sha256, semantic_uuid
@@ -10,10 +12,12 @@ from app.v2.domain.deterministic_rng import (
     DeterministicRandomStream,
     item_rng_id,
     member_rng_id,
+    run_rng_id,
     sprint_rng_id,
+    team_rng_id,
     visit_rng_id,
 )
-from app.v2.domain.sampling import DwellAnchors, TouchBounds, sample_dwell, sample_touch
+from app.v2.domain.sampling import dwell_anchors, sample_dwell, sample_touch, touch_bounds
 from app.v2.domain.scrum_state import (
     FactorKind,
     MemberAvailabilityOverlay,
@@ -35,17 +39,27 @@ from app.v2.domain.scrum_state import (
     WorkItemState,
     WorkPriority,
 )
-from app.v2.persistence.team_models import V2RunModel, V2TeamModel
+from app.v2.domain.team_blueprint import ResolvedTeamBlueprint
+from app.v2.persistence.team_models import V2RunModel, V2TeamBlueprintModel, V2TeamModel
 
-TEAM_ID = UUID("b04d60fb-bb7e-5ef9-a005-679e1b24d3f5")
-RUN_ID = UUID("dad7f46e-af1f-5d28-9e09-28d287149de5")
-MEMBER_ID = member_rng_id(TEAM_ID, 0)
+BLUEPRINT_JSON = (
+    Path(__file__).parent.joinpath("fixtures/resolved_scrum_blueprint.json")
+    .read_text(encoding="utf-8")
+    .strip()
+)
+BLUEPRINT = ResolvedTeamBlueprint.from_canonical_json(BLUEPRINT_JSON)
+BLUEPRINT_SHA256 = canonical_sha256(json.loads(BLUEPRINT_JSON))
+TEAM_ID = team_rng_id(BLUEPRINT_SHA256)
+RUN_ID = run_rng_id(TEAM_ID, 0)
+MEMBER_INDEX = 1
+MEMBER_ID = member_rng_id(TEAM_ID, MEMBER_INDEX)
 ITEM_ID = item_rng_id(TEAM_ID, CreationKind.INITIAL_BACKLOG, 0)
 SPRINT_ID = sprint_rng_id(TEAM_ID, 0)
 VISIT_ID = visit_rng_id(ITEM_ID, 0)
 NOW = datetime(2026, 8, 10, 18, 30, tzinfo=UTC)
 LATER = NOW + timedelta(hours=4)
 BUSINESS_DATE = date(2026, 8, 10)
+REQUIRED_WORK_MICROSECONDS = 8_647_914_917
 
 
 def _canonical_pair(document: dict[str, object]) -> tuple[str, str]:
@@ -67,7 +81,7 @@ def _draw_document(draw) -> dict[str, object]:
 
 
 def make_member() -> MemberIdentity:
-    return MemberIdentity(MEMBER_ID, TEAM_ID, 0)
+    return MemberIdentity(MEMBER_ID, TEAM_ID, MEMBER_INDEX)
 
 
 def make_overlay() -> MemberAvailabilityOverlay:
@@ -101,11 +115,11 @@ def make_work_item() -> WorkItemState:
         CreationKind.INITIAL_BACKLOG,
         0,
         "STORY",
-        5,
+        3,
         WorkPriority.HIGH,
         2,
         WorkItemLifecycle.ACTIVE,
-        "development",
+        "DEVELOPMENT",
         NOW,
         NOW,
     )
@@ -162,14 +176,14 @@ def make_visit() -> StatusVisitState:
         ITEM_ID,
         0,
         StatusVisitLifecycle.OPEN,
-        "development",
         "DEVELOPMENT",
+        "development",
         MEMBER_ID,
         NOW,
         None,
-        7_200_000_000,
+        REQUIRED_WORK_MICROSECONDS,
         1_800_000_000,
-        5_400_000_000,
+        REQUIRED_WORK_MICROSECONDS - 1_800_000_000,
         300_000_000,
         0,
         1_800_000_000,
@@ -177,42 +191,33 @@ def make_visit() -> StatusVisitState:
 
 
 def make_sample() -> StatusVisitSample:
-    dwell_draw, touch_draw, dwell, touch, provenance = _sample_inputs()
-    dwell_parameters, touch_parameters, dwell_provenance, touch_provenance = provenance
-    required_document = {"required_work_microseconds": 7_200_000_000}
-    return StatusVisitSample(
-        VISIT_ID,
-        TEAM_ID,
-        RUN_ID,
-        "SCRUM_DEFAULT",
-        "1.0",
-        "DWELL_LOG_PIECEWISE_V1",
-        "TOUCH_LINEAR_V1",
-        *dwell_parameters,
-        *touch_parameters,
-        *dwell_provenance,
-        *touch_provenance,
-        dwell_draw.unit_value,
-        touch_draw.unit_value,
-        dwell.sampled_hours,
-        touch.sampled_hours,
-        7_200_000_000,
-        canonical_sha256(required_document),
+    from app.v2.domain import scrum_state as state_module
+
+    dwell_draw, touch_draw, _, _, _ = _sample_inputs()
+    sample_input_type = getattr(state_module, "StatusVisitSampleInput")
+    sample_input = sample_input_type(
+        BLUEPRINT,
+        make_work_item(),
+        make_visit(),
+        dwell_draw,
+        touch_draw,
     )
+    return StatusVisitSample.create(sample_input)
 
 
 def _sample_inputs() -> tuple[object, ...]:
-    stream = DeterministicRandomStream("task-5-seed", TEAM_ID, RUN_ID)
+    stream = DeterministicRandomStream(BLUEPRINT.seed, TEAM_ID, RUN_ID)
     dwell_draw = stream.draw(DecisionOccurrence(VISIT_ID, DecisionType.STATUS_DWELL, 0), 0)
     touch_draw = stream.draw(DecisionOccurrence(VISIT_ID, DecisionType.STATUS_TOUCH, 0), 0)
-    anchors = DwellAnchors(0.0, 0.5, 1.0, 3.0, 4.0)
-    bounds = TouchBounds(1.0, 3.0)
+    timing_entry = BLUEPRINT.timing.entries[0]
+    anchors = dwell_anchors(timing_entry)
+    bounds = touch_bounds(timing_entry)
     dwell = sample_dwell(anchors, dwell_draw.unit_value)
     touch = sample_touch(bounds, touch_draw.unit_value)
     dwell_parameters = _canonical_pair(
-        {"maximum": 4.0, "minimum": 0.0, "p25": 0.5, "p50": 1.0, "p99": 3.0}
+        {"maximum": 6.0, "minimum": 1.0, "p25": 2.0, "p50": 3.0, "p99": 5.0}
     )
-    touch_parameters = _canonical_pair({"maximum": 3.0, "minimum": 1.0})
+    touch_parameters = _canonical_pair({"maximum": 4.0, "minimum": 1.0})
     dwell_provenance = _canonical_pair(_draw_document(dwell_draw))
     touch_provenance = _canonical_pair(_draw_document(touch_draw))
     provenance = (dwell_parameters, touch_parameters, dwell_provenance, touch_provenance)
@@ -262,26 +267,41 @@ def make_write_set() -> ScrumStateWriteSet:
 
 def seed_parent_team_and_run(session_factory) -> None:
     with session_factory.begin() as session:
-        session.add(
-            V2TeamModel(
-                id=str(TEAM_ID),
-                idempotency_key="task-5-parent",
-                blueprint_sha256="1" * 64,
-                name="Task 5 Team",
-                methodology="SCRUM",
-                created_at=NOW,
-            )
-        )
+        session.add(_team_model())
         session.flush()
-        session.add(
-            V2RunModel(
-                id=str(RUN_ID),
-                team_id=str(TEAM_ID),
-                ordinal=0,
-                state="ACTIVE",
-                created_at=NOW,
-            )
-        )
+        session.add_all((_blueprint_model(), _run_model()))
+
+
+def _team_model() -> V2TeamModel:
+    return V2TeamModel(
+        id=str(TEAM_ID),
+        idempotency_key="task-5-parent",
+        blueprint_sha256=BLUEPRINT_SHA256,
+        name="Task 5 Team",
+        methodology="SCRUM",
+        created_at=NOW,
+    )
+
+
+def _blueprint_model() -> V2TeamBlueprintModel:
+    return V2TeamBlueprintModel(
+        id=str(semantic_uuid(f"blueprint/{TEAM_ID}/{BLUEPRINT_SHA256}")),
+        team_id=str(TEAM_ID),
+        schema_version=BLUEPRINT.schema_version,
+        canonical_json=BLUEPRINT_JSON,
+        sha256=BLUEPRINT_SHA256,
+        recorded_at=NOW,
+    )
+
+
+def _run_model() -> V2RunModel:
+    return V2RunModel(
+        id=str(RUN_ID),
+        team_id=str(TEAM_ID),
+        ordinal=0,
+        state="ACTIVE",
+        created_at=NOW,
+    )
 
 
 def for_team_run(state: ScrumStateWriteSet, team_id: UUID, run_id: UUID) -> ScrumStateWriteSet:

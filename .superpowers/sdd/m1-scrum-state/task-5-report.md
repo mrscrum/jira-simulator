@@ -194,3 +194,92 @@ No warning was suppressed or broadened.
 No unresolved implementation concern. The exact commit remains intentionally pending until this
 report and the mandatory current-state documentation are included in it. M1 remains in progress;
 Task 6 stays unchecked.
+
+## Fix round 1 — authoritative binding review
+
+Review-fix base: `a46b615` (`feat(v2): persist authoritative scrum state`). This round is limited to
+hardening the reviewed Task 5 state contract in place, including Alembic revision 015. It adds no
+revision 016, Task 6 behavior, frontend, external integration, deployment, push, or live-system
+access.
+
+### Review REDs
+
+All consolidated regression tests were written before their fixes. From `backend/`, the exact
+consolidated RED command was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-1-red.txt
+```
+
+The expected result was exit `1`: `141 failed, 97 passed in 14.88s`. The failures demonstrated the
+unsealed runtime-subclass/`isinstance` paths, samples that were structurally self-consistent but not
+authenticated against the persisted blueprint seed and timing cell, missing typed natural-owner
+columns and foreign keys, inexact float-to-microsecond conversion, incomplete blueprint graph and
+reference validation, and conflicts that reached SQL instead of rejecting before Task 5 DML.
+
+Four smaller witnessed REDs cover fixes discovered while making that selection green:
+
+- `review-fix-round-1-export-red.txt`: `1 failed in 0.11s`; the new trusted sample input was absent
+  from the additive closed public export.
+- `review-fix-round-1-aggregate-red.txt`: `4 failed in 0.94s`; active-sprint, open-visit,
+  current-scope, and natural-evaluation occurrence conflicts reached SQLite uniqueness constraints.
+- `review-fix-round-1-scalar-red.txt`: `1 failed in 0.17s`; a `UUID` subclass could exploit equality
+  behavior to bypass exact scalar validation.
+- `review-fix-round-1-route-red.txt`: `1 failed in 0.20s`; a repeated status in a blueprint route
+  exposed status-only lookup instead of exact status/activity-step matching.
+
+### Hardened contract
+
+- Every Task 5 public or nested value, tuple member, query, write set, snapshot, trusted factory
+  input, and scalar boundary now requires its exact type. Runtime subclass creation and
+  `isinstance`-style bypasses reject while frozen/slotted behavior, copy/deepcopy identity,
+  replacement revalidation, and pickle/reconstruction rejection remain intact.
+- `StatusVisitSample` is created only from a sealed trusted input containing the resolved blueprint,
+  work item, visit, and the exact Task 3 dwell/touch `UniformDraw` values. Creation and reload
+  regenerate HMAC draws from the blueprint seed and exact team/run/entity/decision/occurrence/draw
+  coordinates, bind the exact issue-type/story-point/status/activity timing cell, and verify
+  algorithm, version, parameters, canonical messages, inner digests, sampled results, required-work
+  digest, and enclosing persisted values. Mutating any bound field rejects.
+- Counter and natural-evaluation ownership is explicit in both the ORM and revision 015, with no
+  revision 016: nullable `work_item_id` and `member_id` columns, composite owner foreign keys, and
+  shape checks bind visit/cancellation records to work items and member-unavailable records to
+  members. Natural evaluations are closed to cancellation and member-unavailable outcomes.
+- Hours convert to non-negative signed-64-bit microseconds through `float.as_integer_ratio()` and
+  exact nearest-ties-to-even integer arithmetic. Boundary proofs include `2**-11 -> 1_757_812` and
+  `3 * 2**-11 -> 5_273_438`; visit required work must equal the authenticated touch sample exactly.
+- Before any Task 5 write, the mapper loads the actual persisted team blueprint/run in the caller's
+  session and validates team/run ownership, member bounds and responsibility, status/activity route
+  pairs, timing cells, references, duplicate identities, mixed aggregates, open-state rules, and
+  semantic/partial uniqueness conflicts. Load likewise rejects missing or mixed authority and
+  reauthenticates persisted samples.
+
+SQLite boolean-storage correction: SQLite binds Python booleans as integer storage, so raw SQL
+cannot prove that a bound `True` was not an integer `1`. Exact boolean rejection is therefore proven
+at the public domain and mapper validation boundaries. SQL checks prove integer storage class and
+reject non-boolean real values. This statement supersedes any earlier wording that implied raw SQL
+or SQLite checks distinguish booleans from their stored integer representation.
+
+### Fix-round verification
+
+The final focused command was identical to the consolidated RED command except for the tee target
+`review-fix-round-1-green.txt`; it passed `245 passed in 14.09s`. Retained regression and static
+results are:
+
+- Task 1 focused: `56 passed, 1 warning in 1.34s`.
+- Task 2 focused: `186 passed in 10.41s`.
+- Task 3 focused: `251 passed in 0.43s`.
+- Task 4 focused: `146 passed in 0.27s`.
+- All v2: `783 passed, 1 warning in 16.89s`.
+- Full safe backend: `1301 passed, 43 skipped, 15 warnings in 44.96s`.
+- Ruff: exit `0`, `All checks passed!`.
+- Alembic: sole head `015`, parent `014`, empty branch output, linear history; revision-015
+  populated round trip and ORM parity: `4 passed in 1.35s`.
+- Shape scan: `11` changed Python files and no function over 30 lines or accepting more than three
+  arguments.
+- Architecture boundary selection: `15 passed in 0.23s`.
+- Cold-import permutations: `41 passed in 8.76s`.
+
+The warning inventory remains the existing baseline categories. No external provider, Jira/OpenAI
+account, production database, live environment, deployment target, or remote Git branch was
+accessed.

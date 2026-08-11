@@ -47,6 +47,17 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 1 bound authoritative Scrum state to its complete trusted
+authority. Task 5 values now reject runtime and scalar subclasses; status samples can be created
+only from exact authenticated Task 3 draws and are revalidated after restart against the persisted
+blueprint seed, team/run/visit coordinate, timing cell, sampler versions, formulas, and exact
+half-even microseconds. Revision 015 now gives visit/natural counters and natural evaluations typed
+work-item/member owner columns with composite foreign keys and exact owner-shape checks. The mapper
+loads the exact team/blueprint/run in the caller session, validates blueprint graph/reference and
+partial/semantic uniqueness before DML, and rejects persisted sample corruption on load. Task 6,
+revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1 completion
+remain open or untouched.
+
 On 2026-08-11, M1 Scrum-state Task 5 added immutable, slotted authoritative state values and the
 third isolated v2 mapping module. Revision 015 creates 11 constrained tables for semantic member
 identity, runtime availability/consumption, work/factors, sprints/scope, status visits/samples,
@@ -149,17 +160,17 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 4 review fix round 2:
+Current local evidence after Task 5 review fix round 1:
 
-- Backend: 1074 passed, 43 skipped, 15 baseline warnings.
-- V2: 556 passed, 1 baseline warning.
-- Task 4 focused: 142 passed.
-- Task 3 focused: 247 passed.
-- Task 1 focused: 52 passed, 1 baseline warning.
-- Task 2 focused: 148 passed.
+- Backend: 1301 passed, 43 skipped, 15 baseline warnings.
+- V2: 783 passed, 1 baseline warning.
+- Task 5 focused: 245 passed.
+- Task 4 focused: 146 passed.
+- Task 3 focused: 251 passed.
+- Task 1 focused: 56 passed, 1 baseline warning.
+- Task 2 focused: 186 passed.
 - Ruff: passed.
-- Frontend: 2 tests passed.
-- Frontend production build: passed with a bundle-size warning.
+- Alembic: sole revision 015 head, no branches; populated round trip and ORM parity passed.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -191,8 +202,9 @@ Current local evidence after Task 4 review fix round 2:
   advance, transaction command/result, and page contracts.
 - `backend/app/v2/domain/deterministic_rng.py` — closed semantic ID/decision enums, exact UUIDv5
   paths, scoped safe-integer coordinates, and sealed stateless HMAC-U53 draws.
-- `backend/app/v2/domain/immutable_value.py` — shared frozen/slotted Task 3 copy and reconstruction
-  policy; the policy covers ordinary mutation paths, not explicit `object.__setattr__` misuse.
+- `backend/app/v2/domain/immutable_value.py` — shared frozen/slotted Task 3/5 copy, reconstruction,
+  and runtime-subclass policy; it covers ordinary mutation paths, not explicit
+  `object.__setattr__` misuse.
 - `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
   bounded duration samples whose retained result is formula-validated.
 - `backend/app/v2/domain/business_calendar.py` — resolved immutable business calendar, strict
@@ -202,8 +214,9 @@ Current local evidence after Task 4 review fix round 2:
 - `backend/app/v2/domain/us_federal_calendar.py` — exact observed `US_FEDERAL_V1` rules plus pure
   team-zone-derived starter materialization, canonical-horizon authentication, and idempotent
   ten-year-block catch-up.
-- `backend/app/v2/domain/scrum_state.py` — frozen Task 5 lifecycle/state, exact clocks/provenance,
-  simulator rank, semantic counter, evaluation, write-set, query, and detached snapshot contracts.
+- `backend/app/v2/domain/scrum_state.py` — sealed Task 5 lifecycle/state, trusted blueprint-bound
+  timing samples, exact clocks/provenance, simulator rank, semantic counter, evaluation, write-set,
+  query, and detached snapshot contracts.
 - `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
   exact composite ownership, check, unique, and partial-index constraints.
 - `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load mapping; it

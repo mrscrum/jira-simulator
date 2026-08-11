@@ -36,4 +36,9 @@ def immutable_dataclass(value_type: type) -> type:
     immutable_type = dataclass(frozen=True, slots=True)(value_type)
     immutable_type.__getstate__ = ImmutableValue.__getstate__
     immutable_type.__setstate__ = ImmutableValue.__setstate__
+    immutable_type.__init_subclass__ = classmethod(_reject_subclassing)
     return immutable_type
+
+
+def _reject_subclassing(value_type: type, **_kwargs: object) -> NoReturn:
+    raise TypeError(f"{value_type.__name__} does not support runtime subclassing")

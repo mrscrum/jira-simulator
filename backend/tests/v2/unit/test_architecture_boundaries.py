@@ -343,6 +343,7 @@ def _task5_domain_exports() -> set[str]:
         "SprintState",
         "StatusVisitLifecycle",
         "StatusVisitSample",
+        "StatusVisitSampleInput",
         "StatusVisitState",
         "WorkItemFactor",
         "WorkItemLifecycle",
