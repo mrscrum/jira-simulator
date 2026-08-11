@@ -28,3 +28,5 @@ Status: NOT STARTED
 ## Notes
 - Starts only after Gate G0 and Stage 0 UAT.
 - V2 is additive; v1 precompute/scheduler behavior remains frozen.
+- Active near-term execution is tracked in [`m1-persistence-spine.md`](m1-persistence-spine.md);
+  this detailed 17-task draft remains reference-only and is not activated by that plan.

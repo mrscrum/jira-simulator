@@ -144,3 +144,15 @@
   milestones without repeated confirmation.
 - Did not interpret it as authorization to push, deploy, approve Pavel's UAT, expose secrets, or
   mutate a live Jira tenant; the prompt directs the agent to use fakes when those gates are absent.
+
+## [2026-08-10] M1 — Persistence spine planning
+- Chose a separate `v2_teams` aggregate root and exclusively `v2_*` runtime tables so v2 does not
+  require a discriminator on, or runtime coupling to, legacy teams.
+- Chose one canonical, fully resolved Scrum blueprint snapshot with every calendar, member,
+  responsibility/capacity, workflow/timing, backlog/risk, Jira-name, content, and Scrum-policy value
+  materialized before persistence so reload behavior has no hidden catalog/default dependency.
+- Chose an aware-UTC storage type that rejects naive datetimes, normalizes aware inputs to UTC, and
+  restores UTC tzinfo on load so SQLite does not erase time provenance at the domain boundary.
+- Chose migration 013 for the independently committed team/blueprint/run/runtime shell and migration
+  014 for the later live-slice/evidence/projection unit of work so each task has a complete downgrade
+  and can be reviewed or reverted independently.
