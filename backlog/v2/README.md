@@ -10,9 +10,10 @@ not a fixed microtask sequence.
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
   state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
-  reported CLEAN with no Critical or Important findings; Task 6 original commit `4cfaa65` and
-  round-1 commit `6bac956` now have a verified round-2 exact-UTC result normalization, but Task 6
-  remains open pending independent Ultra re-review in [`m1-scrum-state.md`](m1-scrum-state.md)
+  reported CLEAN with no Critical or Important findings; Task 6 commit chain `4cfaa65` → `6bac956`
+  → `47f9e55` is also technically accepted after independent Ultra review reported CLEAN with no
+  Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan;
+  the next detailed M1 slice has not yet been selected
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -33,7 +34,7 @@ business-calendar, fixed-cadence, and review-hardened `US_FEDERAL_V1` horizon pr
 starter year is team-zone-derived, only available IANA keys are accepted, canonical horizons are
 authenticated before use, stale extensions catch up idempotently in ten-year blocks, and extreme
 timezone/local-boundary conversions expose a stable domain range error. M1 remains in progress. The
-active [`m1-scrum-state.md`](m1-scrum-state.md) plan freezes exactly two context-sized slices:
+completed [`m1-scrum-state.md`](m1-scrum-state.md) plan contains exactly two context-sized slices:
 Task 5 is complete with review-hardened revision-015 authoritative state persistence, sealed and
 blueprint-authenticated timing provenance, typed semantic-owner constraints, exact zero-touch
 null-activity visits, sample-complete snapshots, and sparse touched-row after-images resolved
@@ -56,8 +57,9 @@ aware result instants retain exact UTC while naive instants still reject. Delete
 counters remain stale; revision 015 remains the sole head and no external call or revision 016 was
 added. Verification is 252 focused, 1037 all-v2 with one baseline warning, and 1555 full-backend
 with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and no-migration checks are clean.
-Original commit `4cfaa65`, round-1 commit `6bac956`, and the round-2 direct probe are verified;
-independent Ultra re-review remains pending, so Task 6 and M1 stay open. Capacity
+Original commit `4cfaa65`, round-1 commit `6bac956`, and round-2 commit `47f9e55` are verified; the
+independent Ultra technical review reported CLEAN with no Critical or Important findings. Task 6 and
+the Scrum-state plan are complete, while M1 remains in progress. Capacity
 allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
 wiring, UAT, and any next task remain deferred.
 

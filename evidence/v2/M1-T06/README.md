@@ -6,10 +6,11 @@
 - Original Task 6 commit: `4cfaa65` (`feat(v2): commit scrum state atomically`)
 - Review-fix round 1 commit: `6bac956` (`fix(v2): enforce authoritative after-image identity`)
 - Review-fix round 2 base: `6bac956`
-- Exact round-2 subject: `fix(v2): normalize authoritative result instants`
+- Review-fix round 2 commit: `47f9e55` (`fix(v2): normalize authoritative result instants`)
 - Alembic remains at sole linear head `015`; Task 6 creates no revision `016`.
-- The round-2 verification matrix and direct probe are GREEN. Independent Ultra re-review remains
-  pending, so Task 6 and M1 remain open.
+- The round-2 verification matrix and direct probe are GREEN. Independent Ultra technical review
+  reported CLEAN with no Critical or Important findings, so Task 6 is accepted and complete. M1
+  remains in progress.
 - No Jira/OpenAI/provider call, projection delivery, deployment, push, UAT, or live mutation ran.
 
 Task 6 adds immutable authoritative command/result values and one atomic SQLAlchemy operation. The
@@ -215,6 +216,12 @@ Final retained verification:
 
 The full-suite warning inventory remains exactly the documented baseline. No migration, external or
 live call, deployment, push, UAT, or M1 completion was added.
+
+## Technical acceptance
+
+The independent Ultra technical review after commit `47f9e55` reported CLEAN with no Critical or
+Important findings. Task 6 is accepted and complete. This closes only the two-task Scrum-state plan;
+M1 remains in progress, and no Task 7 or next detailed slice was selected.
 
 ## Files under test
 

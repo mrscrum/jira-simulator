@@ -12,8 +12,9 @@ evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
 The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
-`backlog/v2/`, and `backlog/v2/m1-scrum-state.md` is the active reviewable two-task implementation
-plan. Historical Stage 4/5 plans are not executable for v2.
+`backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
+two-task Scrum-state plan. The next detailed M1 slice has not been selected. Historical Stage 4/5
+plans are not executable for v2.
 
 ## Product Boundary
 
@@ -60,10 +61,11 @@ initialization authority. Committed runtime/ledger results are deeply revalidate
 counters/evaluations must be exact complete-snapshot members, and visible natural owner-kind
 cross-binding rejects before session creation. Review fix round 2 now immutably rebuilds every
 nested committed runtime/ledger value so each aware instant is retained with exact UTC tzinfo;
-naive instants still reject and caller-supplied frozen values stay unchanged. Its direct probe is
-GREEN in the round-2 verification matrix and direct probe; independent Ultra re-review remains
-pending. Revision 015 and external boundaries are
-unchanged, M1 stays in progress, and no Task 7 has been selected.
+naive instants still reject and caller-supplied frozen values stay unchanged. Round 2 is commit
+`47f9e55` (`fix(v2): normalize authoritative result instants`). Its verification matrix and direct
+probe are GREEN, and independent Ultra technical review reported CLEAN with no Critical or Important
+findings. Task 6 and the Scrum-state plan are complete; revision 015 and external boundaries are
+unchanged, M1 stays in progress, and no next detailed slice has been selected.
 
 On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A complete same-key
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
@@ -72,7 +74,8 @@ identities after an external cascade deletion, eliminating two sample identity-c
 from `1 failed in 0.28s` to `1 passed in 0.27s`. The full verification matrix is GREEN, the fix was
 committed as `0782070` (`fix(v2): detach cascaded scrum identities`), and the subsequent independent
 Ultra technical review reported CLEAN with no Critical or Important findings. Task 5 is accepted;
-Task 6 remains open and M1 remains in progress.
+Task 6 was still open at that checkpoint and is now accepted as described above. M1 remains in
+progress.
 
 On 2026-08-11, Task 5 review fix round 4 made every mapper authority/state read refresh matching
 clean ORM identities from the current transaction's database view. Cached team/run/blueprint/sample
@@ -82,8 +85,8 @@ the same boundary. A complete visit/sample after-image can restore an externally
 visit without `StaleDataError` or SQLAlchemy identity-conflict warnings because only the
 confirmed-missing stale visit identity is detached first. The focused and full round-4 verification
 matrix is GREEN, and the change is committed as `9049e1a`
-(`fix(v2): refresh authoritative scrum reads`). Revision 015, Task 6, external calls, deployment,
-UAT, and M1 completion remain unchanged.
+(`fix(v2): refresh authoritative scrum reads`). At that checkpoint, revision 015 and the Task 6
+boundary were unchanged; external calls, deployment, UAT, and M1 completion were untouched.
 
 On 2026-08-11, Task 5 review fix round 3 made both caller-session mapper entry points reject
 non-empty ORM `new`, `dirty`, or `deleted` state before authority/candidate SQL, preserving rollback
@@ -112,8 +115,8 @@ half-even microseconds. Revision 015 now gives visit/natural counters and natura
 work-item/member owner columns with composite foreign keys and exact owner-shape checks. The mapper
 loads the exact team/blueprint/run in the caller session, validates blueprint graph/reference and
 partial/semantic uniqueness before DML, and rejects persisted sample corruption on load. Task 6,
-revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1 completion
-remain open or untouched.
+revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1 completion were
+open or untouched at that checkpoint; Task 6 is now accepted as described above.
 
 On 2026-08-11, M1 Scrum-state Task 5 added immutable, slotted authoritative state values and the
 third isolated v2 mapping module. Revision 015 creates 11 constrained tables for semantic member
@@ -123,8 +126,8 @@ run-derived reference is composite team/run owned, duration state is exact signe
 microseconds, and timing provenance is canonical and bound to its visit/sample coordinates. The
 caller-owned mapper validates before inserts, flushes without transaction ownership, returns
 detached semantic ordering, and reloads exactly after engine disposal. Populated revision 014
-survives 014→015→014→015 unchanged. Task 6 remains open; Jira/OpenAI, deployment, UAT, and M1
-completion were not touched.
+survives 014→015→014→015 unchanged. Task 6 was still open at that checkpoint and is now accepted as
+described above. Jira/OpenAI, deployment, UAT, and M1 completion were not touched.
 
 On 2026-08-11, Task 4 review fix round 2 centralized business-calendar timezone conversion and
 local-boundary range handling. `business_date`, `working_interval`, nested next-working/addition,
@@ -217,7 +220,7 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 6 review-fix round 2:
+Accepted Task 6 evidence:
 
 - Task 6 focused: 252 passed.
 - V2, including Tasks 1-6: 1037 passed with 1 baseline warning.
@@ -225,8 +228,8 @@ Current local evidence after Task 6 review-fix round 2:
 - Ruff, touched-function shape/static/import checks, Alembic sole revision 015 with parent 014,
   empty branches, linear history, and the no-migration diff are clean.
 - Evidence is retained under `evidence/v2/M1-T06/`; original commit is `4cfaa65`, round-1 commit is
-  `6bac956`, exact round-2 subject is `fix(v2): normalize authoritative result instants`, and
-  independent Ultra re-review remains pending.
+  `6bac956`, round-2 commit is `47f9e55`, and independent Ultra technical review reported CLEAN with
+  no Critical or Important findings.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -240,8 +243,8 @@ Current local evidence after Task 6 review-fix round 2:
 - `backlog/v2/README.md` — active milestone status.
 - `backlog/v2/m1-deterministic-kernel.md` — completed Tasks 3/4 requirements, TDD commands,
   evidence, and completion gates.
-- `backlog/v2/m1-scrum-state.md` — active Tasks 5/6 requirements: revision-015 authoritative Scrum
-  state followed by atomic runtime-CAS/UOW integration.
+- `backlog/v2/m1-scrum-state.md` — completed and technically accepted Tasks 5/6 requirements:
+  revision-015 authoritative Scrum state followed by atomic runtime-CAS/UOW integration.
 - Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
   not the active contract or mandatory task sequence.
 - `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
@@ -300,9 +303,9 @@ Current local evidence after Task 6 review-fix round 2:
 
 ## Next Task
 
-Obtain the independent Ultra re-review required by `backlog/v2/m1-scrum-state.md` after Task 6
-review-fix round 2. Do not select or guess Task 7; M1 remains in progress pending a separately
-approved next slice. Do not add revision 016,
+No next task is approved. Await a separately reviewed plan for the next M1 slice before
+implementation; do not select or guess Task 7 from this completed plan. M1 remains in progress. Do
+not add revision 016,
 allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
 calls, deployment, UAT, or M1 completion.
 

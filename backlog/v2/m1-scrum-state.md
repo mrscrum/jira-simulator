@@ -65,20 +65,20 @@ SQLite/WAL with foreign keys enabled, pytest, Ruff.
 
 ---
 
-Status: IN PROGRESS
+Status: COMPLETE
 
 ## Task Checklist
 
 - [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and technically
   accepted 2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
-- [ ] Task 6 — Commit authoritative Scrum state atomically — original commit plus review-fix rounds
-  1–2 implemented and verified; independent Ultra re-review pending
+- [x] Task 6 — Commit authoritative Scrum state atomically — completed and technically accepted
+  2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
 
 ### Task 6 Current Implementation Status
 
 Task 6 original commit is `4cfaa65` (`feat(v2): commit scrum state atomically`). Review-fix round 1
 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`). Review-fix round 2 is
-implemented on that base under exact subject `fix(v2): normalize authoritative result instants`.
+commit `47f9e55` (`fix(v2): normalize authoritative result instants`).
 The immutable authoritative command is validated before session creation; one session
 then performs runtime CAS, sparse Task 5 after-images, exact semantic-counter CAS, natural-
 eligibility resolution, ordered evidence/pending-intent appends, final flush, and one commit.
@@ -93,8 +93,9 @@ Task 6 focused tests, 1037 all-v2 tests with one baseline warning, and 1555 full
 43 skipped and 15 baseline warnings. Ruff, touched-function
 shape/static/import checks, Alembic sole head 015 with empty branches and linear history, and the
 no-migration diff are clean. No revision 016 exists. The round-2 verification matrix and direct
-probe are GREEN; keep this task and plan open until independent Ultra re-review is clean. M1 remains
-in progress, and this plan selects no next task.
+probe are GREEN, and independent Ultra technical review reported CLEAN with no Critical or Important
+findings. Task 6 and this plan are complete. M1 remains in progress, and this plan selects no next
+detailed task.
 
 ## Deferred Validation Hardening Outside These Tasks
 
@@ -129,8 +130,8 @@ merges them with touched rows, and validates the complete aggregate before Task 
 and complete snapshots require exactly one authenticated sample; an existing visit may omit only
 its unchanged persisted sample after reauthentication. Required-work hashes are exact plain
 lower-case SHA-256 strings. Only existing visits gain the narrow reviewed after-image update;
-generalized Task 6 upsert/CAS remains deferred. ORM and migration 015 share nullable activity-key
-parity, and no revision 016 exists.
+Task 5 deliberately deferred generalized atomic upsert/CAS integration to Task 6. ORM and migration
+015 share nullable activity-key parity, and no revision 016 exists.
 
 Review fix round 3 completes the current Task 5 boundary. Both mapper entry points require empty
 caller ORM `new`, `dirty`, and `deleted` collections before authority/candidate SQL, so pending
@@ -151,7 +152,7 @@ visit/sample after-image can restore an externally deleted cached visit after na
 only the confirmed-missing stale identity, avoiding `StaleDataError` and SQLAlchemy identity-map
 warnings. Focused and full verification were GREEN on review-fix base `e9dd4cf`, and the exact
 change was committed as `9049e1a` (`fix(v2): refresh authoritative scrum reads`). Revision 015 and
-the Task 6 boundary remain unchanged.
+the Task 6 boundary were unchanged by that Task 5 round.
 
 Review fix round 5 is a narrow, accepted follow-up on base `9049e1a`. A complete same-key
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
@@ -162,7 +163,8 @@ Alembic/parity, cold-import, architecture, shape, and the direct self-probe are 
 committed as `0782070` (`fix(v2): detach cascaded scrum identities`), and independent Ultra
 technical review reported CLEAN with no Critical or Important findings. This does not broaden
 Task 5 into generalized Task 6 CAS/upsert, lifecycle/allocation behavior, revision 016, external
-access, deployment, push, or UAT. Task 6 remains open and M1 remains in progress.
+access, deployment, push, or UAT. Task 6 was still open at that checkpoint and is now accepted as
+recorded above; M1 remains in progress.
 
 ## Task 5: Persist authoritative Scrum state at revision 015
 

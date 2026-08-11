@@ -4,11 +4,11 @@
 
 The original Task 6 implementation is commit `4cfaa65` (`feat(v2): commit scrum state atomically`).
 Review-fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`).
-Review-fix round 2 is implemented and verified on that base under the exact subject
-`fix(v2): normalize authoritative result instants`. Its verification matrix and direct probe are
-GREEN; independent
-Ultra re-review remains pending, so Task 6 and M1 remain open. No live system, deployment, push,
-UAT, or external provider was used.
+Review-fix round 2 is commit `47f9e55` (`fix(v2): normalize authoritative result instants`). Its
+verification matrix and direct probe are GREEN, and the independent Ultra technical review reported
+CLEAN with no Critical or Important findings. Task 6 and this plan are complete; M1 remains in
+progress and no next detailed slice was inferred. No live system, deployment, push, UAT, or external
+provider was used.
 
 ## Implemented behavior
 
@@ -157,8 +157,8 @@ truthfulness. No Critical or Important concern remains from the bounded audit.
 
 ## Original implementation concerns
 
-No implementation concern is known. Independent technical review is still required before Task 6
-or this plan is marked complete. M1 remains in progress, and no next slice was inferred.
+No implementation concern was known at the original-implementation checkpoint. Independent review
+was still required then; the final accepted outcome is recorded in the review-fix sections below.
 
 ## Review fix round 1 — authoritative after-image identity
 
@@ -254,7 +254,8 @@ The direct probe covered all seven paths and reported
 
 The verification matrix and direct probe confirmed exact-UTC normalization for all seven nested
 paths, unchanged caller-owned values, and preserved frozen result behavior. The final diff was
-checked for exact
-nested types, naive rejection, immutable reconstruction, restart behavior, no migration, and scope
-isolation. No implementation concern is known. Independent Ultra re-review remains required before
-Task 6 or this plan is marked complete; M1 stays in progress.
+checked for exact nested types, naive rejection, immutable reconstruction, restart behavior, no
+migration, and scope isolation. No implementation concern is known. The subsequent independent
+Ultra technical review reported CLEAN with no Critical or Important findings, so Task 6 and this
+plan are complete. M1
+stays in progress, and no next detailed slice was inferred.

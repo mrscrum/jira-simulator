@@ -98,8 +98,9 @@ Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). R
 commit `6bac956` (`fix(v2): enforce authoritative after-image identity`). Review-fix round 2 now
 normalizes every aware instant retained inside an immutable committed authoritative result to exact
 UTC while preserving naive rejection, exact nested types, and caller-owned frozen input. Its
-round-2 verification matrix and direct probe are GREEN, and independent Ultra re-review remains
-pending.
+commit is `47f9e55` (`fix(v2): normalize authoritative result instants`); the independent Ultra
+technical review reported CLEAN with no Critical or Important findings. Task 6 is accepted and
+complete. M1 remains in progress; no next detailed slice has been selected.
 `AuthoritativeTickSliceCommit` wraps the existing live-slice command with sparse authoritative Scrum
 after-images, explicit safe-integer semantic-counter ranges, and eligible natural-decision claims.
 The SQLAlchemy unit of work validates the exact immutable command before session creation, opens one

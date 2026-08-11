@@ -354,3 +354,9 @@
   tzinfo identity contract; all aware offsets normalize to it and naive values remain invalid.
 - Preserved revision 015 and every Task 6 exclusion. No Task 7, migration 016, external call,
   deployment, push, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 6 acceptance closeout
+
+- No assumptions made. The exact commit chain through `47f9e55`, independent Ultra acceptance
+  result, Task 6/plan completion, and continued M1 IN PROGRESS state were supplied explicitly.
+- Did not infer Task 7 or a next detailed M1 plan.

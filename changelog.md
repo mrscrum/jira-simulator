@@ -497,3 +497,17 @@
   instants continue to reject and normal frozen result mutation remains unavailable.
 - Revision 015 remains unchanged and sole head; no revision 016, external call, deployment, push,
   UAT, Task 7 selection, or M1 completion was added. Independent Ultra re-review remains pending.
+
+## [2026-08-11] M1 — Accept atomic authoritative Scrum state
+
+### Changed
+
+- Recorded the complete Task 6 commit chain: `4cfaa65` → `6bac956` → `47f9e55`.
+- Marked Task 6 and the two-task Scrum-state implementation plan complete after independent Ultra
+  technical review reported CLEAN with no Critical or Important findings.
+- Kept overall M1 in progress; no Task 7 or next detailed implementation slice was selected.
+
+### Fixed
+
+- Replaced pending-review provenance in current-state documentation and evidence with the accepted
+  technical-review outcome.
