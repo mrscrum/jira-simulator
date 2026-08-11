@@ -70,6 +70,14 @@ are not executable for v2.
 
 ## Most Recent Change
 
+Task 3 review fix round 1 drains due runtimes through exclusive `team_id` keyset pages instead of
+repeating the first default 100; one failure remains isolated while later pages run in the same
+sequential path. Restart now commits its idempotent downtime evidence before every due lifecycle
+boundary, applies lifecycle-only zero-work transitions, and performs one final cursor/wake rebase.
+This guarantees a failure after evidence cannot leave a lifecycle transition without its prior
+downtime record. No lease, concurrency, team-count branch, missed-work replay, or migration was
+added.
+
 On 2026-08-11, the third pragmatic v2 slice added fixed sprint lifecycle plus scheduler/restart
 ownership. Planned bootstrap stops at its first boundary, activates and scopes before work, and
 active rollover preserves unfinished status/owner/visit/sample/progress before ranked backlog fill.

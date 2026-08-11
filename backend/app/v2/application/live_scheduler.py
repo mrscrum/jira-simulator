@@ -21,6 +21,7 @@ from app.v2.domain.live_slice import (
 )
 from app.v2.domain.scrum_state import ScrumStateWriteSet, SprintLifecycle
 from app.v2.domain.scrum_tick import TickRequest
+from app.v2.domain.sprint_lifecycle import SprintTransition, cross_sprint_boundary
 from app.v2.persistence.due_team_store import DueTeamStore
 from app.v2.persistence.live_team_store import LiveTeamStore
 from app.v2.persistence.unit_of_work import V2UnitOfWork
@@ -60,10 +61,17 @@ class _DowntimeWindow:
 
 @dataclass(frozen=True)
 class _DowntimeDraft:
-    advances_to: datetime
+    runtime_after: RuntimeAdvance
     recorded_at: datetime
     activity: tuple[ActivityEventDraft, ...]
     ground_truth: tuple[GroundTruthRecordDraft, ...]
+
+
+@dataclass(frozen=True)
+class _LifecycleDraft:
+    transition: SprintTransition
+    boundary: datetime
+    recorded_at: datetime
 
 
 class LiveScheduler:
@@ -74,8 +82,22 @@ class LiveScheduler:
 
     def run_due(self, as_of: datetime) -> SchedulerRunResult:
         instant = _utc(as_of)
-        team_ids = tuple(sorted(self._dependencies.due_teams.due_team_ids(instant), key=str))
-        return self._run(team_ids, lambda team_id: self._advance(team_id, instant))
+        return self._drain_due_pages(instant)
+
+    def _drain_due_pages(self, as_of: datetime) -> SchedulerRunResult:
+        attempted: list[UUID] = []
+        succeeded: list[UUID] = []
+        failed: list[UUID] = []
+        cursor = None
+        while True:
+            team_ids = self._dependencies.due_teams.due_team_ids(as_of, after_team_id=cursor)
+            if not team_ids:
+                return SchedulerRunResult(tuple(attempted), tuple(succeeded), tuple(failed))
+            page = self._run(team_ids, lambda team_id: self._advance(team_id, as_of))
+            attempted.extend(page.attempted)
+            succeeded.extend(page.succeeded)
+            failed.extend(page.failed)
+            cursor = team_ids[-1]
 
     def resume_after_restart(self, as_of: datetime) -> SchedulerRunResult:
         instant = _utc(as_of)
@@ -114,41 +136,37 @@ class LiveScheduler:
         if downtime_start >= as_of:
             return
         downtime = _DowntimeWindow(downtime_start, as_of)
-        record_downtime = True
+        self._record_downtime_evidence(initial, downtime)
         while True:
             state = dependencies.live_teams.load(team_id)
             boundary = _next_boundary(state, as_of)
             if boundary is None:
-                if record_downtime:
-                    self._skip_recorded_downtime(state, as_of, downtime)
-                else:
-                    self._skip_silent_downtime(state, as_of, as_of)
+                self._skip_silent_downtime(state, as_of, as_of)
                 return
-            cursor = state.aggregate.runtime.simulation_time
-            if cursor < boundary:
-                if record_downtime:
-                    self._skip_recorded_downtime(state, boundary, downtime)
-                else:
-                    self._skip_silent_downtime(state, boundary, as_of)
-                record_downtime = False
-            self._advance(team_id, boundary)
+            self._commit_lifecycle_boundary(state, boundary, as_of)
 
-    def _skip_recorded_downtime(
-        self,
-        state: LiveTeamState,
-        ends_at: datetime,
-        downtime: _DowntimeWindow,
-    ) -> None:
-        key = _downtime_key(state, ends_at)
+    def _record_downtime_evidence(self, state: LiveTeamState, downtime: _DowntimeWindow) -> None:
+        key = _downtime_evidence_key(state, downtime)
         activity, truth = _downtime_records(state, key, downtime)
-        draft = _DowntimeDraft(ends_at, downtime.ends_at, activity, truth)
+        runtime = state.aggregate.runtime
+        runtime_after = RuntimeAdvance(runtime.state, runtime.simulation_time, runtime.next_wake_at)
+        draft = _DowntimeDraft(runtime_after, downtime.ends_at, activity, truth)
         command = _downtime_command(state, draft)
+        self._dependencies.unit_of_work.commit_authoritative_slice(command)
+
+    def _commit_lifecycle_boundary(
+        self, state: LiveTeamState, boundary: datetime, recorded_at: datetime
+    ) -> None:
+        transition = cross_sprint_boundary(state, boundary)
+        command = _lifecycle_command(state, _LifecycleDraft(transition, boundary, recorded_at))
         self._dependencies.unit_of_work.commit_authoritative_slice(command)
 
     def _skip_silent_downtime(
         self, state: LiveTeamState, ends_at: datetime, recorded_at: datetime
     ) -> None:
-        command = _downtime_command(state, _DowntimeDraft(ends_at, recorded_at, (), ()))
+        runtime = state.aggregate.runtime
+        runtime_after = RuntimeAdvance(runtime.state, ends_at, ends_at)
+        command = _downtime_command(state, _DowntimeDraft(runtime_after, recorded_at, (), ()))
         self._dependencies.unit_of_work.commit_authoritative_slice(command)
 
 
@@ -178,13 +196,13 @@ def _boundary_for(sprint) -> datetime | None:
 
 def _downtime_command(state: LiveTeamState, draft: _DowntimeDraft) -> AuthoritativeTickSliceCommit:
     runtime = state.aggregate.runtime
-    key = _downtime_key(state, draft.advances_to)
+    key = _downtime_key(state, draft.runtime_after.simulation_time)
     live_slice = TickSliceCommit(
         semantic_uuid(f"commit/{key}"),
         runtime.team_id,
         runtime.run_id,
         runtime.version,
-        RuntimeAdvance(runtime.state, draft.advances_to, draft.advances_to),
+        draft.runtime_after,
         draft.activity,
         draft.ground_truth,
         (),
@@ -204,7 +222,7 @@ def _downtime_records(
     runtime = state.aggregate.runtime
     activity = ActivityEventDraft.create(
         envelope,
-        ActivityDetails("DOWNTIME_SKIPPED", "RUNTIME", runtime.id, runtime.version + 1),
+        ActivityDetails("DOWNTIME_SKIPPED", "RUNTIME", runtime.id, 0),
     )
     truth = GroundTruthRecordDraft.create(
         envelope,
@@ -216,6 +234,40 @@ def _downtime_records(
 def _downtime_key(state: LiveTeamState, ends_at: datetime) -> str:
     runtime = state.aggregate.runtime
     return f"restart/{runtime.team_id}/{runtime.run_id}/{runtime.version}/{ends_at.isoformat()}"
+
+
+def _downtime_evidence_key(state: LiveTeamState, downtime: _DowntimeWindow) -> str:
+    runtime = state.aggregate.runtime
+    return (
+        f"restart-gap/{runtime.team_id}/{runtime.run_id}/"
+        f"{downtime.starts_at.isoformat()}/{downtime.ends_at.isoformat()}"
+    )
+
+
+def _lifecycle_command(
+    state: LiveTeamState, draft: _LifecycleDraft
+) -> AuthoritativeTickSliceCommit:
+    runtime = state.aggregate.runtime
+    live_slice = TickSliceCommit(
+        semantic_uuid(
+            f"restart-lifecycle/{runtime.team_id}/{runtime.run_id}/{runtime.version}/"
+            f"{draft.boundary.isoformat()}"
+        ),
+        runtime.team_id,
+        runtime.run_id,
+        runtime.version,
+        RuntimeAdvance(runtime.state, runtime.simulation_time, runtime.next_wake_at),
+        draft.transition.activity,
+        draft.transition.ground_truth,
+        draft.transition.projection_intents,
+        draft.recorded_at,
+    )
+    return AuthoritativeTickSliceCommit(
+        live_slice,
+        draft.transition.state,
+        draft.transition.counter_claims,
+        draft.transition.natural_decision_claims,
+    )
 
 
 def _utc(value: datetime) -> datetime:

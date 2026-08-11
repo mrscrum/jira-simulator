@@ -44,5 +44,7 @@ Status: IN PROGRESS
   elapsed boundaries with zero work, records downtime, and preserves existing pending intents.
 - Jira projection delivery is the next pragmatic slice; the local observation reconciler remains an
   injected no-op until inbound Jira support is connected.
+- Task 3 review fix round 1 drains exclusive due-team keyset pages beyond 100 and commits restart
+  downtime evidence before zero-work lifecycle-only transitions and the final scheduling rebase.
 - Review fix round 1 preserves minimum-fraction/pre-fraction-cap availability, stops at the earliest
   shared completion boundary, retains residual tick time, and emits causal ground truth.

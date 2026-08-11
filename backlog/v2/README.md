@@ -24,8 +24,8 @@ UAT/load fixture only.
   exactly one stale-runtime retry. Review fix round 1 preserves minimum-fraction availability,
   pre-fraction capacity, earliest shared completion, residual tick time, and causal evidence. The
   fixed lifecycle/scheduler/restart slice is complete with unchanged carryover, persisted due-team
-  authority, sequential failure isolation, and zero-work restart boundaries; next work is Jira
-  delivery, then vertical proof and realism
+  authority, exclusive paging beyond 100, sequential failure isolation, and evidence-first
+  zero-work restart boundaries; next work is Jira delivery, then vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT

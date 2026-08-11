@@ -155,14 +155,18 @@ remaining sampled capacity from existing ranked backlog. It does not generate ba
 Jira sprint complete/create/scope/start intents carry explicit semantic payload dependencies and
 remain network-free inside the authoritative transaction.
 
-`SqlAlchemyDueTeamStore` selects sorted `RUNNING` runtimes whose persisted `next_wake_at` is due.
-`LiveScheduler` sends every configured team through the same `TeamTickService` sequentially and
-reports failures per team without stopping healthy teams. APScheduler only polls this persisted
-authority through one v2 job. Startup first invokes an injected supported-observation reconciler;
+`SqlAlchemyDueTeamStore` selects sorted `RUNNING` runtimes whose persisted `next_wake_at` is due,
+using exclusive team-ID keyset pages so one poll drains every configured due team beyond the
+default 100-row page. `LiveScheduler` sends every configured team through the same
+`TeamTickService` sequentially and reports failures per team without stopping healthy teams or later
+pages. APScheduler only polls this persisted authority through one v2 job. Startup first invokes an
+injected supported-observation reconciler;
 the local implementation is deliberately a fakeable no-op until Jira reconciliation is connected.
-Restart records one concise `DOWNTIME_SKIPPED` interval, advances elapsed sprint boundaries with
-zero work, moves the runtime cursor/wake to the current scheduling point, and leaves existing
-pending projection intents unchanged. Wall downtime never earns touch, queue, pause, or capacity.
+Restart commits one idempotent `DOWNTIME_SKIPPED` interval before any lifecycle change, advances
+elapsed sprint boundaries through zero-work lifecycle-only commits, then rebases the runtime
+cursor/wake to the current scheduling point. Existing pending projection intents remain unchanged
+except for lifecycle intents genuinely due. Wall downtime never earns touch, queue, pause, or
+capacity.
 
 From `backend/`, run:
 

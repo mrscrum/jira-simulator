@@ -597,3 +597,18 @@
   selected, and restart no longer credits touch, queue, pause, or capacity across wall downtime.
 - Existing pending projection intents remain immutable across restart; no Jira call, backlog
   generation, v1 scheduler state, migration 016, deployment, or UAT was added.
+
+## [2026-08-11] M1 — Task 3 review fix round 1
+
+### Changed
+
+- Added exclusive team-ID keyset paging and drained every due page through the existing sequential
+  per-team scheduler path while retaining the 100-row default page size.
+- Split restart into an idempotent evidence-only commit, zero-work lifecycle-only commits, and one
+  final cursor/wake rebase.
+
+### Fixed
+
+- Prevented the first 100 still-due teams from starving later configured teams.
+- Guaranteed downtime evidence commits before lifecycle when the persisted cursor equals a boundary;
+  no missed work, duplicate evidence, migration, concurrency, or lease behavior was introduced.

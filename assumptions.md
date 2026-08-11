@@ -402,3 +402,9 @@
   duplicate evidence.
 - Kept the supported-observation reconciler as the required injected local no-op/fakeable port;
   Jira-backed observation reconciliation remains a later delivery/integration slice.
+
+## [2026-08-11] M1 — Task 3 review fix round 1
+
+- No assumptions made. The exclusive pagination cursor, default page size, sequential failure
+  isolation, evidence-before-lifecycle order, lifecycle-only zero-work transition, final rebase,
+  and exact exclusions were supplied explicitly by the review findings.
