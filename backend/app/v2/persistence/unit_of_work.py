@@ -2,13 +2,17 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.v2.domain.authoritative_slice import (
+    AuthoritativeTickSliceCommit,
+    CommittedAuthoritativeTickSlice,
+)
 from app.v2.domain.live_slice import (
     ActivityEvent,
     ActivityEventDraft,
@@ -24,11 +28,18 @@ from app.v2.domain.live_slice import (
     ProjectionPageQuery,
     TickSliceCommit,
 )
+from app.v2.domain.scrum_state import ScrumStateQuery
 from app.v2.domain.team_runtime import TeamRuntime
 from app.v2.persistence.live_models import (
     V2ActivityEventModel,
     V2GroundTruthRecordModel,
     V2ProjectionIntentModel,
+)
+from app.v2.persistence.scrum_state_mapper import (
+    CounterClaimStaleError,
+    NaturalClaimConflictError,
+    ScrumStateConflictError,
+    SqlAlchemyScrumStateMapper,
 )
 from app.v2.persistence.team_models import V2TeamRuntimeModel
 
@@ -41,12 +52,26 @@ class SemanticDeduplicationConflict(RuntimeError):  # noqa: N818
     """A semantic key already identifies different immutable content."""
 
 
+class StaleSemanticCounter(RuntimeError):  # noqa: N818
+    """A semantic counter no longer matches its explicit expected-next claim."""
+
+
+class NaturalEligibilityConflict(RuntimeError):  # noqa: N818
+    """A natural eligibility or occurrence identifies different immutable content."""
+
+
 class V2UnitOfWork(ABC):
     """Application-facing atomic live-slice persistence port."""
 
     @abstractmethod
     def commit_tick_slice(self, commit: TickSliceCommit) -> CommittedTickSlice:
         """Atomically advance runtime and persist all local records."""
+
+    @abstractmethod
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        """Atomically commit runtime, Scrum after-images, claims, and ledgers."""
 
     @abstractmethod
     def get_runtime(self, team_id: UUID) -> TeamRuntime:
@@ -82,13 +107,49 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
                 raise
             return committed
 
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        if type(commit) is not AuthoritativeTickSliceCommit:
+            raise TypeError("commit must be an AuthoritativeTickSliceCommit")
+        commit.validate()
+        with self._session_factory() as session:
+            try:
+                committed = self._commit_authoritative_in_session(session, commit)
+                session.commit()
+            except Exception as error:
+                session.rollback()
+                _raise_authoritative_error(error)
+            return committed
+
+    def _commit_authoritative_in_session(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        mapper = SqlAlchemyScrumStateMapper()
+        runtime = self._advance_runtime(session, commit.live_slice)
+        if any(commit.state._collection_values()):
+            mapper.apply_after_images(session, commit)
+        counters = mapper.apply_counter_claims(session, commit)
+        evaluations = mapper.resolve_natural_claims(session, commit)
+        query = ScrumStateQuery(commit.live_slice.team_id, commit.live_slice.run_id)
+        state = mapper.load(session, query)
+        live_slice = self._persist_ledgers(session, commit.live_slice, runtime)
+        session.flush()
+        return CommittedAuthoritativeTickSlice(live_slice, state, counters, evaluations)
+
     def _commit_in_session(
         self, session: Session, commit: TickSliceCommit
     ) -> CommittedTickSlice:
         runtime = self._advance_runtime(session, commit)
-        activity = self._persist_activity(session, commit)
-        ground_truth = self._persist_ground_truth(session, commit)
-        projection = self._persist_projection(session, commit)
+        return self._persist_ledgers(session, commit, runtime)
+
+    @staticmethod
+    def _persist_ledgers(
+        session: Session, commit: TickSliceCommit, runtime: TeamRuntime
+    ) -> CommittedTickSlice:
+        activity = SqlAlchemyV2UnitOfWork._persist_activity(session, commit)
+        ground_truth = SqlAlchemyV2UnitOfWork._persist_ground_truth(session, commit)
+        projection = SqlAlchemyV2UnitOfWork._persist_projection(session, commit)
         return CommittedTickSlice(runtime, activity, ground_truth, projection)
 
     def get_runtime(self, team_id: UUID) -> TeamRuntime:
@@ -168,6 +229,16 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
             for position, draft in enumerate(commit.projection_intents)
         ]
         return tuple(records)
+
+
+def _raise_authoritative_error(error: Exception) -> NoReturn:
+    if isinstance(error, CounterClaimStaleError):
+        raise StaleSemanticCounter(str(error)) from error
+    if isinstance(error, NaturalClaimConflictError):
+        raise NaturalEligibilityConflict(str(error)) from error
+    if isinstance(error, ScrumStateConflictError):
+        raise SemanticDeduplicationConflict(str(error)) from error
+    raise error
 
 
 def _envelope_values(commit: TickSliceCommit, draft, position: int) -> dict[str, object]:

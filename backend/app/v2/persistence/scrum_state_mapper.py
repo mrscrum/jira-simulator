@@ -5,10 +5,16 @@ from dataclasses import fields
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.v2.domain.canonical_json import canonical_sha256
+from app.v2.domain.authoritative_slice import (
+    AuthoritativeTickSliceCommit,
+    EligibleNaturalDecisionClaim,
+    SemanticCounterClaim,
+)
+from app.v2.domain.canonical_json import canonical_sha256, semantic_uuid
 from app.v2.domain.deterministic_rng import (
     CreationKind,
     DecisionType,
@@ -82,6 +88,35 @@ LOAD_SPECS = (
         ("decision_type", "semantic_entity_id", "business_date", "id"),
     ),
 )
+IMMUTABLE_AFTER_IMAGE_MODELS = (
+    V2MemberIdentityModel,
+    V2WorkItemFactorModel,
+    V2StatusVisitSampleModel,
+)
+IMMUTABLE_AFTER_IMAGE_FIELDS = {
+    V2SprintModel: (
+        "id",
+        "team_id",
+        "run_id",
+        "ordinal",
+        "planned_start_at",
+        "planned_end_at",
+        "created_at",
+    ),
+}
+NEW_ALLOCATION_SCOPES_KEY = "v2_task6_new_allocation_scopes"
+
+
+class ScrumStateConflictError(RuntimeError):
+    """A persisted immutable Scrum row differs from its supplied after-image."""
+
+
+class CounterClaimStaleError(RuntimeError):
+    """A semantic counter no longer matches the claimed expected-next value."""
+
+
+class NaturalClaimConflictError(RuntimeError):
+    """A natural eligibility or occurrence already has different content."""
 
 
 class SqlAlchemyScrumStateMapper:
@@ -110,6 +145,433 @@ class SqlAlchemyScrumStateMapper:
         with session.no_autoflush:
             blueprint = _load_authority(session, query.team_id, query.run_id)
             return _load_validated_snapshot(session, query, blueprint)
+
+    def apply_after_images(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> ScrumStateSnapshot:
+        if type(commit) is not AuthoritativeTickSliceCommit:
+            raise TypeError("commit must be an AuthoritativeTickSliceCommit")
+        state = commit.state
+        _validate_mapper_write(session, state)
+        candidate = _candidate_snapshot(session, state, _state_coordinates(state))
+        new_scopes: set[SemanticCounterScope] = set()
+        new_work_items: set[UUID] = set()
+        new_members: set[UUID] = set()
+        for spec, items in zip(LOAD_SPECS[:9], state._collection_values()[:9], strict=True):
+            for item in items:
+                if _apply_after_image(session, item, spec):
+                    scope = _allocation_scope(item)
+                    if scope is not None:
+                        _require_allocation_claim(item, commit)
+                        new_scopes.add(scope)
+                    if type(item) is WorkItemState:
+                        new_work_items.add(item.id)
+                    if type(item) is MemberIdentity:
+                        new_members.add(item.id)
+            session.flush()
+        _seed_owner_counters(session, commit, (new_work_items, new_members))
+        session.info[NEW_ALLOCATION_SCOPES_KEY] = frozenset(new_scopes)
+        return candidate
+
+    def apply_counter_claims(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> tuple[SemanticCounter, ...]:
+        try:
+            _preflight_natural_claims(session, commit)
+            counters = tuple(
+                _apply_counter_claim(session, commit, claim)
+                for claim in _ordered_claims(commit.counter_claims)
+            )
+            session.flush()
+            return counters
+        finally:
+            session.info.pop(NEW_ALLOCATION_SCOPES_KEY, None)
+
+    def resolve_natural_claims(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> tuple[NaturalDecisionEvaluation, ...]:
+        evaluations = tuple(
+            _resolve_natural_claim(session, commit, claim)
+            for claim in _ordered_natural_claims(commit.natural_decision_claims)
+        )
+        session.flush()
+        return evaluations
+
+
+def _validate_mapper_write(session: Session, state: ScrumStateWriteSet) -> None:
+    if not isinstance(session, Session):
+        raise TypeError("session must be a caller-owned Session")
+    _require_clean_session(session)
+    if type(state) is not ScrumStateWriteSet:
+        raise TypeError("state must be a ScrumStateWriteSet")
+    state.validate()
+    if state.semantic_counters or state.natural_decision_evaluations:
+        raise ValueError("counter and evaluation rows must be applied through claims")
+
+
+def _apply_after_image(session: Session, item: object, spec: tuple) -> bool:
+    model_type, value_type, _order = spec
+    identity = _model_identity(item, model_type)
+    values = _record_values(item)
+    model = session.get(model_type, identity, populate_existing=True)
+    if model is None:
+        if model_type is V2StatusVisitModel:
+            _expunge_deleted_visit_identities(session, identity)
+        session.add(model_type(**values))
+        return True
+    if model_type in IMMUTABLE_AFTER_IMAGE_MODELS:
+        if _domain_record(model, value_type) != item:
+            raise ScrumStateConflictError("immutable Scrum row has different content")
+        return False
+    _require_immutable_fields(model, values, model_type)
+    _update_model(model, values)
+    return False
+
+
+def _require_immutable_fields(
+    model: object, values: dict[str, object], model_type: type
+) -> None:
+    names = IMMUTABLE_AFTER_IMAGE_FIELDS.get(model_type, ())
+    if any(getattr(model, name) != values[name] for name in names):
+        raise ScrumStateConflictError("immutable Scrum fields have different content")
+
+
+def _allocation_scope(item: object) -> SemanticCounterScope | None:
+    if type(item) is SprintState:
+        return SemanticCounterScope(SemanticCounterKind.SPRINT_ORDINAL, item.team_id, "SCRUM")
+    if type(item) is WorkItemState:
+        return SemanticCounterScope(
+            SemanticCounterKind.ITEM_SEQUENCE,
+            item.team_id,
+            item.creation_kind.value,
+        )
+    if type(item) is StatusVisitState:
+        return SemanticCounterScope(
+            SemanticCounterKind.VISIT_ORDINAL,
+            item.work_item_id,
+            "VISIT",
+        )
+    return None
+
+
+def _require_allocation_claim(
+    item: object, commit: AuthoritativeTickSliceCommit
+) -> None:
+    scope = _allocation_scope(item)
+    coordinate = _allocation_coordinate(item)
+    claim = next((value for value in commit.counter_claims if value.scope == scope), None)
+    if claim is None or not claim.expected_next <= coordinate < claim.expected_next + claim.count:
+        raise CounterClaimStaleError("new allocated Scrum row has no matching counter claim")
+
+
+def _allocation_coordinate(item: object) -> int:
+    if type(item) is SprintState:
+        return item.ordinal
+    if type(item) is WorkItemState:
+        return item.creation_sequence
+    if type(item) is StatusVisitState:
+        return item.ordinal
+    raise TypeError("item is not an allocated Scrum row")
+
+
+def _seed_owner_counters(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    owner_ids: tuple[set[UUID], set[UUID]],
+) -> None:
+    counters = (
+        SemanticCounter(
+            commit.live_slice.team_id,
+            commit.live_slice.run_id,
+            scope,
+            0,
+        )
+        for scope in _owner_counter_scopes(owner_ids)
+    )
+    session.add_all(V2SemanticCounterModel(**_record_values(item)) for item in counters)
+    session.flush()
+
+
+def _owner_counter_scopes(
+    owner_ids: tuple[set[UUID], set[UUID]],
+) -> tuple[SemanticCounterScope, ...]:
+    work_items, members = owner_ids
+    work_scopes = tuple(
+        scope
+        for owner_id in sorted(work_items, key=str)
+        for scope in (
+            SemanticCounterScope(SemanticCounterKind.VISIT_ORDINAL, owner_id, "VISIT"),
+            SemanticCounterScope(
+                SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+                owner_id,
+                DecisionType.RISK_CANCELLATION_OUTCOME.value,
+            ),
+        )
+    )
+    member_scopes = tuple(
+        SemanticCounterScope(
+            SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+            owner_id,
+            DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME.value,
+        )
+        for owner_id in sorted(members, key=str)
+    )
+    return (*work_scopes, *member_scopes)
+
+
+def _model_identity(item: object, model_type: type) -> object:
+    if model_type is V2MemberBusinessDateConsumptionModel:
+        return (
+            str(item.team_id),
+            str(item.run_id),
+            str(item.member_id),
+            item.business_date,
+        )
+    if model_type is V2StatusVisitSampleModel:
+        return str(item.visit_id)
+    return str(item.id)
+
+
+def _update_model(model: object, values: dict[str, object]) -> None:
+    for field_name, value in values.items():
+        setattr(model, field_name, value)
+
+
+def _ordered_claims(
+    claims: tuple[SemanticCounterClaim, ...],
+) -> tuple[SemanticCounterClaim, ...]:
+    return tuple(
+        sorted(
+            claims,
+            key=lambda item: (
+                item.scope.kind.value,
+                str(item.scope.scope_id),
+                item.scope.scope_key,
+            ),
+        )
+    )
+
+
+def _ordered_natural_claims(
+    claims: tuple[EligibleNaturalDecisionClaim, ...],
+) -> tuple[EligibleNaturalDecisionClaim, ...]:
+    return tuple(
+        sorted(
+            claims,
+            key=lambda item: (
+                item.decision.decision_type.value,
+                str(item.decision.entity_id),
+                item.business_date,
+            ),
+        )
+    )
+
+
+def _preflight_natural_claims(
+    session: Session, commit: AuthoritativeTickSliceCommit
+) -> None:
+    for claim in commit.natural_decision_claims:
+        eligibility, occurrence = _natural_rows(session, commit, claim)
+        if eligibility is not None and eligibility.occurrence != claim.decision.occurrence:
+            raise NaturalClaimConflictError("eligibility already has a different occurrence")
+        if occurrence is not None and occurrence.business_date != claim.business_date:
+            raise NaturalClaimConflictError(
+                "occurrence is already assigned to another business date"
+            )
+
+
+def _apply_counter_claim(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: SemanticCounterClaim,
+) -> SemanticCounter:
+    current = _load_counter(session, commit, claim)
+    if _natural_replay(session, commit, claim):
+        return _require_advanced_counter(current, claim, False)
+    if _advance_counter_row(session, commit, claim) == 1:
+        return _require_counter(session, commit, claim)
+    current = _require_counter(session, commit, claim)
+    if claim.scope.kind is not SemanticCounterKind.NATURAL_DECISION_OCCURRENCE:
+        inserted = claim.scope in session.info.get(NEW_ALLOCATION_SCOPES_KEY, ())
+        return _require_advanced_counter(current, claim, inserted)
+    raise CounterClaimStaleError("semantic counter compare-and-swap updated zero rows")
+
+
+def _natural_replay(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    counter_claim: SemanticCounterClaim,
+) -> bool:
+    if counter_claim.scope.kind is not SemanticCounterKind.NATURAL_DECISION_OCCURRENCE:
+        return False
+    claim = next(
+        item
+        for item in commit.natural_decision_claims
+        if _claim_scope(item) == counter_claim.scope
+    )
+    eligibility, _occurrence = _natural_rows(session, commit, claim)
+    return eligibility is not None
+
+
+def _require_advanced_counter(
+    counter: SemanticCounter | None,
+    claim: SemanticCounterClaim,
+    newly_inserted: bool,
+) -> SemanticCounter:
+    expected = claim.expected_next + claim.count
+    if newly_inserted or counter is None or counter.next_value < expected:
+        raise CounterClaimStaleError("semantic counter does not match the claimed range")
+    return counter
+
+
+def _advance_counter_row(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: SemanticCounterClaim,
+) -> int:
+    statement = (
+        update(V2SemanticCounterModel)
+        .where(*_counter_predicates(commit, claim))
+        .where(V2SemanticCounterModel.next_value == claim.expected_next)
+        .values(next_value=claim.expected_next + claim.count)
+    )
+    return session.execute(statement).rowcount
+
+
+def _counter_predicates(
+    commit: AuthoritativeTickSliceCommit, claim: SemanticCounterClaim
+) -> tuple:
+    scope = claim.scope
+    return (
+        V2SemanticCounterModel.team_id == str(commit.live_slice.team_id),
+        V2SemanticCounterModel.run_id == str(commit.live_slice.run_id),
+        V2SemanticCounterModel.kind == scope.kind.value,
+        V2SemanticCounterModel.scope_id == str(scope.scope_id),
+        V2SemanticCounterModel.scope_key == scope.scope_key,
+    )
+
+
+def _load_counter(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: SemanticCounterClaim,
+) -> SemanticCounter | None:
+    statement = (
+        select(V2SemanticCounterModel)
+        .where(*_counter_predicates(commit, claim))
+        .execution_options(populate_existing=True)
+    )
+    model = session.scalar(statement)
+    return None if model is None else _domain_record(model, SemanticCounter)
+
+
+def _require_counter(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: SemanticCounterClaim,
+) -> SemanticCounter:
+    counter = _load_counter(session, commit, claim)
+    if counter is None:
+        raise CounterClaimStaleError("semantic counter row is missing")
+    return counter
+
+
+def _resolve_natural_claim(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: EligibleNaturalDecisionClaim,
+) -> NaturalDecisionEvaluation:
+    eligibility, occurrence = _natural_rows(session, commit, claim)
+    if eligibility is not None:
+        if eligibility.occurrence != claim.decision.occurrence:
+            raise NaturalClaimConflictError("eligibility has conflicting immutable content")
+        return eligibility
+    if occurrence is not None:
+        raise NaturalClaimConflictError(
+            "occurrence is already assigned to another eligibility"
+        )
+    return _insert_natural_claim(session, _evaluation_from_claim(commit, claim))
+
+
+def _natural_rows(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claim: EligibleNaturalDecisionClaim,
+) -> tuple[NaturalDecisionEvaluation | None, NaturalDecisionEvaluation | None]:
+    base = _natural_statement(commit, claim)
+    eligibility = session.scalar(
+        base.where(V2NaturalDecisionEvaluationModel.business_date == claim.business_date)
+    )
+    occurrence = session.scalar(
+        base.where(V2NaturalDecisionEvaluationModel.occurrence == claim.decision.occurrence)
+    )
+    return _mapped_evaluation(eligibility), _mapped_evaluation(occurrence)
+
+
+def _natural_statement(
+    commit: AuthoritativeTickSliceCommit, claim: EligibleNaturalDecisionClaim
+):
+    decision = claim.decision
+    return (
+        select(V2NaturalDecisionEvaluationModel)
+        .where(V2NaturalDecisionEvaluationModel.team_id == str(commit.live_slice.team_id))
+        .where(V2NaturalDecisionEvaluationModel.run_id == str(commit.live_slice.run_id))
+        .where(V2NaturalDecisionEvaluationModel.decision_type == decision.decision_type.value)
+        .where(V2NaturalDecisionEvaluationModel.semantic_entity_id == str(decision.entity_id))
+        .execution_options(populate_existing=True)
+    )
+
+
+def _mapped_evaluation(model: object | None) -> NaturalDecisionEvaluation | None:
+    if model is None:
+        return None
+    try:
+        return _domain_record(model, NaturalDecisionEvaluation)
+    except (TypeError, ValueError) as error:
+        raise NaturalClaimConflictError("stored natural eligibility is invalid") from error
+
+
+def _evaluation_from_claim(
+    commit: AuthoritativeTickSliceCommit, claim: EligibleNaturalDecisionClaim
+) -> NaturalDecisionEvaluation:
+    live = commit.live_slice
+    decision = claim.decision
+    path = (
+        f"evaluation/{live.team_id}/{live.run_id}/{decision.decision_type.value}/"
+        f"{decision.entity_id}/{claim.business_date}"
+    )
+    return NaturalDecisionEvaluation(
+        semantic_uuid(path),
+        live.team_id,
+        live.run_id,
+        decision.decision_type,
+        decision.entity_id,
+        claim.business_date,
+        decision.occurrence,
+        live.commit_id,
+        live.recorded_at,
+    )
+
+
+def _insert_natural_claim(
+    session: Session, evaluation: NaturalDecisionEvaluation
+) -> NaturalDecisionEvaluation:
+    model = V2NaturalDecisionEvaluationModel(**_record_values(evaluation))
+    try:
+        with session.begin_nested():
+            session.add(model)
+            session.flush()
+    except IntegrityError as error:
+        raise NaturalClaimConflictError("natural eligibility collided during insert") from error
+    return evaluation
+
+
+def _claim_scope(claim: EligibleNaturalDecisionClaim) -> SemanticCounterScope:
+    return SemanticCounterScope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+        claim.decision.entity_id,
+        claim.decision.decision_type.value,
+    )
 
 
 def _require_clean_session(session: Session) -> None:

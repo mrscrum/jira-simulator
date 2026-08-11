@@ -7,7 +7,14 @@ from typing import Protocol
 import pytest
 
 from app.v2.domain.live_slice import LedgerPageQuery, ProjectionIntent, ProjectionPageQuery
+from app.v2.domain.scrum_state import ScrumStateQuery
+from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper
 from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork
+from tests.v2.authoritative_slice_support import (
+    AuthoritativeCommandSpec,
+    baseline_write_set,
+    make_authoritative_command,
+)
 from tests.v2.live_slice_support import create_aggregate, make_tick_commit
 
 V2_TABLE_NAMES = {
@@ -60,14 +67,18 @@ def _first_import_statements() -> tuple[str, ...]:
             for name in SCRUM_MODEL_NAMES
         ),
         "from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork",
+        "from app.v2.persistence.unit_of_work import NaturalEligibilityConflict",
+        "from app.v2.persistence.unit_of_work import StaleSemanticCounter",
         "from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper",
     )
     lazy_names = (
         *LIVE_MODEL_NAMES,
         *SCRUM_MODEL_NAMES,
+        "NaturalEligibilityConflict",
         "SemanticDeduplicationConflict",
         "SqlAlchemyV2UnitOfWork",
         "StaleRuntimeVersion",
+        "StaleSemanticCounter",
         "V2UnitOfWork",
     )
     lazy = tuple(f"from app.v2.persistence import {name}" for name in lazy_names)
@@ -130,6 +141,38 @@ def test_external_failure_after_commit_cannot_change_authoritative_state(
     assert activity.items == committed.activity
     assert ground_truth.items == committed.ground_truth
     assert projection.items == committed.projection_intents
+    assert all(item.status == "PENDING" for item in projection.items)
+
+
+def test_external_failure_after_authoritative_commit_cannot_change_any_committed_class(
+    v2_session_factory, resolved_blueprint_json, requested_at
+):
+    aggregate = create_aggregate(v2_session_factory, resolved_blueprint_json, requested_at)
+    mapper = SqlAlchemyScrumStateMapper()
+    with v2_session_factory.begin() as session:
+        mapper.add(session, baseline_write_set())
+    command = make_authoritative_command(AuthoritativeCommandSpec(aggregate))
+    committed = SqlAlchemyV2UnitOfWork(v2_session_factory).commit_authoritative_slice(command)
+    adapter: ProjectionAdapter = ExplodingProjectionAdapter()
+
+    assert adapter.calls == 0
+    with pytest.raises(RuntimeError, match="external delivery failed"):
+        adapter.deliver(committed.live_slice.projection_intents[0])
+
+    reader = SqlAlchemyV2UnitOfWork(v2_session_factory)
+    with v2_session_factory() as session:
+        state = mapper.load(session, ScrumStateQuery(aggregate.team.id, aggregate.run.id))
+    activity = reader.page_activity(LedgerPageQuery(aggregate.team.id, None, None, 100))
+    ground_truth = reader.page_ground_truth(LedgerPageQuery(aggregate.team.id, None, None, 100))
+    projection = reader.page_projection(ProjectionPageQuery(aggregate.team.id, None, None, 100))
+
+    assert reader.get_runtime(aggregate.team.id) == committed.live_slice.runtime
+    assert state == committed.state
+    assert all(item in state.semantic_counters for item in committed.counters)
+    assert state.natural_decision_evaluations == committed.natural_decision_evaluations
+    assert activity.items == committed.live_slice.activity
+    assert ground_truth.items == committed.live_slice.ground_truth
+    assert projection.items == committed.live_slice.projection_intents
     assert all(item.status == "PENDING" for item in projection.items)
 
 

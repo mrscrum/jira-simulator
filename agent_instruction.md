@@ -43,9 +43,24 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 - Immutable detached authoritative Scrum state across member execution, work/factors,
   sprints/scope, status visits/samples, semantic counters, and natural evaluations at reversible
   Alembic revision 015, with a caller-owned-session mapper and composite ownership constraints.
+- Immutable Task 6 authoritative commands/results and a one-session unit-of-work operation that
+  atomically commits runtime CAS, sparse Scrum after-images, exact counter/natural claims, ordered
+  evidence, and pending projection intents without external delivery or revision 016.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, Task 6 was implemented locally on base `b449ca0`. The new exact immutable command
+wraps the existing live slice with sparse Task 5 after-images, safe-integer semantic-counter ranges,
+and eligible natural-decision claims. One short SQLAlchemy transaction validates before opening,
+compare-and-swaps runtime, applies after-images, advances counters, resolves eligibility, appends
+the existing ordered evidence/pending intents, flushes, and commits once. Existing sparse rows update
+without reconsuming allocation; new work/member owners receive zero-valued child counters for later
+or restarted claims; deleted established counters remain stale; and replay/conflict/failure paths
+roll back without gaps. Revision 015, external boundaries, and `commit_tick_slice` compatibility are
+unchanged. The implementation, verification, bounded non-Ultra audit, and exact task commit
+`feat(v2): commit scrum state atomically` are complete; independent technical review remains
+pending. M1 stays in progress and no Task 7 has been selected.
 
 On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A complete same-key
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
@@ -199,18 +214,15 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 5 review fix round 5 verification:
+Current local evidence after Task 6 implementation and verification:
 
-- Round-5 isolated RED: 1 failed in 0.28s because two sample identity-conflict `SAWarning`s were
-  emitted; isolated GREEN: 1 passed in 0.27s.
-- Direct round-5 self-probe: PASS; targeted mapper selection: 16 passed, 134 deselected in 1.38s.
-- Round-5 Task 5 focused: 327 passed in 21.60s.
-- Backend: 1383 passed, 43 skipped, 15 baseline warnings in 51.39s.
-- V2, including Tasks 1-5: 865 passed, 1 baseline warning in 25.29s.
-- Ruff passed. Alembic remains sole revision 015 with parent 014, no branches, linear history, and
-  parity/populated round trip at 4 passed in 1.81s.
-- Cold import: 39 passed, 2 deselected in 10.98s; architecture: 15 passed in 0.25s; two touched
-  Python files have no function over 30 lines or more than three arguments.
+- Task 6 focused: 189 passed.
+- V2, including Tasks 1-6: 974 passed with 1 baseline warning.
+- Full safe backend: 1492 passed, 43 skipped, with 15 baseline warnings.
+- Ruff, touched-function shape/static/import checks, Alembic sole revision 015 with parent 014,
+  empty branches, linear history, and the no-migration diff are clean.
+- Evidence is retained under `evidence/v2/M1-T06/`; base is `b449ca0`, the exact Task 6 commit subject
+  is `feat(v2): commit scrum state atomically`, and independent technical review remains pending.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -257,20 +269,25 @@ Current local evidence after Task 5 review fix round 5 verification:
 - `backend/app/v2/domain/scrum_state.py` — sealed Task 5 lifecycle/state, trusted blueprint-bound
   timing samples, exact clocks/provenance, simulator rank, semantic counter, evaluation, write-set,
   query, and detached snapshot contracts.
+- `backend/app/v2/domain/authoritative_slice.py` — exact immutable Task 6 claim, authoritative
+  command/result, team/run, coordinate, semantic-ID, and natural-eligibility binding contracts.
 - `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
   exact composite ownership, check, unique, and partial-index constraints.
-- `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load mapping; it
-  refreshes authoritative ORM reads, resolves sparse omitted owners, validates a complete merged
-  snapshot before DML, narrowly updates/restores visits, and flushes but never opens, commits, or
-  rolls back a transaction.
+- `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load and Task 6
+  after-image/claim mapping; it refreshes authoritative ORM reads, validates complete merged state,
+  applies sparse mutable/immutable semantics, seeds new-owner child counters at zero, keeps deleted
+  counters stale, and flushes but never commits or rolls back.
 - `backend/alembic/versions/015_add_v2_authoritative_scrum_state.py` — reversible Task 5 schema above
   populated revision 014.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
   message/digest/U53/unit literals, including Unicode NFC equivalence.
 - `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
 - `evidence/v2/M1-T04/README.md` — Task 4 TDD, DST/cadence/holiday, regression, and isolation proof.
+- `evidence/v2/M1-T06/README.md` — Task 6 RED/GREEN, atomicity, stale/replay, restart, adapter,
+  regression, static, Alembic, and no-migration proof.
 - `backend/app/v2/persistence/unit_of_work.py` — the v2 persistence port and atomic SQLAlchemy
-  compare-and-swap implementation; it must not import or call an external adapter.
+  compare-and-swap implementations for live and authoritative slices; neither imports or calls an
+  external adapter.
 - `backend/app/v2/persistence/live_models.py` — the three append-oriented ledger mappings.
 - `backend/alembic/versions/014_add_v2_live_slice_ledgers.py` — reversible runtime-version and
   live-ledger migration above revision 013.
@@ -279,10 +296,9 @@ Current local evidence after Task 5 review fix round 5 verification:
 
 ## Next Task
 
-Execute Task 6 from `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR
-cycle. Task 5 is technically accepted at `0782070`; Task 6 must keep
-revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
-counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
+Obtain the independent Task 6 review required by `backlog/v2/m1-scrum-state.md` for the locally
+committed slice. Do not select or guess Task 7; M1 remains in progress pending a separately approved
+next slice. Do not add revision 016,
 allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
 calls, deployment, UAT, or M1 completion.
 
@@ -323,7 +339,7 @@ calls, deployment, UAT, or M1 completion.
   them in autonomous operation.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
 - V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
-  never import or invoke an adapter inside `commit_tick_slice`.
+  neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.
 - Treat `append_sequence` as the only pagination order. `occurred_at` may be equal or late, and
   semantic replay must not allocate another row when canonical immutable content is identical.
 - Existing dirty documentation and untracked assessment/skill files belong to the current owner;
@@ -338,8 +354,11 @@ calls, deployment, UAT, or M1 completion.
   sample-complete. Reuse of an omitted sample is valid only for an already persisted visit after
   the mapper loads and authenticates it in the caller's session.
 - Task 5 mapper `add` and `load` require clean caller ORM `new`/`dirty`/`deleted` collections before
-  authority SQL. Task 6 must flush or otherwise finish its ORM work before calling them and must
-  skip `add` entirely when the Task 5 write set is empty.
+  authority SQL. The Task 6 in-session path flushes each after-image/claim class before the complete
+  reload and skips after-image application entirely when the write set is empty.
+- New Task 6 work/member owners receive deterministic zero-valued child counters in the same
+  transaction. Those seeds consume nothing; every later missing/deleted established counter is
+  stale and must never be reconstructed from state or ledger contents.
 - Task 5 authoritative reads deliberately populate matching existing ORM identities so clean caller
   cache state cannot hide committed database updates, corruption, or deletion. This refresh is
   limited to queried team/run state and does not expire unrelated identities.

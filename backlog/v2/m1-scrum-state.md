@@ -71,7 +71,27 @@ Status: IN PROGRESS
 
 - [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and technically
   accepted 2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
-- [ ] Task 6 — Commit authoritative Scrum state atomically
+- [ ] Task 6 — Commit authoritative Scrum state atomically — implementation, verification,
+  bounded precommit audit, and local task commit complete; independent technical review pending
+
+### Task 6 Current Implementation Status
+
+Task 6 is implemented locally on base `b449ca0` with exact commit subject
+`feat(v2): commit scrum state atomically`. The immutable authoritative command is validated before
+session creation; one session then performs runtime CAS, sparse Task 5 after-images, exact semantic
+counter CAS, natural-eligibility resolution, ordered evidence/pending-intent appends, final flush,
+and one commit. Existing sparse after-images update without reconsuming allocation ranges, new
+work/member owners receive zero-valued child counters for later or restarted claims, and every
+deleted established counter remains stale. Replay is monotonic and typed state/eligibility/evidence
+conflicts or any injected failure roll back the complete slice. Projection delivery remains
+post-commit; no external client or adapter is imported or called.
+
+Final retained verification is 189 Task 6 focused tests, 974 all-v2 tests with one baseline warning,
+and 1492 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, touched-function
+shape/static/import checks, Alembic sole head 015 with empty branches and linear history, and the
+no-migration diff are clean. No revision 016 exists. The bounded non-Ultra precommit audit is clean;
+keep this task and plan open until independent technical review is clean. M1 remains in progress,
+and this plan selects no next task.
 
 ## Deferred Validation Hardening Outside These Tasks
 
@@ -412,8 +432,10 @@ one rollback and restart boundary.
   `2^53-1`. The claimed half-open ordinal range is `[expected_next, expected_next + count)`; a new
   counter value of exactly `2^53` is the exhausted sentinel and rejects every later claim.
 - New sprint/item/visit IDs and stored ordinal fields in the write set must match every claimed range
-  through the existing `sprint_rng_id`, `item_rng_id`, and `visit_rng_id` helpers. A missing, extra,
-  mismatched, duplicate, or unrelated claim rejects before a session is opened.
+  through the existing `sprint_rng_id`, `item_rng_id`, and `visit_rng_id` helpers. Extra,
+  mismatched, duplicate, or unrelated claims reject before a session is opened. An unclaimed sparse
+  ordinal after-image declares an existing-row update; if the database proves that row is new, the
+  transaction raises `StaleSemanticCounter` and rolls back before commit.
 - Add `EligibleNaturalDecisionClaim(decision, business_date)`, where `decision` is the reviewed
   `DecisionOccurrence`. Its exact dedup key is decision type + entity UUID + business date, and
   `decision.occurrence` must equal the natural counter's expected next value. This task accepts the
@@ -430,9 +452,10 @@ one rollback and restart boundary.
   persists them in the caller's current session. Task 6 does not derive transitions, allocate labor,
   recalculate time, resample, inspect Jira, or synthesize a write set.
 - The atomic order is: validate the complete command before session creation; open one short session;
-  runtime team/run/version CAS; apply Task 5 state after-images; CAS semantic counters; insert/resolve
-  eligible natural-evaluation rows; append existing activity, ground truth, and pending projection;
-  flush; commit once. Any exception rolls back every class.
+  runtime team/run/version CAS; apply Task 5 state after-images and seed new-owner child counters at
+  zero; CAS semantic counters; insert/resolve eligible natural-evaluation rows; append existing
+  activity, ground truth, and pending projection; flush; commit once. Seeds consume no occurrence,
+  missing established counters remain stale, and any exception rolls back every class.
 - Existing `commit_tick_slice`, paging, replay, and adapter boundaries remain public and compatible.
   Refactor shared private in-session helpers, but never call `commit_tick_slice` from inside the new
   operation because it owns its own session/transaction.
@@ -476,73 +499,73 @@ calls no simulation engine, scheduler, Jira/OpenAI client, projection adapter, o
 
 ### RED and focused behavior
 
-- [ ] Write all Task 6 command/UOW/adapter/architecture tests before production changes.
-- [ ] Prove direct construction, replacement, forged nested write sets/claims, wrong team/run,
+- [x] Write all Task 6 command/UOW/adapter/architecture tests before production changes.
+- [x] Prove direct construction, replacement, forged nested write sets/claims, wrong team/run,
   malformed/unsafe/overflowing expected-next ranges, non-contiguous ordinals, wrong semantic IDs,
   unsupported natural decision types, naive dates/instants, and claim/write mismatches fail before a
   session is opened and leave revision-015 state unchanged.
-- [ ] Prove one successful commit advances runtime version `0 -> 1`, persists representative member
+- [x] Prove one successful commit advances runtime version `0 -> 1`, persists representative member
   consumption, work/factor, sprint/scope, visit/sample state, advances sprint/item/visit/natural
   counters exactly once, stores exact eligible business-date occurrence assignments, and appends the
   existing ordered activity/ground-truth/projection records.
-- [ ] Inject failure independently at runtime update; every Task 5 state write class; every counter
+- [x] Inject failure independently at runtime update; every Task 5 state write class; every counter
   update; natural-evaluation insert; activity insert; ground-truth insert; projection insert; final
   flush; and commit. After each failure, a fresh session must observe the original runtime/version,
   state, counters, evaluations, and ledgers with zero partial change.
-- [ ] Load the same runtime/counter versions through two UOW instances. Prove the winner commits and
+- [x] Load the same runtime/counter versions through two UOW instances. Prove the winner commits and
   the stale writer raises `StaleRuntimeVersion` or `StaleSemanticCounter` as appropriate, with no
   state/claim/ledger rows from the loser.
-- [ ] Prove identical authoritative replay returns existing immutable state/evaluation/ledger rows
+- [x] Prove identical authoritative replay returns existing immutable state/evaluation/ledger rows
   and consumes no second occurrence. Conflicting semantic state, counter range, eligibility
   occurrence, or canonical evidence raises the exact typed conflict and rolls back the full slice.
-- [ ] Prove an empty natural-claim tuple (disabled/ineligible/forced/duplicate caller outcome) leaves
+- [x] Prove an empty natural-claim tuple (disabled/ineligible/forced/duplicate caller outcome) leaves
   natural counters unchanged. Prove only a successful eligible claim increments and a rollback does
   not create a gap.
-- [ ] Dispose the engine after a committed slice, create a fresh engine/session factory/UOW, and
+- [x] Dispose the engine after a committed slice, create a fresh engine/session factory/UOW, and
   reload the exact runtime, all Task 5 state, counter next-values, eligibility assignments, canonical
   provenance, append cursors, and pending intents. The next valid claim continues at the persisted
   expected occurrence.
-- [ ] Call an exploding fake projection adapter only after the authoritative commit returns; prove
+- [x] Call an exploding fake projection adapter only after the authoritative commit returns; prove
   its failure cannot undo or mutate any committed runtime/state/counter/evaluation/ledger row. AST
   and spy tests prove neither UOW operation imports or invokes an adapter or external client.
-- [ ] Prove Alembic still reports sole head 015, empty branch output, linear history, and no changed or
+- [x] Prove Alembic still reports sole head 015, empty branch output, linear history, and no changed or
   new migration file relative to the reviewed Task 5 commit.
-- [ ] From `backend/`, run the exact RED command with pipeline propagation:
+- [x] From `backend/`, run the exact RED command with pipeline propagation:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_authoritative_slice.py tests/v2/integration/test_authoritative_unit_of_work.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T06/red.txt
   ```
 
-- [ ] Confirm non-zero RED is caused only by absent Task 6 command/UOW interfaces and expectations,
+- [x] Confirm non-zero RED is caused only by absent Task 6 command/UOW interfaces and expectations,
   while Task 5 schema/reload and existing Task 2 tests remain otherwise healthy.
 
 ### GREEN, refactor, and verification
 
-- [ ] Implement the immutable authoritative command/result and short validation helpers first.
-- [ ] Extend the mapper with caller-session after-image and counter/evaluation operations; translate
+- [x] Implement the immutable authoritative command/result and short validation helpers first.
+- [x] Extend the mapper with caller-session after-image and counter/evaluation operations; translate
   only recognized stale/semantic conflicts to the exact typed errors.
-- [ ] Refactor the existing private UOW in-session path just enough for both public commit methods to
+- [x] Refactor the existing private UOW in-session path just enough for both public commit methods to
   share runtime CAS and ledger persistence while each public method still owns exactly one session,
   commit, rollback, and detached result.
-- [ ] Rerun the identical focused command, replacing only `red.txt` with `green.txt`; retain GREEN.
-- [ ] Refactor while focused GREEN remains unchanged and run an AST scan proving every touched/new
+- [x] Rerun the identical focused command, replacing only `red.txt` with `green.txt`; retain GREEN.
+- [x] Refactor while focused GREEN remains unchanged and run an AST scan proving every touched/new
   function is at most 30 lines and accepts at most three arguments.
-- [ ] From `backend/`, retain these exact verification classes under `evidence/v2/M1-T06/` using
+- [x] From `backend/`, retain these exact verification classes under `evidence/v2/M1-T06/` using
   `set -o pipefail`: Task 1 focused, Task 2 focused, Task 3 focused, Task 4 focused, Task 5 focused,
   Task 6 focused, all `tests/v2 -q`, full safe `tests -q`, Ruff, Alembic graph, no-migration diff,
   disposed-engine restart/continuation, atomic failure matrix, AST/import scan, and repository-root
   `git diff --check`.
-- [ ] Write `evidence/v2/M1-T06/README.md` with base/head, environment, exact RED reason, GREEN and
+- [x] Write `evidence/v2/M1-T06/README.md` with base/head, environment, exact RED reason, GREEN and
   regression counts, validation-before-session proof, successful write ordering, every injected
   rollback point, stale-writer result, replay/conflict behavior, no-gap eligible occurrence proof,
   disposed-engine restart/continuation, adapter boundary, unchanged sole revision 015, warning
   inventory, static checks, and explicit no-external/no-live statement. Include no secrets.
-- [ ] Append Task 6 to `changelog.md` and `assumptions.md`; update current-state `README.md`,
+- [x] Append Task 6 to `changelog.md` and `assumptions.md`; update current-state `README.md`,
   `agent_instruction.md`, `backlog/v2/README.md`, and this plan. Mark both tasks and this plan
   complete only after the Task 6 review is clean; leave M1 in progress for the separately planned
   allocator/live-flow slices.
-- [ ] Stage only Task 6 production/tests/evidence/mandatory documentation, verify
+- [x] Stage only Task 6 production/tests/evidence/mandatory documentation, verify
   `git diff --cached --check`, and commit exactly:
 
   ```bash

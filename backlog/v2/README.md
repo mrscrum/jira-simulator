@@ -10,8 +10,9 @@ not a fixed microtask sequence.
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
   state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
-  reported CLEAN with no Critical or Important findings; Task 6 remains open in
-  [`m1-scrum-state.md`](m1-scrum-state.md)
+  reported CLEAN with no Critical or Important findings; Task 6 is implemented, verified, and
+  locally committed from base `b449ca0` under its exact subject, but remains open pending independent
+  review in [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -44,10 +45,18 @@ deletion cannot be masked by caller cache state; deleted cached visits can be re
 after-images. Round-5 commit `0782070` narrowly detaches the confirmed-missing same-key visit and
 sample identities during cascade restoration while preserving unrelated caller cache entries. Its
 isolated and full verification is GREEN, and independent Ultra technical review reported CLEAN
-with no Critical or Important findings. Task 6 remains open to integrate that accepted state with
-the existing atomic runtime-CAS/live-ledger unit of work without a revision 016. Capacity
+with no Critical or Important findings. Task 6 now adds the exact immutable authoritative command,
+one-session runtime/state/counter/natural/evidence transaction, sparse existing-row updates, exact
+new-allocation ranges, proactive zero child counters for new work/member owners, monotonic replay,
+typed stale/conflict rollback, restart continuation, and unchanged post-commit adapter boundary.
+Deleted established counters remain stale; revision 015 remains the sole head and no external call
+or revision 016 was added. Task 6 verification is 189 focused, 974 all-v2 with one baseline warning,
+and 1492 full-backend with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and
+no-migration checks are clean. The bounded non-Ultra precommit audit is clean and the local task
+commit uses `feat(v2): commit scrum state atomically`; independent technical review remains pending,
+so Task 6 and M1 stay open. Capacity
 allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
-wiring, and UAT remain deferred.
+wiring, UAT, and any next task remain deferred.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

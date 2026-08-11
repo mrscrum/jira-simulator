@@ -1,5 +1,11 @@
 """Immutable v2 domain contracts."""
 
+from app.v2.domain.authoritative_slice import (
+    AuthoritativeTickSliceCommit,
+    CommittedAuthoritativeTickSlice,
+    EligibleNaturalDecisionClaim,
+    SemanticCounterClaim,
+)
 from app.v2.domain.business_calendar import (
     BusinessCalendar,
     BusinessTimeAddition,
@@ -88,10 +94,12 @@ __all__ = [
     "ActivityEvent",
     "ActivityEventDraft",
     "ActivityPage",
+    "AuthoritativeTickSliceCommit",
     "BusinessCalendar",
     "BusinessTimeAddition",
     "CadenceRule",
     "CommittedTickSlice",
+    "CommittedAuthoritativeTickSlice",
     "CreationKind",
     "DecisionOccurrence",
     "DecisionType",
@@ -100,6 +108,7 @@ __all__ = [
     "DualElapsed",
     "DurationSample",
     "DwellAnchors",
+    "EligibleNaturalDecisionClaim",
     "FactorKind",
     "GroundTruthDetails",
     "GroundTruthPage",
@@ -121,6 +130,7 @@ __all__ = [
     "ScrumStateSnapshot",
     "ScrumStateWriteSet",
     "SemanticCounter",
+    "SemanticCounterClaim",
     "SemanticCounterKind",
     "SemanticCounterScope",
     "SimulatorRank",

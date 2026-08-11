@@ -3,9 +3,11 @@
 from typing import Any
 
 __all__ = [
+    "NaturalEligibilityConflict",
     "SemanticDeduplicationConflict",
     "SqlAlchemyV2UnitOfWork",
     "StaleRuntimeVersion",
+    "StaleSemanticCounter",
     "SqlAlchemyScrumStateMapper",
     "V2ActivityEventModel",
     "V2GroundTruthRecordModel",

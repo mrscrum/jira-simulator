@@ -15,7 +15,7 @@ control, transport delivery, and Jira-side manual-intervention ingestion are not
 
 ## V2 persistence spine
 
-The first three additive v2 persistence slices are implemented locally. A fully resolved canonical
+Four additive v2 persistence slices are implemented locally. A fully resolved canonical
 Scrum blueprint can be atomically persisted as an isolated `v2_teams` aggregate with one immutable
 blueprint, initial run, and runtime shell. Revision `013` owns that four-table shell. Revision `014` adds explicit
 runtime versions plus ordered activity, immutable ground-truth, and generic pending projection
@@ -83,14 +83,42 @@ sample that the mapper has loaded and reauthenticated. Required-work hashes are 
 lower-case SHA-256 strings. Trusted sample creation exactly revalidates every nested deterministic
 draw scalar and the complete keyed HMAC, including low-bit changes and equality-spoofing
 subclasses. Retained dwell/touch unit values are exact finite built-in floats in `[0, 1]`, so
-stateful float subclasses reject before SQL binding. The mapper narrowly updates existing visit
-after-images; generalized Task 6 upsert/CAS remains deferred.
+stateful float subclasses reject before SQL binding. The original Task 5 `add` path narrowly updates
+existing visit after-images; the Task 6 authoritative path described below applies reviewed sparse
+after-image semantics without changing that public compatibility boundary.
 Aware offset instants normalize to UTC while naive instants reject. The canonical resolved blueprint
 remains the only home for names, roles, configured capacity/WIP, responsibilities, proficiency,
 routes, timing grids, calendar, and policy configuration. Revision `015` independently downgrades to
-populated revision `014` without changing its legacy, runtime, or live-ledger rows. Atomic
-integration of these after-images with the live-slice unit of work is deferred to Task 6; this slice
-adds no allocator, lifecycle transition, scheduler, or external delivery.
+populated revision `014` without changing its legacy, runtime, or live-ledger rows. Task 6 consumes
+that schema unchanged and adds no allocator, lifecycle transition, scheduler, or external delivery.
+
+## V2 authoritative atomic slices
+
+Task 6 is implemented locally on reviewed base `b449ca0`; its bounded non-Ultra precommit audit is
+clean and this slice uses the exact commit subject `feat(v2): commit scrum state atomically`.
+Independent technical review remains pending.
+`AuthoritativeTickSliceCommit` wraps the existing live-slice command with sparse authoritative Scrum
+after-images, explicit safe-integer semantic-counter ranges, and eligible natural-decision claims.
+The SQLAlchemy unit of work validates the exact immutable command before session creation, opens one
+short session, compare-and-swaps runtime, applies touched after-images, advances counters, resolves
+natural eligibility, appends ordered activity/ground-truth/pending-projection rows, flushes, and
+commits once. Every recognized stale writer, semantic conflict, database error, final-flush failure,
+or commit failure rolls back the complete slice.
+
+Claimed sprint/item/visit coordinates retain the existing semantic-ID derivations, while ordinary
+sparse updates to already persisted rows consume no allocation again. New work-item and member
+owners proactively receive their required zero-valued visit/cancellation/unavailability child
+counters, so a later slice or restarted process can claim occurrence zero without a gap. Those seeds
+consume nothing; a missing or deleted established counter remains stale and is never reconstructed
+from state or ledger rows. Identical eligibility replay returns the stored assignment without
+regressing a later counter, immutable state/evidence collisions remain typed conflicts, and
+projection delivery stays strictly post-commit. Task 6 creates no revision `016`, calls no external
+adapter/client, and implements no probability, eligibility, transition, labor-allocation, or live
+flow mechanics.
+
+The retained Task 6 verification records 189 focused tests, 974 all-v2 tests with one baseline
+warning, and 1492 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
+checks, the Alembic sole-head/empty-branch/linear-history checks, and the no-migration diff are clean.
 
 From `backend/`, run:
 
@@ -296,7 +324,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - The API has no authentication and Nginx has no working TLS configuration.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
-- V2 currently provides persistent work/sprint/member/status-visit contracts plus pure
-  deterministic decision/timing/calendar primitives; it has no occurrence allocator, atomic Task 6
-  state/live-ledger integration, live tick engine, scheduler wiring, projection worker, API routes,
-  Jira/OpenAI adapter, or live-provider validation.
+- V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
+  decision/timing/calendar primitives, and the atomic Task 6 state/counter/evaluation/live-ledger
+  commit boundary. It has no mechanical eligibility or lifecycle allocator, live tick engine,
+  scheduler wiring, projection worker, API routes, Jira/OpenAI adapter, or live-provider validation.

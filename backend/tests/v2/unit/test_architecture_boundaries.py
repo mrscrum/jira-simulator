@@ -2,8 +2,9 @@ import ast
 import importlib
 import inspect
 from pathlib import Path
+from typing import get_type_hints
 
-from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork
+from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork, V2UnitOfWork
 
 
 def test_v2_imports_only_allowed_legacy_boundaries():
@@ -367,3 +368,178 @@ def _task5_persistence_exports() -> set[str]:
         "V2SemanticCounterModel",
         "V2NaturalDecisionEvaluationModel",
     }
+
+
+def _task6_source_tree(filename: str) -> ast.Module:
+    v2_root = Path(__file__).parents[3] / "app" / "v2"
+    return ast.parse((v2_root / filename).read_text(encoding="utf-8"))
+
+
+def _called_names(tree: ast.Module) -> set[str]:
+    names = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    return names | _called_attributes(tree)
+
+
+TASK6_EXTERNAL_IMPORTS = (
+    "aiohttp",
+    "app.engine",
+    "app.integrations",
+    "boto3",
+    "httpx",
+    "openai",
+    "random",
+    "requests",
+    "secrets",
+    "socket",
+    "time",
+    "urllib",
+)
+TASK6_HIDDEN_RUNTIME_CALLS = frozenset(
+    {
+        "DeterministicRandomStream",
+        "deliver",
+        "now",
+        "random",
+        "sample_dwell",
+        "sample_touch",
+        "time",
+        "today",
+        "utcnow",
+        "uuid4",
+    }
+)
+TASK6_FORBIDDEN_RUNTIME_SYMBOLS = frozenset(
+    {
+        "DeterministicRandomStream",
+        "UniformDraw",
+        "cadence_boundary",
+        "sample_dwell",
+        "sample_touch",
+    }
+)
+TASK6_HIDDEN_OPERATION_PREFIXES = (
+    "allocate",
+    "recalculate",
+    "resample",
+    "schedule",
+    "synthesize",
+    "transition",
+)
+
+
+def _assert_no_task6_external_or_hidden_runtime(
+    tree: ast.Module, extra_imports: tuple[str, ...] = ()
+) -> None:
+    imports = (*TASK6_EXTERNAL_IMPORTS, *extra_imports)
+    assert all(not name.startswith(imports) for name in _imported_modules(tree))
+    imported_symbols = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+    assert not TASK6_FORBIDDEN_RUNTIME_SYMBOLS & imported_symbols
+    assert not any("jira" in name.lower() or "openai" in name.lower() for name in imported_symbols)
+    called = _called_names(tree)
+    assert not TASK6_HIDDEN_RUNTIME_CALLS & called
+    hidden_operations = {
+        name
+        for name in called
+        if name.lstrip("_").startswith(TASK6_HIDDEN_OPERATION_PREFIXES)
+    }
+    assert not hidden_operations
+
+
+def test_task6_authoritative_domain_has_no_external_or_hidden_runtime_behavior():
+    tree = _task6_source_tree("domain/authoritative_slice.py")
+    extra_imports = (
+        "app.database",
+        "app.models",
+        "app.v2.application",
+        "app.v2.persistence",
+        "sqlalchemy",
+    )
+
+    _assert_no_task6_external_or_hidden_runtime(tree, extra_imports)
+
+
+def test_task6_unit_of_work_exposes_exact_authoritative_operation():
+    domain = importlib.import_module("app.v2.domain.authoritative_slice")
+    expected_hints = {
+        "commit": domain.AuthoritativeTickSliceCommit,
+        "return": domain.CommittedAuthoritativeTickSlice,
+    }
+    operations = (
+        V2UnitOfWork.commit_authoritative_slice,
+        SqlAlchemyV2UnitOfWork.commit_authoritative_slice,
+    )
+
+    for operation in operations:
+        assert tuple(inspect.signature(operation).parameters) == ("self", "commit")
+        assert get_type_hints(operation) == expected_hints
+    assert getattr(V2UnitOfWork.commit_authoritative_slice, "__isabstractmethod__", False)
+
+
+def test_task6_public_exports_are_additive_and_importable():
+    domain = importlib.import_module("app.v2.domain")
+    persistence = importlib.import_module("app.v2.persistence")
+    domain_exports = {
+        "AuthoritativeTickSliceCommit",
+        "CommittedAuthoritativeTickSlice",
+        "EligibleNaturalDecisionClaim",
+        "SemanticCounterClaim",
+    }
+    persistence_exports = {"NaturalEligibilityConflict", "StaleSemanticCounter"}
+
+    assert domain_exports <= set(domain.__all__)
+    assert persistence_exports <= set(persistence.__all__)
+    assert all(hasattr(domain, name) for name in domain_exports)
+    assert all(hasattr(persistence, name) for name in persistence_exports)
+
+
+def test_task6_unit_of_work_imports_no_external_clients_or_hidden_clock():
+    tree = _task6_source_tree("persistence/unit_of_work.py")
+
+    _assert_no_task6_external_or_hidden_runtime(tree)
+
+
+def test_authoritative_operation_never_delegates_to_the_public_live_slice_operation():
+    tree = _task6_source_tree("persistence/unit_of_work.py")
+    concrete = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "SqlAlchemyV2UnitOfWork"
+    )
+    method = next(
+        node
+        for node in concrete.body
+        if isinstance(node, ast.FunctionDef) and node.name == "commit_authoritative_slice"
+    )
+    called = {
+        node.func.attr
+        for node in ast.walk(method)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+
+    assert "commit_tick_slice" not in called
+
+
+def test_task6_creates_no_alembic_revision_016():
+    versions = Path(__file__).parents[3] / "alembic" / "versions"
+    revisions = {
+        node.value.value
+        for path in versions.glob("*.py")
+        for node in ast.parse(path.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "revision"
+        and isinstance(node.value, ast.Constant)
+    }
+
+    assert "015" in revisions
+    assert "016" not in revisions
+    assert not tuple(versions.glob("016*.py"))

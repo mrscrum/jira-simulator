@@ -1,0 +1,64 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_deleted_team_scoped_counter_is_not_recreated[state0-claim0-False] ____
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...),), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.SPRINT_ORDINAL: 'SPRINT_ORDINAL'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), scope_key='SCRUM'), expected_next=0, count=1)
+seed = False
+
+    @pytest.mark.parametrize(
+        ("state", "claim", "seed"),
+        (
+            (ScrumStateWriteSet(sprints=(make_sprint(),)), sprint_claim(), False),
+            (
+                ScrumStateWriteSet(work_items=(_alternate_item_and_claim()[0],)),
+                _alternate_item_and_claim()[1],
+                True,
+            ),
+        ),
+    )
+    def test_deleted_team_scoped_counter_is_not_recreated(atomic_context, state, claim, seed):
+        _seed_then_delete_counter(atomic_context.session_factory, claim, seed)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 0, f"deleted-{claim.scope.kind.value}")
+        command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+>       with pytest.raises(StaleSemanticCounter):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE StaleSemanticCounter
+
+tests/v2/integration/test_authoritative_unit_of_work.py:841: Failed
+____ test_deleted_team_scoped_counter_is_not_recreated[state1-claim1-True] _____
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.ITEM_SEQUENCE: 'ITEM_SEQUENCE'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), scope_key='SCRUM_REPLENISHMENT'), expected_next=0, count=1)
+seed = True
+
+    @pytest.mark.parametrize(
+        ("state", "claim", "seed"),
+        (
+            (ScrumStateWriteSet(sprints=(make_sprint(),)), sprint_claim(), False),
+            (
+                ScrumStateWriteSet(work_items=(_alternate_item_and_claim()[0],)),
+                _alternate_item_and_claim()[1],
+                True,
+            ),
+        ),
+    )
+    def test_deleted_team_scoped_counter_is_not_recreated(atomic_context, state, claim, seed):
+        _seed_then_delete_counter(atomic_context.session_factory, claim, seed)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 0, f"deleted-{claim.scope.kind.value}")
+        command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+>       with pytest.raises(StaleSemanticCounter):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE StaleSemanticCounter
+
+tests/v2/integration/test_authoritative_unit_of_work.py:841: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_deleted_team_scoped_counter_is_not_recreated[state0-claim0-False]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_deleted_team_scoped_counter_is_not_recreated[state1-claim1-True]
+2 failed, 49 deselected in 0.32s

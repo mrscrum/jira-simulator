@@ -320,3 +320,17 @@
 - Preserved caller transaction ownership, revision 015, and the deferral of generalized Task 6
   upsert/CAS, counter claims, lifecycle/allocation behavior, revision 016, external calls,
   deployment, UAT, and M1 completion exactly as instructed.
+
+## [2026-08-11] M1 — Commit authoritative Scrum state atomically
+
+- Treated an ordinal after-image inside an explicit claimed range as a declared allocation or exact
+  replay, while an unclaimed ordinal after-image is an update to an existing row. If persistence
+  proves such an unclaimed row is new, the whole slice rejects and rolls back.
+- Chose proactive zero-valued child-counter creation when a work-item or member owner is first
+  persisted because a positive claim must consume an occurrence, while disabled/ineligible or later
+  outcomes must consume nothing. Zero-valued seeds are plumbing, not allocations.
+- Treated every missing established counter as stale, including a deleted counter still at zero;
+  Task 6 never infers or reconstructs counter progress from state, evaluations, or append ledgers.
+- No Task 7, lifecycle/eligibility mechanics, allocator, live-flow engine, external wiring,
+  revision 016, deployment, UAT, or M1 completion was assumed. Base `b449ca0`, the exact commit
+  subject, and all final verification counts were supplied explicitly.

@@ -435,3 +435,27 @@
   external cascade deleted both same-key rows while both caller identities remained cached.
 - Revision 015, generalized Task 6 CAS/upsert, lifecycle/allocation behavior, external calls,
   deployment, UAT, and M1 completion remain unchanged.
+
+## [2026-08-11] M1 — Commit authoritative Scrum state atomically
+### Changed
+- Added immutable Task 6 command/result, explicit semantic-counter and eligible-natural-decision
+  claims, and an additive authoritative operation on the existing v2 unit-of-work port.
+- Added one-session runtime CAS, sparse Task 5 after-image application, exact counter CAS, natural
+  eligibility resolution, ordered evidence/intent persistence, final flush, and single commit with
+  full rollback at every failure boundary.
+- Added sparse existing-row updates that do not reconsume allocation claims, exact new-coordinate
+  and semantic-ID binding, immutable-state replay/conflict handling, and monotonic natural replay.
+- Added proactive zero-valued visit/cancellation counters for new work items and unavailable-member
+  counters for new members, preserving later-slice and disposed-engine continuation without gaps.
+- Retained Task 6 evidence on base `b449ca0`: 189 focused tests; 974 all-v2 tests with one baseline
+  warning; 1492 full-backend tests with 43 skipped and 15 baseline warnings; clean Ruff, static,
+  Alembic, and no-migration checks. The slice uses the exact commit subject
+  `feat(v2): commit scrum state atomically`; independent technical review remains pending.
+### Fixed
+- Deleted or otherwise missing established semantic counters now raise `StaleSemanticCounter`
+  instead of being inferred or recreated from allocation rows, evaluations, or ledgers.
+- Identical older eligibility replay no longer regresses or double-consumes a later occurrence, and
+  differing eligibility, immutable Scrum state, or canonical evidence rolls back the whole slice
+  with its exact typed conflict.
+- Revision 015 remains the sole linear Alembic head; no revision 016, external call, projection
+  delivery, lifecycle/allocator behavior, deployment, UAT, or M1 completion was added.
