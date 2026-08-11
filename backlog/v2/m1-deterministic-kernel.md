@@ -28,7 +28,7 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [ ] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling
+- [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10
 - [ ] Task 4 — Add dual-clock, DST-safe business-calendar primitives
 
 ## Deferred Non-Blocking Validation Hardening
@@ -102,41 +102,41 @@ Status: IN PROGRESS
 
 **RED command and required failures:**
 
-- [ ] Write the fixture/tests first. From `backend/`, run exactly:
+- [x] Write the fixture/tests first. From `backend/`, run exactly:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_deterministic_rng.py tests/v2/unit/test_sampling.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T03/red.txt
   ```
 
-- [ ] Confirm the command exits non-zero because the new domain modules/interfaces are absent, not because fixtures, imports, or assertions are malformed.
-- [ ] Freeze literal vectors covering canonical message bytes, full HMAC digest, high-53-bit integer, and `u`; include composed/decomposed Unicode seeds that normalize to the same key and a distinct seed that does not.
-- [ ] Prove every path with fixed UUID literals, exact lower-case formatting, zero and positive ordinals, each creation kind, malformed digest, wrong enum/string, negative/bool ordinal, and separation from current database IDs/order.
-- [ ] Prove fixed draw replay in a fresh subprocess and equality across reversed/interleaved call order and unrelated draws. AST/import tests reject Python `hash`, `random`, `uuid4`, database/ORM imports, current time, and mutable global counters.
-- [ ] Prove dwell exact anchors/endpoints, dense monotonic/bounded values across every segment, all-zero/equal anchors, very small/large finite values, and every invalid draw/anchor category.
-- [ ] Prove touch exact endpoints/formula/equal bounds and every invalid draw/bounds category. Exercise every timing cell in `resolved_scrum_blueprint.json` through both samplers without changing the fixture.
+- [x] Confirm the command exits non-zero because the new domain modules/interfaces are absent, not because fixtures, imports, or assertions are malformed.
+- [x] Freeze literal vectors covering canonical message bytes, full HMAC digest, high-53-bit integer, and `u`; include composed/decomposed Unicode seeds that normalize to the same key and a distinct seed that does not.
+- [x] Prove every path with fixed UUID literals, exact lower-case formatting, zero and positive ordinals, each creation kind, malformed digest, wrong enum/string, negative/bool ordinal, and separation from current database IDs/order.
+- [x] Prove fixed draw replay in a fresh subprocess and equality across reversed/interleaved call order and unrelated draws. AST/import tests reject Python `hash`, `random`, `uuid4`, database/ORM imports, current time, and mutable global counters.
+- [x] Prove dwell exact anchors/endpoints, dense monotonic/bounded values across every segment, all-zero/equal anchors, very small/large finite values, and every invalid draw/anchor category.
+- [x] Prove touch exact endpoints/formula/equal bounds and every invalid draw/bounds category. Exercise every timing cell in `resolved_scrum_blueprint.json` through both samplers without changing the fixture.
 
 **Implementation steps:**
 
-- [ ] Implement the enums and short validation helpers, then the eight exact UUIDv5 path helpers using the existing fixed namespace.
-- [ ] Implement the immutable decision input/result contracts and stateless stream. Keep canonical-message construction, seed-key derivation, HMAC, and U53 conversion in separately testable short functions.
-- [ ] Implement validated dwell/touch value objects and pure samplers; use endpoint branches for exact configured anchors/bounds and `log1p`/`expm1` only for interior dwell interpolation.
-- [ ] Add only the approved exports and dependency-boundary assertions. Do not create persistence state, occurrence allocation, generic arbitrary-path APIs, stochastic defaults, or external dependencies.
-- [ ] Run the identical test selection after implementation, retaining GREEN with:
+- [x] Implement the enums and short validation helpers, then the eight exact UUIDv5 path helpers using the existing fixed namespace.
+- [x] Implement the immutable decision input/result contracts and stateless stream. Keep canonical-message construction, seed-key derivation, HMAC, and U53 conversion in separately testable short functions.
+- [x] Implement validated dwell/touch value objects and pure samplers; use endpoint branches for exact configured anchors/bounds and `log1p`/`expm1` only for interior dwell interpolation.
+- [x] Add only the approved exports and dependency-boundary assertions. Do not create persistence state, occurrence allocation, generic arbitrary-path APIs, stochastic defaults, or external dependencies.
+- [x] Run the identical test selection after implementation, retaining GREEN with:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_deterministic_rng.py tests/v2/unit/test_sampling.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T03/green.txt
   ```
 
-- [ ] Refactor only while the same focused selection remains green and every touched/new function remains within the project limits.
+- [x] Refactor only while the same focused selection remains green and every touched/new function remains within the project limits.
 
 **Verification, documentation, and evidence:**
 
-- [ ] Run the focused GREEN selection, `tests/v2 -q`, the full safe backend `tests -q`, Ruff `../.venv/bin/python -B -m ruff check --no-cache .`, Alembic `heads --verbose`, `branches --verbose`, and `history`, an AST touched-function scan, and `git diff --check`; retain exact commands/output under `evidence/v2/M1-T03/`.
-- [ ] Record Python/dependency versions, RED reason, golden-vector provenance, subprocess/order-independence proof, sampler boundary/invariant results, full regression counts/warnings, sole `014` head, no migration, and no external call in `evidence/v2/M1-T03/README.md` without secrets.
-- [ ] Update mandatory current-state documents and this plan's checklist. Do not mark Task 4 or M1 complete and do not claim persistence occurrence allocation, live flow, Jira, deployment, or UAT.
-- [ ] Inspect/stage only Task 3 files and commit exactly `feat(v2): add deterministic decision sampling` before Task 4 begins.
+- [x] Run the focused GREEN selection, `tests/v2 -q`, the full safe backend `tests -q`, Ruff `../.venv/bin/python -B -m ruff check --no-cache .`, Alembic `heads --verbose`, `branches --verbose`, and `history`, an AST touched-function scan, and `git diff --check`; retain exact commands/output under `evidence/v2/M1-T03/`.
+- [x] Record Python/dependency versions, RED reason, golden-vector provenance, subprocess/order-independence proof, sampler boundary/invariant results, full regression counts/warnings, sole `014` head, no migration, and no external call in `evidence/v2/M1-T03/README.md` without secrets.
+- [x] Update mandatory current-state documents and this plan's checklist. Do not mark Task 4 or M1 complete and do not claim persistence occurrence allocation, live flow, Jira, deployment, or UAT.
+- [x] Inspect/stage only Task 3 files and commit exactly `feat(v2): add deterministic decision sampling` before Task 4 begins.
 
 **Done condition:** Independent literal vectors and subprocess/order tests prove stable UUIDv5/HMAC-U53 results; bounded dwell/touch samples satisfy every endpoint, monotonicity, finite/order, and starter-fixture invariant; no persistence/schema/external boundary changed; Alembic remains sole head `014`; focused/v2/full tests and Ruff pass with truthful evidence and the exact Task 3 commit.
 

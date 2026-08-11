@@ -1,5 +1,20 @@
 """Immutable v2 domain contracts."""
 
+from app.v2.domain.deterministic_rng import (
+    CreationKind,
+    DecisionOccurrence,
+    DecisionType,
+    DeterministicRandomStream,
+    UniformDraw,
+    dependency_rng_id,
+    item_rng_id,
+    member_rng_id,
+    rework_rng_id,
+    run_rng_id,
+    sprint_rng_id,
+    team_rng_id,
+    visit_rng_id,
+)
 from app.v2.domain.live_slice import (
     ActivityDetails,
     ActivityEvent,
@@ -20,6 +35,15 @@ from app.v2.domain.live_slice import (
     RuntimeAdvance,
     TickSliceCommit,
 )
+from app.v2.domain.sampling import (
+    DurationSample,
+    DwellAnchors,
+    TouchBounds,
+    dwell_anchors,
+    sample_dwell,
+    sample_touch,
+    touch_bounds,
+)
 
 __all__ = [
     "ActivityDetails",
@@ -27,7 +51,13 @@ __all__ = [
     "ActivityEventDraft",
     "ActivityPage",
     "CommittedTickSlice",
+    "CreationKind",
+    "DecisionOccurrence",
+    "DecisionType",
+    "DeterministicRandomStream",
     "DraftEnvelope",
+    "DurationSample",
+    "DwellAnchors",
     "GroundTruthDetails",
     "GroundTruthPage",
     "GroundTruthRecord",
@@ -40,4 +70,18 @@ __all__ = [
     "ProjectionPageQuery",
     "RuntimeAdvance",
     "TickSliceCommit",
+    "TouchBounds",
+    "UniformDraw",
+    "dependency_rng_id",
+    "dwell_anchors",
+    "item_rng_id",
+    "member_rng_id",
+    "rework_rng_id",
+    "run_rng_id",
+    "sample_dwell",
+    "sample_touch",
+    "sprint_rng_id",
+    "team_rng_id",
+    "touch_bounds",
+    "visit_rng_id",
 ]

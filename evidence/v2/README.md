@@ -5,5 +5,6 @@ Create one directory per task: `evidence/v2/<task-id>/README.md`.
 Evidence records follow `/docs/v2/implementation-runbook.md`. Do not commit secrets or large raw
 logs. Store large artifacts outside Git and record their durable location and checksum.
 
-Planning evidence exists at `V2-S0-T01/README.md`. No implementation evidence exists yet; the v2
-implementation has not started.
+Planning evidence exists at `V2-S0-T01/README.md`. Local implementation evidence now exists for the
+reviewed persistence spine (`M1-T01`, `M1-T02`) and the pure deterministic decision/sampling kernel
+(`M1-T03`). None of these records claims deployment, UAT, live Jira/OpenAI access, or M1 completion.

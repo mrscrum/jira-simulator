@@ -43,6 +43,21 @@ PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pyte
 ../.venv/bin/python -B -m ruff check --no-cache .
 ```
 
+## V2 deterministic decision kernel
+
+The first pure v2 kernel slice is implemented locally. `HMAC_SHA256_U53_V1` derives stable
+team/run/member/sprint/item/visit/dependency/rework UUIDv5 identities from the existing semantic
+namespace and produces immutable unit draws from an NFC-normalized root-seed key plus an exact
+canonical decision coordinate. Draws are independent of process, call order, database identity,
+clock time, and mutable RNG state. The closed creation-kind and decision enums reject raw strings,
+and every ordinal/draw index rejects booleans and negative values.
+
+The same slice provides pure bounded dwell and touch sampling. Dwell uses the configured
+minimum/p25/p50/p99/maximum anchors with exact endpoints and log1p-space interpolation; touch uses
+the exact bounded linear formula. Both accept only explicit finite unit draws, preserve immutable
+input/result provenance, and consume no persisted occurrence. This slice adds no database table,
+migration, scheduler, engine, or external adapter.
+
 ## Prerequisites
 
 - AWS account with an EC2 key pair created
@@ -194,5 +209,6 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - The API has no authentication and Nginx has no working TLS configuration.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
-- V2 currently provides persistence contracts only; it has no tick engine, scheduler wiring,
+- V2 currently provides persistence contracts plus pure deterministic decision/timing primitives;
+  it has no occurrence allocator, live tick engine, business-calendar kernel, scheduler wiring,
   projection worker, API routes, Jira/OpenAI adapter, or live-provider validation.

@@ -1,0 +1,6 @@
+Python 3.12.13
+pytest 9.1.1
+Pydantic 2.13.4
+SQLAlchemy 2.0.51
+Alembic 1.19.1
+SQLite 3.50.4

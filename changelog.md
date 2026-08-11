@@ -242,3 +242,15 @@
 ### Fixed
 - Integer, boolean, `None`, mixed, and recursively nested non-string object keys are now rejected
   before `json.dumps` can coerce them into different canonical JSON identities.
+
+## [2026-08-10] M1 — Add deterministic decision sampling
+### Changed
+- Added the exact closed `HMAC_SHA256_U53_V1` decision contract, immutable draw provenance, and
+  eight fixed-namespace semantic UUIDv5 identity helpers without persistence or mutable RNG state.
+- Added pure bounded full-dwell and touch-work samplers with exact endpoints, validated finite
+  inputs, log1p-space dwell interpolation, and immutable sample provenance.
+- Added independent literal HMAC vectors, cross-process/order replay tests, starter timing-cell
+  coverage, pure-domain architecture checks, and complete local verification evidence.
+### Fixed
+- Deterministic v2 decisions no longer require a future caller to invent process-local RNG state,
+  database ordering, or implicit occurrence consumption.

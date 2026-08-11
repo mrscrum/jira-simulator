@@ -200,3 +200,14 @@
 ## [2026-08-10] M1 — Task 2 review fix round 2
 - No assumptions made; the supplied review finding explicitly required recursive rejection of every
   non-string JSON object key while preserving the existing valid canonical representation.
+
+## [2026-08-10] M1 — Add deterministic decision sampling
+- Used `DurationSample.parameters` as the single immutable field retaining either `DwellAnchors` or
+  `TouchBounds` because the approved brief required that provenance but did not prescribe its field
+  name; the public sample still exposes the exact supplied draw and sampled hours.
+- Treated a non-empty, already-trimmed string `entity_id` as the caller-approved catalog-key form;
+  every semantic UUID path remains a strict `UUID` input and emits lower-case hyphenated text.
+- Reused the existing compact sorted-key UTF-8 encoder only for the closed string/integer decision
+  schema, as explicitly allowed, without changing `CANONICAL_JSON_V1` or blueprint hash behavior.
+- Accepted finite Python integers and floats for explicit sampler numbers, normalized them to
+  immutable floats, and rejected booleans even though `bool` subclasses `int`.

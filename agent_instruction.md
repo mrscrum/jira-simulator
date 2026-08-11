@@ -34,9 +34,20 @@ tracked under `backlog/v2/`; its active near-term plan is
 - Sprint planning, move-left rolls, working-calendar calculations, and deterministic precompute.
 - Persistent scheduled events, Jira write queue, rate-limit handling, Jira client, bootstrapper,
   health monitor, and queue-status auditor.
+- Pure v2 deterministic semantic identities, `HMAC_SHA256_U53_V1` decision draws, and bounded
+  dwell/touch sampling with immutable provenance and no persistence/external dependency.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-10, M1 deterministic-kernel Task 3 added the pure decision and timing-sampling boundary.
+`backend/app/v2/domain/deterministic_rng.py` owns the exact closed creation/decision enums, eight
+fixed-namespace semantic UUIDv5 paths, NFC-seeded HMAC-SHA-256 canonical messages, high-53-bit
+conversion, and frozen draw provenance. `backend/app/v2/domain/sampling.py` owns exact-anchor
+log1p-space dwell interpolation and bounded linear touch sampling from explicit unit draws. Literal
+vectors, fresh-process/reversed/interleaved replay, every starter timing cell, invalid booleans and
+finite/order boundaries, and AST isolation are covered. No occurrence allocation, persistence,
+migration, clock, scheduler, engine, Jira/OpenAI call, deployment, UAT, or M1 completion was added.
 
 On 2026-08-10, the reviewed two-task persistence spine was closed without completing M1, and the
 next active plan was defined as two pure-domain deterministic-kernel slices: exact HMAC-U53 plus
@@ -76,9 +87,11 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Local evidence:
+Current local evidence:
 
-- Backend: 699 passed, 43 skipped, 15 baseline warnings.
+- Backend: 839 passed, 43 skipped, 15 baseline warnings.
+- V2: 321 passed, 1 baseline warning.
+- Task 3 focused: 143 passed.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.
@@ -109,6 +122,13 @@ Local evidence:
 - `backend/app/api/routers/scheduled_events.py` — sprint/schedule management and diagnostics.
 - `backend/app/v2/domain/live_slice.py` — immutable live-slice drafts, stored records, runtime
   advance, transaction command/result, and page contracts.
+- `backend/app/v2/domain/deterministic_rng.py` — closed semantic ID/decision enums, exact UUIDv5
+  paths, immutable decision coordinates/results, and stateless HMAC-U53 draws.
+- `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
+  bounded duration samples.
+- `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
+  message/digest/U53/unit literals, including Unicode NFC equivalence.
+- `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
 - `backend/app/v2/persistence/unit_of_work.py` — the v2 persistence port and atomic SQLAlchemy
   compare-and-swap implementation; it must not import or call an external adapter.
 - `backend/app/v2/persistence/live_models.py` — the three append-oriented ledger mappings.
@@ -119,11 +139,11 @@ Local evidence:
 
 ## Next Task
 
-Implement Task 3 from `backlog/v2/m1-deterministic-kernel.md`: exact semantic RNG paths,
-`HMAC_SHA256_U53_V1`, and bounded dwell/touch samplers through strict RED -> GREEN -> REFACTOR. It is
-pure v2 domain work: no migration, persistence occurrence allocation, scheduler, Jira/OpenAI call,
-deployment, or UAT. After its separate review/commit, Task 4 adds the dual-clock/DST-safe calendar
-primitives. Keep M1 in progress throughout both tasks.
+Review Task 3, then implement Task 4 from `backlog/v2/m1-deterministic-kernel.md`: pure dual-clock,
+DST-safe business-calendar/cadence primitives and `US_FEDERAL_V1` horizon materialization through a
+separate strict RED -> GREEN -> REFACTOR cycle. Do not modify Task 3 algorithms/vectors, add a
+migration or persistence occurrence allocation, wire a scheduler, call Jira/OpenAI, deploy, claim
+UAT, or mark M1 complete.
 
 ## Active Decisions and External Gates
 
@@ -170,6 +190,9 @@ primitives. Keep M1 in progress throughout both tasks.
 - `DraftEnvelope` cyclic Python containers currently fail before session/state mutation with a raw
   `RecursionError`; this deferred non-blocking validation Minor is outside deterministic Tasks 3/4
   and should be fixed separately before an API accepts arbitrary v2 payload objects.
+- Task 3 validates caller-supplied occurrences only. It deliberately has no counter or allocation;
+  future authoritative state transactions must allocate eligible occurrences on commit without
+  deriving them from ledger counts or call order.
 
 ## Mandatory Development Flow
 

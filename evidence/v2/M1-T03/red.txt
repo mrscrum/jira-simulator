@@ -1,0 +1,27 @@
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/v2/unit/test_deterministic_rng.py ___________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_deterministic_rng.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_deterministic_rng.py:13: in <module>
+    from app.v2.domain.deterministic_rng import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.deterministic_rng'
+_______________ ERROR collecting tests/v2/unit/test_sampling.py ________________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_sampling.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_sampling.py:6: in <module>
+    from app.v2.domain.sampling import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.sampling'
+=========================== short test summary info ============================
+ERROR tests/v2/unit/test_deterministic_rng.py
+ERROR tests/v2/unit/test_sampling.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+2 errors in 0.16s

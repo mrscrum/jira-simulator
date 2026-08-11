@@ -21,9 +21,9 @@ needed at that time, following `/AGENTS.md`, and update the relevant stage file 
 The existing stage files contain a detailed planning draft created before Pavel asked for a
 high-level plan. They are reference material only; their task IDs and sequencing are not binding.
 
-The reviewed persistence spine is complete through revision 014. M1 now continues with the two
-independently reviewable deterministic-kernel slices in the active near-term plan; completing those
-slices does not by itself complete M1.
+The reviewed persistence spine is complete through revision 014. Deterministic-kernel Task 3 is
+implemented locally with exact HMAC-U53 decisions and bounded dwell/touch sampling. Task 4, the
+dual-clock/DST-safe business calendar, remains open; completing it will not by itself complete M1.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and
