@@ -21,8 +21,9 @@ microsecond arithmetic, SQLAlchemy 2, SQLite/WAL, pytest, Ruff.
 - Later explicit instructions, `AGENTS.md`, and `docs/v2/high-level-plan.md` are authoritative in
   that order. Optional capacity/flow notes may clarify mechanics only where they do not expand this
   plan.
-- Begin from clean reviewed head `847e799`, with Tasks 1-6 accepted and Alembic revision 015 as the
-  sole linear head. Preserve every accepted public behavior and the additive v1/v2 boundary.
+- Begin from the clean branch containing this reviewed plan. The accepted Tasks 1-6 implementation
+  baseline is `847e799`, and Alembic revision 015 remains the sole linear head. Preserve every
+  accepted public behavior and the additive v1/v2 boundary.
 - Follow strict RED -> GREEN -> REFACTOR. Run the complete focused selection to an expected non-zero
   result before production code, retain that output with `set -o pipefail`, implement only the
   current task, rerun the identical selection to GREEN, and refactor only while it remains GREEN.
@@ -39,6 +40,10 @@ microsecond arithmetic, SQLAlchemy 2, SQLite/WAL, pytest, Ruff.
   within signed SQLite range. Built-in blueprint floats are converted through exact
   `as_integer_ratio()` arithmetic and nearest-ties-to-even rounding; booleans, subclasses,
   non-finite values, negative values, and overflow reject.
+- Capacity composition is not algebraically reassociable. Convert each configured nominal/override
+  and runtime-ceiling hours float independently with `hours_to_microseconds`, take the minimum of
+  those already-rounded integer caps, then apply the selected exact availability-fraction ratio to
+  that integer and half-even once. Never multiply hours by fraction first or combine their ratios.
 - Task 7 performs no I/O and creates no ledger draft. Task 8 performs one coherent read, constructs
   one immutable Task 6 command, and delegates one atomic commit. No network or external adapter call
   occurs before, during, or after either task.
@@ -82,9 +87,14 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
 - Configured availability is the one active blueprint interval or the default fraction `1.0` and
   nominal daily capacity. Runtime overlays are independent. Effective fraction is the minimum of
   the configured fraction and all active runtime fractions; effective pre-fraction cap is the
-  minimum configured cap and all non-null runtime ceilings. Multiplication is exact half-even.
-  Existing consumption is never reversed; when it equals or exceeds the resolved cap, remaining
-  labor is zero.
+  minimum configured cap and all non-null runtime ceilings. Resolve this composition in exactly
+  three stages: convert every hours contributor independently with `hours_to_microseconds` using its
+  exact binary ratio and one half-even rounding; take the integer minimum; multiply that integer by
+  the selected exact fraction ratio and half-even once. Reassociation is forbidden. The binding
+  golden is `hours=1.000000001 -> 3_600_000_004` microseconds, followed by
+  `fraction=0.95 -> 3_420_000_004`; the combined-ratio result `3_420_000_003` is invalid. Existing
+  consumption is never reversed; when it equals or exceeds the resolved cap, remaining labor is
+  zero.
 - Work order is exactly the four-field tuple
   `(WORK_PRIORITY_ORDER.index(work_item.priority.value), work_item.relative_rank,
   visit.entered_at, work_item.id)`. Compare those fields directly in that order. Never order via a
@@ -120,7 +130,9 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
 - A segment result retains every ordering key, candidate WIP numerator/denominator, proficiency
   numerator/denominator, capacity contributor, prior consumption, labor debit, effective credit,
   queue reason/accrual, and before/after touch balance required to serialize deterministic
-  calibration ground truth.
+  calibration ground truth. Contributor order is blueprint default or the active blueprint interval
+  first, followed by runtime overlays in ascending semantic overlay UUID order; input/row order never
+  changes the trace.
 
 ## Task 7: Add deterministic capacity allocation
 
@@ -138,8 +150,36 @@ Jira, OpenAI, scheduler, wall-clock, or random module.
 tuple of semantic visit UUIDs selected by a later application policy.
 
 **Outputs:** Exact duration helpers; immutable four-field work-order key, member score, availability
-resolution, ownership decision, labor credit, request, and result values; and one pure allocation
-function.
+contributor/resolution, ownership decision, labor credit, request, and result values; and one pure
+allocation function.
+
+### Self-contained authority and constraints
+
+- Later explicit instructions, `AGENTS.md`, and `docs/v2/high-level-plan.md` govern in that order.
+  Begin from the clean branch containing this reviewed plan; Tasks 1-6 implementation baseline
+  `847e799` is accepted and revision 015 is the sole Alembic head. Preserve accepted behavior and
+  the additive v1/v2 boundary; optional capacity/flow notes cannot expand this task.
+- Use strict RED -> GREEN -> REFACTOR with retained `set -o pipefail` evidence. Apply the installed
+  Superpowers TDD and Python clean-code skills; keep public types exact, functions within three
+  arguments/30 lines, dependencies injected, and modules single-purpose.
+- `ResolvedTeamBlueprint` is the only configuration authority. Never copy configuration into a
+  mutable object or table. Validate the complete immutable `ScrumStateSnapshot` against the exact
+  blueprint and use only semantic team/run/member/item/visit/overlay UUIDs.
+- Every duration/capacity value is an exact non-negative built-in integer microsecond within signed
+  SQLite range. Convert each built-in float through `as_integer_ratio()`; reject booleans,
+  subclasses, non-finite/negative values, and overflow. Apply only the staged rounding contract
+  below; reassociation is a contract violation.
+- Task 7 is a pure domain policy: no session, ORM, ledger draft, I/O, network, adapter, implicit
+  clock, scheduler, randomness, v1 engine, Jira/OpenAI, frontend, deployment, UAT, or push. Do not
+  access credentials, AWS/deployment targets, or GitHub remotes.
+- Capacity ownership, bounded queue-business accounting, and touch credit are the entire scope. Do
+  not close/open a visit, evaluate dwell, move route/status, change any lifecycle, plan/carry scope,
+  run risks/dependencies, schedule wakes, generate backlog, emit projection, or complete M1.
+- Do not alter revision 015 or create/reserve revision 016. Segment-local proficiency carries no
+  fractional residue; arbitrary scheduler partition invariance/residue persistence belongs to the
+  separately planned revision 016 schema task and must not be emulated in memory.
+- After GREEN/regression/static verification, retain evidence, complete both review stages, update
+  every `AGENTS.md` document, and make only Task 7's exact commit.
 
 ### Files
 
@@ -193,6 +233,14 @@ class CapacityMemberScore(ImmutableValue):
 
 
 @immutable_dataclass
+class AvailabilityContributor(ImmutableValue):
+    contributor_id: str
+    fraction_numerator: int
+    fraction_denominator: int
+    pre_fraction_cap_microseconds: int | None
+
+
+@immutable_dataclass
 class AvailabilityResolution(ImmutableValue):
     member_id: UUID
     business_date: date
@@ -202,7 +250,7 @@ class AvailabilityResolution(ImmutableValue):
     effective_cap_microseconds: int
     consumed_before_microseconds: int
     remaining_before_microseconds: int
-    contributor_ids: tuple[str, ...]
+    contributors: tuple[AvailabilityContributor, ...]
 
 
 @immutable_dataclass
@@ -281,25 +329,38 @@ def labor_to_complete(remaining_credit_microseconds: int, proficiency: float) ->
 ```
 
 All values reject runtime subclasses and post-construction/replacement forgery consistently with
-Tasks 3-6. `contributor_ids` uses stable canonical strings: `BLUEPRINT_DEFAULT`,
-`BLUEPRINT_INTERVAL:<zero-based-index>`, and `RUNTIME_OVERLAY:<semantic-uuid>`, ordered exactly in
-that sequence. Queue evidence uses only the three closed reasons above and records business
-microseconds; no field or payload calls queue time dwell. Ownership changes are exact events:
+Tasks 3-6. `AvailabilityContributor.contributor_id` uses stable canonical strings:
+`BLUEPRINT_DEFAULT` or
+`BLUEPRINT_INTERVAL:<zero-based-index>` first, then every
+`RUNTIME_OVERLAY:<semantic-overlay-uuid>` in ascending semantic overlay UUID order. Each contributor
+retains its exact fraction ratio and independently rounded optional hours cap so Task 8 never reads
+configuration again to build evidence. Queue evidence uses only the three closed reasons above and
+records business microseconds; no field or payload calls queue time dwell. Ownership changes are
+exact events:
 invalid/unavailable prior-owner release and new assignment occur at the processed start; release
 caused by touch completion occurs at the processed end. For the same visit/instant, release sorts
 before assignment. A newly assigned owner who completes touch within the segment therefore emits
 assignment at start and release at end while `owner_after_member_id` is `None`.
 
-### Binding mechanics
+### Self-contained shared capacity-credit contract and binding mechanics
 
 - Build `BusinessCalendar` only from `blueprint.team.timezone` and `blueprint.calendar`. Validate the
   complete state against that exact blueprint before selecting anything. The request interval is
   aware UTC, positive, inside the authenticated holiday horizon, and is shortened rather than
-  crossed at the first local business-date/workday or availability boundary.
+  crossed at the first local business-date/workday, configured/runtime availability,
+  daily-capacity-exhaustion, or touch-completion boundary. It is half-open `[start, end)`, belongs to
+  one team business date, and represents only one common segment.
 - Produce one `AvailabilityResolution` for every persisted `MemberIdentity`, in blueprint-index
   order. The active configured interval or default supplies fraction/cap; every active runtime
-  overlay may only lower them. Apply the minimum pre-fraction cap and minimum fraction once with
-  exact rational half-even arithmetic, then subtract the exact persisted business-date consumption.
+  overlay may only lower them. Convert the configured nominal/override hours and each non-null
+  runtime ceiling independently through `hours_to_microseconds`; each conversion uses the float's
+  exact binary ratio and half-even once. Take the minimum of those integer caps. Select the minimum
+  availability fraction by exact ratio comparison, multiply the selected ratio by that integer cap,
+  half-even once, then subtract exact persisted business-date consumption. Never pre-multiply an
+  hours float by a fraction or combine/reassociate their ratios. The mandatory golden is
+  `hours_to_microseconds(1.000000001, "daily capacity") == 3_600_000_004`, then fraction `0.95`
+  produces `3_420_000_004`; `3_420_000_003` is forbidden. Order the contributor trace as the
+  blueprint default/active interval first, then runtime overlays by ascending semantic overlay UUID.
 - Validate eligible IDs as a unique exact tuple of existing `OPEN`, positive-touch visits from one
   team/run. Build and retain `CapacityWorkOrderKey` directly as
   `(WORK_PRIORITY_ORDER.index(work_item.priority.value), work_item.relative_rank,
@@ -314,6 +375,10 @@ assignment at start and release at end while `owner_after_member_id` is `None`.
   receives zero labor and exact `CAPACITY` queue denial based on that owner. Assign unowned visits in
   work order while WIP space remains, then give each member's labor to only their first owned visit
   in that same order.
+- WIP is the complete run-snapshot count of open positive-touch visits owned by a member. New
+  assignment requires `active_wip < max_concurrent_wip`; compare candidate WIP fractions by integer
+  cross-multiplication, followed by proficiency descending, remaining labor descending, and semantic
+  member UUID. Never use float division or input order.
 - Choose one common processed end: earliest requested end, workday/date boundary, configured/runtime
   availability boundary, daily-capacity exhaustion, or touch completion. Debit unadjusted labor,
   credit exact capped proficiency work, and release a touch-complete owner at that end. Never close
@@ -332,33 +397,64 @@ assignment at start and release at end while `owner_after_member_id` is `None`.
   serve higher-ordered owned work. Do not accrue queue for an ineligible/out-of-scope/closed/zero-
   touch/already-complete visit, and never change pause or dwell.
 - Return only changed visit and consumption after-images, ordered by semantic identity, plus complete
-  availability/selection/change/credit/queue traces. The result contains no draft, ORM value,
+  availability/selection/change/credit/queue traces. Retain every four-field work key, candidate
+  WIP/proficiency/capacity input, ordered contributor, prior consumption, labor/credit, queue reason,
+  and before/after balance required by Task 8 ground truth. The result contains no draft, ORM value,
   callable, fractional residue, implicit clock, or hidden second segment.
 
 ### TDD steps and exact cases
 
-- [ ] Write `test_duration_math.py` first. Cover zero, one microsecond, exact halves with even/odd
-  neighbors, binary-float ratios, proficiency `0.25`, `1.0`, and `2.0`, minimum inverse labor,
-  saturation at signed SQLite maximum, bool/int/float subclasses, NaN/infinity, negative values,
-  zero proficiency, and overflow. Assert direct construction/replacement cannot bypass exact types.
-- [ ] Write `test_capacity_allocator.py` before production code. Build immutable snapshots for:
-  default availability; one configured interval; overlapping runtime restrictions; boundary-active
-  half-open intervals; a later restriction below prior consumption; daily exhaustion; ineligible
-  activity; zero fraction; sticky owner; completed/unavailable release; WIP full/equal fractions;
-  every work/member tie-break; an older-entered item whose larger UUID opposes a newer-entered
-  item's smaller UUID and must still sort first; equal-entry items whose semantic work-item UUIDs
-  decide regardless of opposing visit UUIDs; two owned visits for one member; two members in
-  parallel; a sticky owner A with zero remaining labor while eligible member B is idle, proving A
-  remains owner and the visit receives `CAPACITY`; touch completion before the requested end;
-  capacity exhaustion before completion; non-working time;
-  one-date/DST windows; duplicate/foreign/missing eligible IDs; unsafe clocks; input permutation;
-  exact `CAPACITY`/`WIP_LIMIT`/`CONTENTION` queue precedence and accrual; assignment/release event
-  instants including assign-then-complete and release-then-reassign; zero/non-business queue;
-  direct/replacement/mutation/reconstruction attacks; and unchanged pause/dwell/lifecycle/status,
-  samples, work, sprint, counter, and natural collections.
-- [ ] Add fixed golden vectors proving exact segment-local `PROFICIENCY_CREDIT_V1` labor/credit and
-  balance equations. Do not assert equality between one large segment and arbitrary subdivisions;
-  explicitly assert that no fractional residue exists in the request/result or state after-images.
+- [ ] Write `test_duration_math.py` first with concrete tests
+  `test_hours_to_microseconds_uses_exact_binary_ratio_and_half_even`,
+  `test_half_even_rational_rounding_uses_even_neighbor`,
+  `test_proficiency_credit_golden_vectors`, and `test_labor_to_complete_is_minimal`.
+  Parameterize built-in values/boundaries and assert exact outputs: `0.0 -> 0`,
+  `1.000000001 -> 3_600_000_004`, proficiency `(4, 0.25) -> 1`, `(3, 1.0) -> 3`, and
+  `(3, 2.0) -> 6`; for every inverse vector assert `credit(labor - 1) < remaining <= credit(labor)`.
+  Add named rejection parametrizations `test_duration_math_rejects_non_exact_runtime_types` and
+  `test_duration_math_rejects_invalid_or_overflowing_values` for booleans, int/float subclasses,
+  NaN, infinities, negatives, zero proficiency, and signed-SQLite overflow.
+- [ ] Write `test_capacity_allocator.py` before production code. The first RED cases are
+  `test_capacity_rounding_converts_each_hours_value_before_fraction_without_reassociation` asserting
+  exact contributor cap `3_600_000_004`, the exact binary-float ratio for `0.95` as
+  `(4_278_419_646_001_971, 4_503_599_627_370_496)`, and effective cap `3_420_000_004` while
+  explicitly rejecting `3_420_000_003`; and
+  `test_runtime_overlay_permutation_preserves_resolution_and_contributor_order`, which supplies
+  reversed overlay rows but expects blueprint contributor first and runtime UUIDs ascending with
+  byte-identical results.
+
+  ```python
+  cap = hours_to_microseconds(1.000000001, "daily capacity")
+  assert cap == 3_600_000_004
+  assert multiply_microseconds(cap, 0.95, "availability fraction") == 3_420_000_004
+  assert multiply_microseconds(cap, 0.95, "availability fraction") != 3_420_000_003
+  ```
+
+- [ ] Add exact ordering/denial tests
+  `test_work_order_uses_entered_at_before_opposed_item_uuid`,
+  `test_work_order_uses_item_uuid_not_visit_uuid_as_final_tie_break`, and
+  `test_sticky_exhausted_owner_reports_capacity_even_when_other_member_is_idle`. The first expects
+  an older-entered item with the larger item UUID to sort first; the second expects equal entry
+  instants to follow item UUID despite reversed visit UUIDs; the third expects owner A unchanged,
+  member B unselected, zero labor, and one `CAPACITY` queue accrual.
+- [ ] Parameterize `test_unowned_queue_reason_precedence` as
+  `[("no_labor", CAPACITY), ("all_wip_full", WIP_LIMIT),
+  ("higher_owned_work", CONTENTION)]`. Add named tests
+  `test_sticky_owner_is_released_only_for_binding_release_causes`,
+  `test_one_member_credits_only_first_owned_visit`,
+  `test_two_members_credit_in_parallel`, `test_touch_completion_shortens_common_segment`, and
+  `test_zero_or_non_business_elapsed_never_accrues_queue` with exact before/after microsecond
+  balances and assignment/release instants.
+- [ ] Parameterize `test_allocator_segment_boundaries` across configured/runtime boundaries, daily
+  exhaustion, workday/date/DST boundaries, touch completion, and non-working intervals. Add named
+  validation/immutability tests for duplicate/foreign/missing eligible IDs, unsafe clocks,
+  ineligible/zero-touch/closed/completed visits, input permutations, direct/replacement/subclass/
+  mutation/reconstruction attacks, and unchanged pause/dwell/lifecycle/status/sample/work/sprint/
+  counter/natural collections.
+- [ ] Add `test_proficiency_credit_v1_segment_local_golden_vectors` with exact labor, credit, and
+  before/after balance equations for proficiency `0.25`, `1.0`, and `2.0`. Assert no fractional
+  residue field exists and do not assert equality between one large segment and arbitrary
+  subdivisions.
 - [ ] Run the focused command from `backend/` and retain the expected non-zero output caused only by
   missing Task 7 modules/interfaces:
 
@@ -410,6 +506,67 @@ view, and the Task 7 allocator.
 **Outputs:** Immutable read/command/result contracts; a one-session SQLAlchemy read adapter; an
 injected application service; deterministic owner-change activity, capacity-resolution/selection/
 credit ground truth, and one call to `commit_authoritative_slice`.
+
+### Self-contained authority and constraints
+
+- Later explicit instructions, `AGENTS.md`, and `docs/v2/high-level-plan.md` govern in that order.
+  Begin only from the clean branch containing this reviewed plan and accepted Task 7 commit. Tasks
+  1-6 implementation baseline `847e799` is accepted; revision 015 remains the sole Alembic head.
+  Preserve accepted behavior and the additive v1/v2 boundary; optional capacity/flow notes cannot
+  expand this task.
+- Use strict RED -> GREEN -> REFACTOR with retained `set -o pipefail` evidence. Apply the installed
+  Superpowers TDD and Python clean-code skills; keep public types exact, functions within three
+  arguments/30 lines, dependencies injected, and modules single-purpose.
+- `ResolvedTeamBlueprint` is the sole configuration authority. Read a complete coherent immutable
+  blueprint/runtime/state view, validate every semantic team/run/member/item/visit/overlay identity,
+  and never persist copied configuration or trust database IDs, row/ledger order, timestamps,
+  scheduler order, random UUIDs, Python `hash()`, or Jira IDs for selection/replay identity.
+- Every mutable duration/capacity value is an exact non-negative built-in integer microsecond within
+  signed SQLite range. Task 8 serializes Task 7's staged hours-then-fraction result exactly and must
+  not recompute, reassociate, or re-round availability/proficiency values. Booleans, runtime
+  subclasses, non-finite/negative values, and overflow reject.
+- Perform one caller-clean SQLAlchemy read, construct one immutable
+  `AuthoritativeTickSliceCommit`, and call the Task 6 commit port exactly once. No network/external
+  adapter, hidden retry, simulation loop, wall clock, randomness, v1 engine, Jira/OpenAI, frontend,
+  deployment, UAT, or push is allowed. Do not access credentials, AWS/deployment targets, or GitHub
+  remotes.
+- Capacity ownership, bounded queue-business accounting, and touch credit are the entire scope. Do
+  not close/open a visit, evaluate dwell, move route/status, change a lifecycle, plan/carry scope,
+  run risks/dependencies, schedule wakes, generate backlog, deliver a projection, or complete M1.
+- Do not alter revision 015 or create/reserve revision 016. Segment-local proficiency carries no
+  fractional residue; arbitrary scheduler partition invariance/residue persistence belongs to the
+  separately planned revision 016 schema task and must not be emulated in memory.
+- After GREEN/regression/static verification, retain evidence, complete both review stages, update
+  every `AGENTS.md` document, and make only Task 8's exact commit.
+
+### Self-contained inherited capacity-credit contract
+
+- The requested/processed interval is aware UTC and half-open `[start, end)`, belongs to one team
+  business date and active sprint, and is shortened at the first workday, configured/runtime
+  availability, daily-capacity-exhaustion, or touch-completion boundary. Commit exactly Task 7's one
+  returned segment and never loop to the original target inside the transaction.
+- `AVAILABILITY_OVERLAY_V1` converts every nominal/override/ceiling hours float independently with
+  `hours_to_microseconds` using exact binary-ratio half-even rounding, takes the minimum integer cap,
+  then multiplies that integer by the selected exact minimum fraction and half-even once. Never
+  combine or reassociate ratios. The golden is `1.000000001 hours -> 3_600_000_004` microseconds,
+  then `fraction=0.95 -> 3_420_000_004`; `3_420_000_003` is forbidden. Contributor order is the
+  blueprint default/active interval first, then runtime overlays by ascending semantic overlay UUID.
+- Work order is exactly `(WORK_PRIORITY_ORDER.index(work_item.priority.value),
+  work_item.relative_rank, visit.entered_at, work_item.id)`. `SimulatorRank`, visit UUID, input order,
+  and float comparison never participate. Member order is exact WIP-ratio cross-multiplication,
+  proficiency descending, remaining labor descending, then semantic member UUID.
+- Sticky eligible ownership wins before new assignment. A retained sticky owner with zero remaining
+  effective labor stays assigned and yields `CAPACITY`, even if another member is idle. For unowned
+  visits only: no responsibility-eligible/effectively-available labor is `CAPACITY`; labor with all
+  candidates WIP-full is `WIP_LIMIT`; otherwise higher-ordered owned work is `CONTENTION`.
+- At most one owned visit per member receives labor in a segment. Labor is debited before exact
+  segment-local `PROFICIENCY_CREDIT_V1` credit. A completion shortens the common segment and releases
+  the owner but leaves the visit `OPEN`, status/lifecycle unchanged, `closed_at=None`, and remaining
+  touch zero. Eligible positive-touch zero-labor visits accrue only exact business-subsegment queue;
+  zero/non-business or ineligible/closed/complete visits accrue none and queue is never dwell.
+- Preserve Task 7's complete availability, four-field selection, ownership-change, labor/credit,
+  queue, contributor, and before/after traces without reinterpretation so Task 8 can serialize exact
+  deterministic evidence.
 
 ### Files
 
@@ -525,30 +682,48 @@ a view made stale after the read.
   after-images.
   Both claim tuples are empty because no semantic ordinal or natural occurrence is allocated.
 - Create commit UUID from
-  `capacity-credit-commit/<team-id>/<run-id>/<expected-runtime-version>`. Create deterministic ground-
-  truth keys from the same team/run/expected-version prefix: one
-  `capacity-resolution/.../<member-id>` record per availability result, one
-  `capacity-selection/.../<visit-id>` record per ownership/queue decision, and one
-  `capacity-credit/.../<visit-id>/<member-id>` record per credit subsegment. Neither identity
-  contains a timestamp or ledger position.
-- Resolution payloads contain every configured/runtime contributor and exact cap/consumption result;
-  selection payloads contain the exact `work_priority_order_index`, `relative_rank`, `entered_at`,
-  and `work_item_id` from `CapacityWorkOrderKey`, every WIP/proficiency/capacity key, owner, and queue
-  reason;
-  every credit payload contains requested/processed UTC intervals, business date, labor debit,
-  effective credit, exact proficiency ratio, and before/after touch/queue balances. All payloads
-  include `CAPACITY_ALLOCATOR_V1`, `AVAILABILITY_OVERLAY_V1`, `PROFICIENCY_CREDIT_V1`, expected
-  runtime version, and proposed post-slice runtime version. `occurred_at` is the processed end and
+  `capacity-credit-commit/<team-id>/<run-id>/<expected-runtime-version>`. Every activity and ground-
+  truth `DraftEnvelope` uses exact `schema_version="1.0"`; semantic identities contain no timestamp,
+  database/ledger position, insertion order, or random UUID.
+- Create one resolution ground-truth draft per availability result with exact semantic key
+  `capacity-resolution/<team-id>/<run-id>/<expected-runtime-version>/<member-id>` and exact metadata
+  `record_type="CAPACITY_RESOLUTION"`, `provenance_type="AVAILABILITY_OVERLAY_V1"`. Payloads contain
+  the blueprint default/active interval contributor first, runtime contributors in ascending
+  semantic overlay UUID order, every independently rounded hours cap, selected exact fraction ratio,
+  effective cap, prior consumption, and remaining labor.
+- Create one selection ground-truth draft per ownership/queue decision with exact semantic key
+  `capacity-selection/<team-id>/<run-id>/<expected-runtime-version>/<visit-id>` and exact metadata
+  `record_type="CAPACITY_SELECTION"`, `provenance_type="CAPACITY_ALLOCATOR_V1"`. Payloads contain
+  `work_priority_order_index`, `relative_rank`, `entered_at`, and `work_item_id` from
+  `CapacityWorkOrderKey`, every ordered WIP/proficiency/capacity candidate, previous/labor/after
+  owner, and queue reason/accrual.
+- Create one progress ground-truth draft per credit subsegment with exact semantic key
+  `capacity-credit/<team-id>/<run-id>/<expected-runtime-version>/<visit-id>/<member-id>` and exact
+  metadata `record_type="STATUS_VISIT_PROGRESS"`, `provenance_type="PROFICIENCY_CREDIT_V1"`.
+  Payloads contain requested/processed UTC intervals, business date, labor debit, effective credit,
+  exact proficiency ratio, and before/after touch and queue balances. Every ground-truth payload
+  contains expected and proposed post-slice runtime versions; `occurred_at` is the processed end and
   ledger `recorded_at` is the command value.
-- Emit `OWNER_ASSIGNED` and `OWNER_RELEASED` activity only when the internal visit owner actually
-  changes according to `allocation.ownership_changes`; emit release before assignment for a same-
-  visit/same-instant replacement and no activity for retained ownership, queue, or ordinary credit.
-  Assignment occurs at the processed start, invalid/unavailable-owner release occurs at the start,
-  and touch-completion release occurs at the processed end. Use `aggregate_type="STATUS_VISIT"`, the
-  semantic visit UUID, and `aggregate_version=expected_runtime_version + 1`. This is explicitly
-  `POST_SLICE_RUNTIME_VERSION_V1`, a temporary activity aggregate-version convention until a later
-  schema owns per-visit versions; include that convention and both runtime versions in the canonical
-  activity payload. Set `projection_intents=()` and never call an adapter.
+- Freeze `live_slice.ground_truth` order as all resolution drafts in blueprint member-index order,
+  then all selection drafts by `CapacityWorkOrderKey`, then all progress drafts by
+  `(CapacityWorkOrderKey, member UUID)`. Task 7 contributor/candidate order is retained byte-for-byte;
+  input, ORM-row, or map order cannot change canonical payloads, hashes, or draft order.
+- Emit activity only when the internal visit owner changes according to
+  `allocation.ownership_changes`. Assignment uses exact catalogue
+  `event_type="WORK_ITEM_ASSIGNED_INTERNAL"` and semantic key
+  `work-item-assigned-internal/<team>/<run>/<expected-version>/<visit>/<member>`; release uses exact
+  catalogue `event_type="WORK_ITEM_RELEASED_INTERNAL"` and semantic key
+  `work-item-released-internal/<team>/<run>/<expected-version>/<visit>/<member>`. Both use
+  `schema_version="1.0"`, `aggregate_type="STATUS_VISIT"`, semantic visit UUID, and
+  `aggregate_version=expected_runtime_version + 1`.
+- Freeze activity order by `(occurred_at, CapacityWorkOrderKey, event precedence, member UUID)`, with
+  release before assignment at the same visit/instant. Assignment occurs at processed start,
+  invalid/unavailable-owner release at start, and touch-completion release at processed end. Distinct
+  assignment/release key prefixes guarantee that assign-then-complete in one segment yields two
+  unique drafts. No activity is emitted for retained ownership, queue, or ordinary credit.
+  `POST_SLICE_RUNTIME_VERSION_V1` remains the explicit temporary aggregate-version convention until
+  later per-visit schema ownership; include it and both runtime versions in each canonical activity
+  payload. Set `projection_intents=()` and never call an adapter.
 - Leave a touch-complete visit `OPEN`, `closed_at=None`, and at its unchanged status with
   `remaining_work_microseconds=0` and `member_id=None`. Task 8 must not inspect the next route step,
   sample a visit, claim a visit ordinal, evaluate dwell, or change any lifecycle.
@@ -564,32 +739,71 @@ a view made stale after the read.
 
 ### TDD steps and exact cases
 
-- [ ] Write `test_capacity_credit.py` first. Cover exact types, UTC normalization, team/run/blueprint
-  cross-binding, strict-later target, business-date and sprint-end bounds, deterministic commit,
-  activity, and evidence keys, canonical payload/hash, expected/post-slice runtime versions, exact
-  owner-change activity ordering and temporary aggregate semantics, empty projection/claims, sparse
-  allowed after-images, exact queue-business payload terminology, and rejection of any visit
-  close/open, status/lifecycle/sample/counter change. Include direct/replacement/subclass/mutation/
-  reconstruction attacks.
-- [ ] Write reader tests before adapter code. Prove one session returns the exact refreshed persisted
-  blueprint/runtime/complete snapshot; cross-team/run, missing/corrupt authority, cached corruption,
-  external update/deletion, dirty/new/deleted caller state, disposal/reopen, detached return values,
-  no DML, and no commit/rollback are handled consistently with Task 5.
-- [ ] Write service tests with strict fakes first, then real SQLite integration. Prove derived active-
-  sprint eligibility, one allocator call, one committer call, early segment truncation, exact visit
-  and consumption after-images, capacity/WIP/contention queue-business increments, touch-completion
-  release while the visit stays open, assignment/release-only activity, deterministic resolution/
-  selection/every-credit ground truth including all four work-order components and the opposed item-
-  UUID/entry-instant order, sticky-owner-A-exhausted/member-B-idle `CAPACITY`, empty projection/
-  claims, no work/sprint/status/sample mutation, and stable propagation of invalid and stale input
-  before partial effects.
-- [ ] Add a two-reader stale race, injected Task 6 failures at runtime/visit/consumption/ground-truth/
-  final-flush/commit, identical semantic evidence replay, conflicting evidence rollback, response-
-  loss reload, disposed-engine continuation, and consecutive segment tests. Assert every failure
-  leaves runtime, Scrum state, counters, natural evaluations, and all ledgers unchanged.
-- [ ] Add architecture spies/import scans proving no visit constructor/sample factory/transition,
-  route walker, dwell calculation, monitor, planner, lifecycle, scheduler, risk/dependency, Jira,
-  OpenAI, projection adapter, v1 engine, wall-clock, or random UUID path is called or imported.
+- [ ] Write `test_capacity_credit.py` first with
+  `test_ground_truth_envelopes_have_exact_schema_metadata_keys_and_order`. Use two members/two visits
+  and assert `schema_version == "1.0"` for every draft; resolution drafts precede selection drafts,
+  which precede progress drafts; and exact `(record_type, provenance_type)` pairs are
+  `("CAPACITY_RESOLUTION", "AVAILABILITY_OVERLAY_V1")`,
+  `("CAPACITY_SELECTION", "CAPACITY_ALLOCATOR_V1")`, and
+  `("STATUS_VISIT_PROGRESS", "PROFICIENCY_CREDIT_V1")`.
+
+  ```python
+  assert [draft.semantic_key for draft in ground_truth] == [
+      f"capacity-resolution/{team_id}/{run_id}/{expected_version}/{member_a_id}",
+      f"capacity-resolution/{team_id}/{run_id}/{expected_version}/{member_b_id}",
+      f"capacity-selection/{team_id}/{run_id}/{expected_version}/{visit_a_id}",
+      f"capacity-selection/{team_id}/{run_id}/{expected_version}/{visit_b_id}",
+      f"capacity-credit/{team_id}/{run_id}/{expected_version}/{visit_a_id}/{member_a_id}",
+  ]
+  ```
+
+- [ ] Add `test_assign_then_complete_emits_two_unique_catalogue_activity_drafts`. Assert exact event
+  types `["WORK_ITEM_ASSIGNED_INTERNAL", "WORK_ITEM_RELEASED_INTERNAL"]`, exact distinct semantic
+  keys
+  `work-item-assigned-internal/<team>/<run>/<expected-version>/<visit>/<member>` and
+  `work-item-released-internal/<team>/<run>/<expected-version>/<visit>/<member>`,
+  `schema_version="1.0"`, `aggregate_type="STATUS_VISIT"`, the semantic visit UUID,
+  `aggregate_version == expected_version + 1`, start/end occurrence instants, and empty projection.
+  Add `test_same_instant_replacement_orders_release_before_assignment` and assert two unique keys.
+- [ ] Add `test_runtime_overlay_permutation_preserves_resolution_payload_hash_and_draft_order`.
+  Reverse ORM/runtime overlay input, retain blueprint contributor first and semantic overlay UUID
+  order, and assert identical canonical payload/hash/draft order with independently rounded cap
+  `3_600_000_004`, exact `0.95` ratio
+  `(4_278_419_646_001_971, 4_503_599_627_370_496)`, and effective cap `3_420_000_004`; reject
+  evidence containing the reassociated value `3_420_000_003`.
+- [ ] Parameterize `test_capacity_credit_command_rejects_invalid_coordinates_before_ports` over
+  naive time, non-later target, wrong business date, beyond sprint end, foreign team/run/blueprint,
+  and forged exact-value subclasses. Add named unit cases
+  `test_capacity_credit_write_set_contains_only_visit_and_consumption_after_images`,
+  `test_capacity_credit_claims_and_projection_are_empty`, and
+  `test_capacity_credit_never_closes_or_transitions_visit` with exact unchanged collection/status/
+  lifecycle assertions.
+- [ ] Write reader tests before adapter code with concrete functions
+  `test_authoritative_reader_uses_one_clean_session_and_returns_detached_complete_view`,
+  `test_authoritative_reader_refreshes_cached_blueprint_runtime_and_state`,
+  `test_authoritative_reader_observes_external_update_deletion_and_corruption`, and
+  `test_authoritative_reader_rejects_dirty_new_or_deleted_caller_state_without_dml`. Parameterize
+  missing/cross-team/run/corrupt authority, dispose/reopen, and assert no commit/rollback.
+- [ ] Write strict-fake then SQLite service cases
+  `test_service_calls_allocator_and_committer_once_for_first_bounded_segment`,
+  `test_service_preserves_four_field_order_in_selection_ground_truth`,
+  `test_service_sticky_exhausted_owner_a_reports_capacity_with_idle_member_b`, and
+  `test_service_touch_completion_releases_owner_but_keeps_visit_open`. Assert exact visit/
+  consumption after-images, opposed item-UUID/entry-instant order, queue microseconds, and no work/
+  sprint/status/sample mutation.
+- [ ] Add `test_identical_capacity_credit_command_replays_exact_evidence_without_duplicates`, a
+  two-reader stale-race test, response-loss/reload, disposed-engine continuation, and consecutive-
+  segment restart tests. Parameterize
+  `test_capacity_credit_failure_rolls_back_entire_slice(failure_point)` with
+  `["runtime", "visit", "consumption", "ground_truth", "final_flush", "commit"]`; every failure
+  must leave runtime, Scrum state, counters, natural evaluations, and all ledgers unchanged. Add a
+  conflicting-same-key/different-content rollback case.
+- [ ] Add named architecture checks
+  `test_capacity_credit_dependency_direction_and_session_boundary`,
+  `test_capacity_credit_has_no_transition_or_external_imports`, and
+  `test_capacity_credit_does_not_create_revision_016`. Spies must reject visit/sample factories,
+  route/dwell/monitor/planner/lifecycle/scheduler/risk/dependency/Jira/OpenAI/projection adapters,
+  v1 engine, wall-clock, random UUID, hidden loop, or retry calls.
 - [ ] Run the focused command from `backend/` and retain the expected non-zero output caused only by
   missing Task 8 modules/interfaces:
 

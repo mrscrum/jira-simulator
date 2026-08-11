@@ -67,6 +67,14 @@ Independent plan review corrected two binding details before implementation: wor
 or visit UUID, and a retained sticky owner with exhausted effective labor yields `CAPACITY` even
 when another eligible member is idle. Task 7's tests and Task 8's selection ground truth must retain
 those exact rules.
+The follow-up independent plan verdict also binds composed availability rounding to independently
+rounded hours caps before one fraction multiplication; its mandatory golden is
+`1.000000001 hours -> 3_600_000_004`, then `0.95 -> 3_420_000_004`, never `3_420_000_003`. Each
+extracted task brief now repeats its applicable authority/shared contract. Task 8 evidence uses
+`DraftEnvelope.schema_version="1.0"`, fully specified resolution/selection/progress metadata and
+semantic keys/order, and catalogue activity types `WORK_ITEM_ASSIGNED_INTERNAL`/
+`WORK_ITEM_RELEASED_INTERNAL` with distinct deterministic keys. Named TDD cases freeze rounding,
+overlay permutation, evidence replay/order, and two-event assign-then-complete behavior.
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
 fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
