@@ -9,9 +9,10 @@ for the assessed boundaries and gaps.
 
 **Approved future plan:** The concise requirements, architecture, and milestone roadmap for the
 additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
-milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation is limited
-to the persistence spine and deterministic kernel described below; a simulation engine, Codex
-control, transport delivery, and Jira-side manual-intervention ingestion are not implemented.
+milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation now includes
+the persistence/deterministic kernel, coherent Scrum bootstrap, incremental ticks, fixed sprint
+lifecycle, and persisted scheduler/restart path described below. Codex control, transport delivery,
+and Jira-side manual-intervention ingestion are not implemented.
 
 ## V2 persistence spine
 
@@ -143,6 +144,25 @@ transaction back. The cursor stops at the current fixed sprint end for the lifec
 handle, or at the earliest meaningful visit completion so the next tick retains the residual
 request interval. Ground truth includes human-readable causal reasons and clock/timing/config
 context. This code performs no network call, evaluates no risk policy, and delivers no Jira intent.
+
+## V2 fixed sprint lifecycle and scheduler
+
+At the configured first boundary, a planned sprint selects ranked backlog scope and activates work
+before ordinary touch progress. At every active sprint end, the lifecycle completes the old sprint
+once, creates the next fixed local-cadence sprint through an explicit Task 6 sprint claim, carries
+unfinished items first without changing status, owner, visit/sample, or progress, then fills
+remaining sampled capacity from existing ranked backlog. It does not generate backlog. Pending
+Jira sprint complete/create/scope/start intents carry explicit semantic payload dependencies and
+remain network-free inside the authoritative transaction.
+
+`SqlAlchemyDueTeamStore` selects sorted `RUNNING` runtimes whose persisted `next_wake_at` is due.
+`LiveScheduler` sends every configured team through the same `TeamTickService` sequentially and
+reports failures per team without stopping healthy teams. APScheduler only polls this persisted
+authority through one v2 job. Startup first invokes an injected supported-observation reconciler;
+the local implementation is deliberately a fakeable no-op until Jira reconciliation is connected.
+Restart records one concise `DOWNTIME_SKIPPED` interval, advances elapsed sprint boundaries with
+zero work, moves the runtime cursor/wake to the current scheduling point, and leaves existing
+pending projection intents unchanged. Wall downtime never earns touch, queue, pause, or capacity.
 
 From `backend/`, run:
 
@@ -349,7 +369,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
 - V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
-  decision/timing/calendar primitives, an idempotent coherent initial Scrum bootstrap, and atomic
-  incremental Scrum ticks. It honors fixed sprint-end boundaries but does not yet perform the next
-  sprint lifecycle/carryover transition, own scheduler/restart execution, evaluate risk policies,
-  deliver projections, expose v2 API routes, call Jira/OpenAI, or validate a live provider.
+  decision/timing/calendar primitives, coherent bootstrap, atomic incremental ticks, fixed sprint
+  lifecycle/carryover, and persisted scheduler/restart execution. It does not yet evaluate risk
+  policies, deliver projections, expose v2 API routes, call Jira/OpenAI, reconcile real Jira
+  observations, or validate a live provider.

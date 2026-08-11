@@ -22,8 +22,9 @@ UAT/load fixture only.
   The coherent bootstrap/read and incremental atomic Scrum-tick slices are complete with
   first-boundary, DST cadence, ranked capacity/WIP allocation, direct zero-touch transitions, and
   exactly one stale-runtime retry. Review fix round 1 preserves minimum-fraction availability,
-  pre-fraction capacity, earliest shared completion, residual tick time, and causal evidence; next
-  work is lifecycle/scheduler/restart, followed by Jira
+  pre-fraction capacity, earliest shared completion, residual tick time, and causal evidence. The
+  fixed lifecycle/scheduler/restart slice is complete with unchanged carryover, persisted due-team
+  authority, sequential failure isolation, and zero-work restart boundaries; next work is Jira
   delivery, then vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth

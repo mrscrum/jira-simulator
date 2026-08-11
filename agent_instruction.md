@@ -61,9 +61,24 @@ are not executable for v2.
   capacity/WIP, ranked responsibility/proficiency allocation, sticky ownership, dwell/touch
   completion, direct zero-touch transitions, fixed-sprint-end capping, and one stale retry while
   committing sparse Scrum state and evidence atomically through Task 6.
+- Fixed local-cadence sprint activation/rollover with unchanged carryover, ranked backlog fill,
+  explicit new-row claims, and dependency-ordered pending sprint projection intents.
+- Persisted sorted due-team discovery, one sequential failure-isolated scheduler path, and restart
+  handling that reconciles first, records skipped downtime, advances lifecycle with zero work, and
+  preserves existing pending intents. APScheduler hosts one v2 poller job.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the third pragmatic v2 slice added fixed sprint lifecycle plus scheduler/restart
+ownership. Planned bootstrap stops at its first boundary, activates and scopes before work, and
+active rollover preserves unfinished status/owner/visit/sample/progress before ranked backlog fill.
+Every new sprint/visit uses an explicit accepted Task 6 claim; no backlog item or migration is
+created. `SqlAlchemyDueTeamStore` reads persisted wake authority, while `LiveScheduler` processes
+all configured teams through `TeamTickService` sequentially with team-scoped failure isolation.
+Restart calls the injected observation port first, records `DOWNTIME_SKIPPED`, crosses elapsed
+boundaries with zero work, schedules from `as_of`, and leaves prior pending intents immutable. The
+local reconciler is an injected no-op pending the Jira delivery/inbound-observation slice.
 
 On 2026-08-11, the second pragmatic v2 slice added incremental Scrum advancement and atomic commit.
 `calculate_scrum_tick` advances ordinary business intervals with sticky eligible owners,
@@ -316,9 +331,17 @@ Accepted Task 6 evidence:
 - `backend/app/v2/domain/scrum_bootstrap.py` — deterministic initial backlog, sprint scope, direct
   zero-touch route transitions, timed-visit/sample construction, and initial visit-counter seeds.
 - `backend/app/v2/domain/scrum_tick.py` — pure bounded Scrum progress, allocation, clocks, route
-  transitions, sparse authoritative command, evidence, and pending Jira intent construction.
+  transitions, lifecycle composition, sparse authoritative command, evidence, and pending Jira
+  intent construction.
+- `backend/app/v2/domain/sprint_lifecycle.py` — planned activation and fixed-cadence rollover,
+  unchanged carryover/ranked scope, evidence, claims, and dependent sprint intents.
 - `backend/app/v2/application/team_tick.py` — coherent-load/atomic-commit orchestration with exactly
   one stale-runtime reload/recalculation retry.
+- `backend/app/v2/application/live_scheduler.py` — one persisted sequential due/restart path with
+  per-team failure isolation and downtime-skipped commits.
+- `backend/app/v2/persistence/due_team_store.py` — sorted due/running runtime discovery.
+- `backend/app/v2/runtime.py` — v2 scheduler composition, local reconciliation seam, restart, and
+  one test-injectable APScheduler poller registration.
 - `backend/app/v2/application/live_team.py` — detached coherent aggregate/Scrum read model.
 - `backend/app/v2/persistence/live_team_store.py` — one-session transactional read/bootstrap store.
 - `backend/app/v2/domain/authoritative_slice.py` — exact immutable Task 6 claim, authoritative
@@ -348,9 +371,9 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Implement the next pragmatic v2 slice: fixed sprint lifecycle/carryover plus scheduler ownership and
-restart semantics around the persisted tick boundary. Preserve the proportional business-time tick,
-accepted Task 6 command, one-session live-team store, and no-network calculation boundary.
+Implement the next pragmatic v2 slice: Jira projection delivery over committed pending intents,
+including semantic resource mapping, dependency order, idempotency, pacing, and retry. Preserve the
+accepted Task 6 transaction boundary and do not call Jira from lifecycle/tick commits.
 
 ## Active Decisions and External Gates
 

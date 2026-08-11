@@ -40,6 +40,7 @@ from app.v2.domain.scrum_state import (
     WorkItemLifecycle,
     WorkItemState,
 )
+from app.v2.domain.sprint_lifecycle import SprintTransition, cross_sprint_boundary
 from app.v2.domain.team_blueprint import MemberBlueprint, WorkflowRouteStep
 
 MICROSECONDS_PER_HOUR = 3_600_000_000
@@ -131,6 +132,9 @@ def calculate_scrum_tick(
     """Calculate one deterministic, persistence-ready Scrum slice."""
     _validate_request(state, request)
     aggregate = state.aggregate
+    transition = cross_sprint_boundary(state, aggregate.runtime.simulation_time)
+    if transition.activity:
+        return _lifecycle_commit(state, request, transition)
     calendar = BusinessCalendar.from_blueprint(
         aggregate.blueprint.team.timezone, aggregate.blueprint.calendar
     )
@@ -148,6 +152,33 @@ def calculate_scrum_tick(
     return AuthoritativeTickSliceCommit(live_slice, write_set, result.claims, ())
 
 
+def _lifecycle_commit(
+    state: LiveTeamState, request: TickRequest, transition: SprintTransition
+) -> AuthoritativeTickSliceCommit:
+    runtime = state.aggregate.runtime
+    boundary = runtime.simulation_time
+    live_slice = TickSliceCommit(
+        semantic_uuid(
+            f"sprint-lifecycle/{runtime.team_id}/{runtime.run_id}/{runtime.version}/"
+            f"{boundary.isoformat()}"
+        ),
+        runtime.team_id,
+        runtime.run_id,
+        runtime.version,
+        RuntimeAdvance(runtime.state, boundary, boundary),
+        transition.activity,
+        transition.ground_truth,
+        transition.projection_intents,
+        request.recorded_at,
+    )
+    return AuthoritativeTickSliceCommit(
+        live_slice,
+        transition.state,
+        transition.counter_claims,
+        transition.natural_decision_claims,
+    )
+
+
 def _validate_request(state: LiveTeamState, request: TickRequest) -> None:
     if type(state) is not LiveTeamState or type(request) is not TickRequest:
         raise TypeError("state and request must use their exact application types")
@@ -159,6 +190,14 @@ def _validate_request(state: LiveTeamState, request: TickRequest) -> None:
 
 
 def _effective_end(state: LiveTeamState, requested_end: datetime) -> datetime:
+    planned = tuple(
+        sprint
+        for sprint in state.scrum.sprints
+        if sprint.lifecycle is SprintLifecycle.PLANNED
+        and sprint.planned_start_at > state.aggregate.runtime.simulation_time
+    )
+    if planned:
+        return min(requested_end, planned[0].planned_start_at)
     active = tuple(
         sprint for sprint in state.scrum.sprints if sprint.lifecycle is SprintLifecycle.ACTIVE
     )
@@ -198,9 +237,7 @@ def _availability_boundaries(
     state: LiveTeamState, starts_at: datetime, ends_at: datetime
 ) -> tuple[datetime, ...]:
     configured = tuple(
-        interval
-        for member in state.aggregate.blueprint.members
-        for interval in member.availability
+        interval for member in state.aggregate.blueprint.members for interval in member.availability
     )
     intervals = (*configured, *state.scrum.member_availability_overlays)
     boundaries = {starts_at, ends_at}
@@ -233,9 +270,7 @@ def _advance_visits(
     for segment in segments:
         probe_consumption = dict(consumption)
         probe = _advance_segment(state, work_by_id, visits, probe_consumption, segment)
-        boundary = _completion_boundary(
-            state, calendar, segment, visits, probe.visits, work_by_id
-        )
+        boundary = _completion_boundary(state, calendar, segment, visits, probe.visits, work_by_id)
         if boundary is None:
             queue_causes.extend(probe.queue_causes)
             visits = probe.visits
@@ -336,9 +371,7 @@ def _advance_segment(
         visits.values(), key=lambda visit: work_by_id[visit.work_item_id].simulator_rank
     )
     assignments = _assign_owners(state, ordered, segment, consumption)
-    context = _AllocationContext(
-        state, segment, consumption, dict(consumption)
-    )
+    context = _AllocationContext(state, segment, consumption, dict(consumption))
     advanced: dict[UUID, StatusVisitState] = {}
     causes: list[_QueueCause] = []
     for assignment in assignments:
@@ -368,9 +401,7 @@ def _assign_owners(
     results = []
     for visit in assigned:
         if visit.member_id is None:
-            results.append(
-                _assign_owner(state, members, visit, segment, consumption, retained)
-            )
+            results.append(_assign_owner(state, members, visit, segment, consumption, retained))
         else:
             results.append(_AssignedVisit(visit, None))
     return results
@@ -424,9 +455,7 @@ def _assign_owner(
     return _AssignedVisit(replace(visit, member_id=identity.id), None)
 
 
-def _assignment_denial_reason(
-    capable: bool, available: bool, has_capacity: bool
-) -> str:
+def _assignment_denial_reason(capable: bool, available: bool, has_capacity: bool) -> str:
     if not capable:
         return "NO_CAPABLE_MEMBER"
     if not available:
@@ -471,9 +500,7 @@ def _advance_visit(
     return updated, cause
 
 
-def _queue_cause(
-    visit_id: UUID, reason: str | None, delta_microseconds: int
-) -> _QueueCause | None:
+def _queue_cause(visit_id: UUID, reason: str | None, delta_microseconds: int) -> _QueueCause | None:
     if not delta_microseconds:
         return None
     if reason is None:
@@ -500,18 +527,14 @@ def _remaining_capacity(
     return max(0, min(available, ceiling - consumed))
 
 
-def _segment_capacity(
-    context: _AllocationContext, identity: MemberIdentity
-) -> _Capacity:
+def _segment_capacity(context: _AllocationContext, identity: MemberIdentity) -> _Capacity:
     key = (identity.id, context.segment.business_date)
     consumed = context.consumption.get(key, 0)
     used = consumed - context.starting_consumption.get(key, 0)
     segment_remaining = max(
         0, _available_microseconds(context.state, identity, context.segment) - used
     )
-    daily_remaining = max(
-        0, _daily_ceiling(context.state, identity, context.segment) - consumed
-    )
+    daily_remaining = max(0, _daily_ceiling(context.state, identity, context.segment) - consumed)
     if segment_remaining <= daily_remaining:
         reason = "CONTENTION" if used else "UNAVAILABLE"
         return _Capacity(segment_remaining, reason)
@@ -545,9 +568,7 @@ def _effective_fraction(
     member = state.aggregate.blueprint.members[identity.blueprint_index]
     intervals = (*member.availability, *_member_overlays(state, identity.id))
     fractions = [
-        interval.availability_fraction
-        for interval in intervals
-        if _active(interval, segment)
+        interval.availability_fraction for interval in intervals if _active(interval, segment)
     ]
     return min((1.0, *fractions))
 
@@ -652,17 +673,21 @@ def _transition(
     timed = next((step for step in later_steps if _timed(state, step)), None)
     if timed is None:
         terminal = later_steps[-1]
-        return replace(
-            work,
-            lifecycle=WorkItemLifecycle.DONE,
-            current_status_key=terminal.status_key,
-            updated_at=closed.closed_at,
-        ), None, None, None
+        return (
+            replace(
+                work,
+                lifecycle=WorkItemLifecycle.DONE,
+                current_status_key=terminal.status_key,
+                updated_at=closed.closed_at,
+            ),
+            None,
+            None,
+            None,
+        )
     counter = next(
         item
         for item in state.scrum.semantic_counters
-        if item.scope.kind is SemanticCounterKind.VISIT_ORDINAL
-        and item.scope.scope_id == work.id
+        if item.scope.kind is SemanticCounterKind.VISIT_ORDINAL and item.scope.scope_id == work.id
     )
     next_work = replace(work, current_status_key=timed.status_key, updated_at=closed.closed_at)
     visit, sample = _new_timed_visit(state, next_work, timed, counter.next_value, draws)

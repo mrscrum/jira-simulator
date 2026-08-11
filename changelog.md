@@ -578,3 +578,22 @@
 
 - Prevented compounded availability fractions, post-fraction ceiling selection, lost residual tick
   time, and ground-truth records that could not explain why work queued or transitioned.
+
+## [2026-08-11] M1 — Schedule fixed v2 sprints
+
+### Changed
+
+- Added fixed-boundary planned-sprint activation and active-sprint rollover with unchanged
+  carryover ahead of newly selected ranked backlog, plus dependency-ordered complete/create/scope/
+  start projection intents.
+- Added persisted due-team discovery, one sequential failure-isolated scheduler path for every
+  configured team, restart reconciliation, downtime-skipped evidence, and APScheduler polling.
+- Seeded the initial sprint counter at next ordinal 1 so successor sprints use the accepted Task 6
+  allocation claim without adding a migration.
+
+### Fixed
+
+- A bootstrap before the first boundary can no longer advance past that boundary before scope is
+  selected, and restart no longer credits touch, queue, pause, or capacity across wall downtime.
+- Existing pending projection intents remain immutable across restart; no Jira call, backlog
+  generation, v1 scheduler state, migration 016, deployment, or UAT was added.

@@ -127,3 +127,22 @@ def test_bootstrap_seeds_the_next_visit_ordinal_for_each_initial_work_item(
     assert counters == {
         item.id: visit_ordinals.get(item.id, -1) + 1 for item in state.work_items
     }
+
+
+def test_bootstrap_seeds_the_next_sprint_ordinal_after_the_initial_sprint(
+    v2_session_factory,
+):
+    aggregate = create_aggregate(v2_session_factory, BLUEPRINT_JSON, STARTED_AT)
+
+    state = build_initial_scrum_state(
+        aggregate, STARTED_AT, SeededDrawSource(aggregate)
+    )
+
+    sprint_counter = next(
+        counter
+        for counter in state.semantic_counters
+        if counter.scope.kind is SemanticCounterKind.SPRINT_ORDINAL
+    )
+    assert sprint_counter.scope.scope_id == aggregate.team.id
+    assert sprint_counter.scope.scope_key == "SCRUM"
+    assert sprint_counter.next_value == 1

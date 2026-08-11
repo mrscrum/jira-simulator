@@ -392,3 +392,13 @@
 - No assumptions made. Minimum active availability, pre-fraction ceiling semantics, availability
   boundary splitting, earliest shared completion, residual interval handling, and causal payload
   requirements were supplied explicitly by review findings.
+
+## [2026-08-11] M1 — Schedule fixed v2 sprints
+
+- Chose a 30-second APScheduler polling interval because persisted `next_wake_at`, not the poll
+  cadence, is authoritative and no host polling frequency was specified.
+- Used one concise downtime evidence pair for the complete restart gap even when lifecycle
+  boundaries require multiple zero-work commits; later cursor-only downtime commits add no
+  duplicate evidence.
+- Kept the supported-observation reconciler as the required injected local no-op/fakeable port;
+  Jira-backed observation reconciliation remains a later delivery/integration slice.

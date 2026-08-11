@@ -54,7 +54,7 @@ def build_initial_scrum_state(
             member_identities=members,
             work_items=work_items,
             sprints=(sprint,),
-            semantic_counters=_visit_counters(aggregate, work_items, ()),
+            semantic_counters=_initial_counters(aggregate, work_items, ()),
         )
     selected_ids = _selected_scope_ids(aggregate, sprint.id, work_items, draws)
     active_work, visits, samples = _activate_selected_work(
@@ -68,7 +68,7 @@ def build_initial_scrum_state(
         sprint_scope=scope,
         status_visits=visits,
         status_visit_samples=samples,
-        semantic_counters=_visit_counters(aggregate, active_work, visits),
+        semantic_counters=_initial_counters(aggregate, active_work, visits),
     )
 
 
@@ -354,13 +354,19 @@ def _scope_entries(
     )
 
 
-def _visit_counters(
+def _initial_counters(
     aggregate: PersistedTeamAggregate,
     work_items: tuple[WorkItemState, ...],
     visits: tuple[StatusVisitState, ...],
 ) -> tuple[SemanticCounter, ...]:
     next_by_item = {visit.work_item_id: visit.ordinal + 1 for visit in visits}
-    return tuple(
+    sprint_counter = SemanticCounter(
+        aggregate.team.id,
+        aggregate.runtime.run_id,
+        SemanticCounterScope(SemanticCounterKind.SPRINT_ORDINAL, aggregate.team.id, "SCRUM"),
+        INITIAL_SPRINT_ORDINAL + 1,
+    )
+    visit_counters = tuple(
         SemanticCounter(
             aggregate.team.id,
             aggregate.runtime.run_id,
@@ -369,6 +375,7 @@ def _visit_counters(
         )
         for item in work_items
     )
+    return (sprint_counter, *visit_counters)
 
 
 def _route_for(blueprint: ResolvedTeamBlueprint, issue_type: str):
