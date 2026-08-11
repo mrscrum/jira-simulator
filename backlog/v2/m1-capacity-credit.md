@@ -10,8 +10,9 @@ of touch credit and its calibration evidence through the accepted Task 6 unit of
 **Architecture:** Task 7 is a pure immutable domain policy implementing
 `AVAILABILITY_OVERLAY_V1`, `CAPACITY_ALLOCATOR_V1`, and segment-local
 `PROFICIENCY_CREDIT_V1`. Task 8 adds one coherent detached read port and an application service that
-turns the pure result into the existing `AuthoritativeTickSliceCommit`; revision 015 remains the
-sole schema head, and the slice deliberately stops before dwell or workflow transitions.
+receives that pure policy through a frozen dependency bundle and turns its result into the existing
+`AuthoritativeTickSliceCommit`; revision 015 remains the sole schema head, and the slice deliberately
+stops before dwell or workflow transitions.
 
 **Tech Stack:** Python 3.12, immutable dataclasses and frozen Pydantic v2 blueprints, exact integer
 microsecond arithmetic, SQLAlchemy 2, SQLite/WAL, pytest, Ruff.
@@ -47,8 +48,9 @@ microsecond arithmetic, SQLAlchemy 2, SQLite/WAL, pytest, Ruff.
   selected exact availability-fraction ratio to that integer and half-even once. Never reinterpret a
   runtime ceiling as hours, multiply hours by fraction first, or combine their ratios.
 - Task 7 performs no I/O and creates no ledger draft. Task 8 performs one coherent read, constructs
-  one immutable Task 6 command, and delegates one atomic commit. No network or external adapter call
-  occurs before, during, or after either task.
+  one exact request for its injected allocator, constructs one immutable Task 6 command, and
+  delegates one atomic commit. No network or external adapter call occurs before, during, or after
+  either task.
 - This plan authorizes capacity ownership and touch credit only. It does not close or open a visit,
   evaluate the dwell gate, move a route/status, change work/sprint/visit lifecycle, emit p50/p99
   monitors, plan or carry sprint scope, run risks/dependencies, schedule a wake, generate backlog,
@@ -682,12 +684,14 @@ existing live-ledger factories before writing tests. Revision 015 is frozen.
 
 **Inputs:** Semantic team UUID, an aware UTC desired target/horizon no later than the current positive
 working interval's end and within the current active sprint, one aware recording instant, a coherent
-persisted blueprint/runtime/state view, and the Task 7 allocator. `through` may equal current runtime
-only to report the stable already-reached no-write outcome, including at workday end.
+persisted blueprint/runtime/state view, and a frozen `CapacityCreditDependencies` bundle containing
+the Task 7 allocator plus read/commit ports. `through` may equal current runtime only to report the
+stable already-reached no-write outcome, including at workday end.
 
 **Outputs:** Immutable read/command/result contracts; a one-session SQLAlchemy read adapter; an
-injected application service; deterministic owner-change activity, capacity-resolution/selection/
-visit-progress ground truth, and one call to `commit_authoritative_slice`.
+injected allocator protocol and frozen application dependency bundle; an application service;
+deterministic owner-change activity, capacity-resolution/selection/visit-progress ground truth, and
+one call to `commit_authoritative_slice`.
 
 ### Self-contained authority and constraints
 
@@ -708,6 +712,7 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
   not recompute, reassociate, or re-round availability/proficiency values. Booleans, runtime
   subclasses, non-finite/negative values, and overflow reject.
 - Perform one caller-clean SQLAlchemy read, construct one immutable
+  `CapacityAllocationRequest`, call the injected allocator exactly once, construct one immutable
   `AuthoritativeTickSliceCommit`, and call the Task 6 commit port exactly once. No network/external
   adapter, hidden retry, simulation loop, wall clock, randomness, v1 engine, Jira/OpenAI, frontend,
   deployment, UAT, or push is allowed. Do not access credentials, AWS/deployment targets, or GitHub
@@ -782,15 +787,18 @@ visit-progress ground truth, and one call to `commit_authoritative_slice`.
 - Create `backend/app/v2/domain/capacity_credit.py` for `AuthoritativeStateView`, the application
   command/result values, coordinate/time validation, and deterministic segment evidence creation.
 - Create `backend/app/v2/application/commit_capacity_credit.py` for structural read/commit protocols,
-  eligible visit selection from an existing active sprint snapshot, Task 7 invocation, Task 6
-  command construction, and the one-call service.
+  the callable Task 7 allocator protocol, frozen dependency bundle, eligible visit selection from an
+  existing active sprint snapshot, injected Task 7 invocation, Task 6 command construction, and the
+  one-call service.
 - Create `backend/app/v2/persistence/authoritative_state_reader.py` for the SQLAlchemy adapter that
   structurally satisfies the application read protocol and loads blueprint, runtime, and complete
   state in one caller-clean session.
 - Modify `backend/app/v2/persistence/scrum_state_mapper.py` only to expose a typed caller-session
   `load_authoritative` operation that reuses its reviewed refreshed authority and complete-snapshot
   paths; it owns no transaction and performs no DML.
-- Modify domain/application/persistence `__init__.py` files only for lazy additive exports.
+- Modify domain/application/persistence `__init__.py` files only for lazy additive exports; the
+  application exports include `CapacityAllocator`, `CapacityCreditDependencies`, and
+  `CommitCapacityCreditService` with the exact interfaces below.
 - Create `backend/tests/v2/unit/test_capacity_credit.py`.
 - Create `backend/tests/v2/fixtures/capacity_credit_v1_vectors.json` with independently reviewed
   literal canonical JSON and lower-case SHA-256 vectors for resolution, selection, progress,
@@ -845,6 +853,10 @@ class CapacityCreditReader(Protocol):
     def get_authoritative_view(self, team_id: UUID) -> AuthoritativeStateView: ...
 
 
+class CapacityAllocator(Protocol):
+    def __call__(self, request: CapacityAllocationRequest) -> CapacityAllocationResult: ...
+
+
 class SqlAlchemyV2AuthoritativeStateReader:
     def __init__(self, session_factory: sessionmaker[Session]) -> None: ...
     def get_authoritative_view(self, team_id: UUID) -> AuthoritativeStateView: ...
@@ -856,15 +868,26 @@ class CapacityCreditCommitter(Protocol):
     ) -> CommittedAuthoritativeTickSlice: ...
 
 
+@dataclass(frozen=True)
+class CapacityCreditDependencies:
+    reader: CapacityCreditReader
+    allocator: CapacityAllocator
+    committer: CapacityCreditCommitter
+
+
 class CommitCapacityCreditService:
-    def __init__(
-        self,
-        reader: CapacityCreditReader,
-        committer: CapacityCreditCommitter,
-    ) -> None: ...
+    def __init__(self, dependencies: CapacityCreditDependencies) -> None:
+        self._dependencies = dependencies
 
     def commit(self, command: CommitCapacityCreditCommand) -> CommittedCapacityCredit: ...
 ```
+
+`CapacityAllocator` and `CapacityCreditDependencies` live in
+`backend/app/v2/application/commit_capacity_credit.py`; import `dataclass` from the standard library.
+The frozen bundle is the service's only constructor argument. The service stores that exact object as
+`self._dependencies`, supplies no alternate constructor/default/setter, and obtains all three ports
+from it. Task 8 may import Task 7 request/result types but must not import or call the module-global
+`allocate_capacity` implementation.
 
 `CommitCapacityCreditCommand.through` is a desired horizon, not an idempotency key and not a request
 identity. `CapacityCreditTargetReached` is the exact stable typed no-write signal and always uses
@@ -922,7 +945,8 @@ a view made stale after the read.
   Unowned complete visits are omitted. Order IDs only by Task 7's retained four fields:
   `WORK_PRIORITY_ORDER` index, relative rank, visit entry instant, and semantic work-item UUID.
   Neither `SimulatorRank` nor visit UUID participates.
-- Call `allocate_capacity` once and commit at most one next segment per service call. Require
+- Build one exact `CapacityAllocationRequest`, pass that same immutable request to exactly one
+  `dependencies.allocator(request)` call, and commit at most one next segment per service call. Require
   `allocation.processed_interval.start == runtime.simulation_time` and
   `runtime.simulation_time < allocation.processed_interval.end <= command.through`; a gap, overlap,
   reversal, or overshoot rejects before the commit port. Do not loop when Task 7 returns an earlier
@@ -934,10 +958,12 @@ a view made stale after the read.
   `CapacityCreditTargetReached` with zero writes. Neither branch duplicates the prior credit or key.
   Exact previous-response reconstruction or durable request replay requires a separately planned
   receipt/idempotency seam and is explicitly outside Tasks 7/8.
-- Task 8 consumes the reviewed Task 7 seam exactly as
-  `allocate_capacity(CapacityAllocationRequest) -> CapacityAllocationResult`. It may serialize the
-  result and place its sparse after-images into Task 6, but it must not reinterpret candidate order,
-  recompute availability/proficiency/queue, or manufacture an ownership change. Compute the one
+- Task 8 consumes the reviewed Task 7 seam only through
+  `CapacityAllocator.__call__(CapacityAllocationRequest) -> CapacityAllocationResult`. The service
+  must not import or invoke module-global `allocate_capacity`; it calls the injected protocol exactly
+  once with the exact constructed request. It may serialize the result and place its sparse
+  after-images into Task 6, but it must not reinterpret candidate order, recompute availability/
+  proficiency/queue, or manufacture an ownership change. Compute the one
   authoritative blueprint digest exactly as
   `canonical_sha256(json.loads(view.blueprint.canonical_json()))` after validating the authenticated
   view. Require `allocation.blueprint_canonical_sha256` and every blueprint contributor SHA to equal
@@ -1037,7 +1063,9 @@ Every literal UUID below is a real semantic coordinate derived from the one cano
 `item_rng_id(team_id, CreationKind.INITIAL_BACKLOG, 0)`, and `visit_rng_id(item_id, 0)`. The runtime
 overlay coordinate is `semantic_uuid(f"overlay/{member_id}/0")`. The fixture test must validate the
 canonical blueprint and assert all six derived coordinates—including overlay—before comparing any
-builder payload, canonical string, or hash.
+builder payload, canonical string, or hash. Its authenticated `StatusVisitSample` and matching visit
+bind exact `required_work_microseconds=8_647_914_917`; every displayed progress balance must be
+reachable from that value and satisfy `required == elapsed + remaining` before and after the segment.
 
 The resolution golden also freezes the exact contributor union. `BLUEPRINT_INTERVAL` has the same
 keys as the shown blueprint contributor but uses its interval kind/ID, exact configured starts/ends
@@ -1165,8 +1193,8 @@ rules from Task 7.
     "touch": {
       "elapsed_after_microseconds": 0,
       "elapsed_before_microseconds": 0,
-      "remaining_after_microseconds": 7200000000,
-      "remaining_before_microseconds": 7200000000
+      "remaining_after_microseconds": 8647914917,
+      "remaining_before_microseconds": 8647914917
     },
     "touch_credit_microseconds": 0,
     "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43"
@@ -1211,8 +1239,8 @@ The second progress golden is a valid positive-credit segment with non-null labo
     "touch": {
       "elapsed_after_microseconds": 1800000000,
       "elapsed_before_microseconds": 0,
-      "remaining_after_microseconds": 5400000000,
-      "remaining_before_microseconds": 7200000000
+      "remaining_after_microseconds": 6847914917,
+      "remaining_before_microseconds": 8647914917
     },
     "touch_credit_microseconds": 1800000000,
     "visit_id": "0e45dd9b-8583-5863-bbc7-af9dfe5c0a43"
@@ -1281,10 +1309,10 @@ The fixed digest table is:
 |---|---|
 | `capacity_resolution_runtime_overlay` | `18dda5e8cb74b828cfc200fd00d4901b4b3a11ddbb9a1b3941f90984c3058c4f` |
 | `capacity_selection_contention` | `d3f1d422f55be2c93b982e4defad7dc9064f6fafcaf856ddbb2966c0b146aef5` |
-| `capacity_progress_queue_only_capacity` | `d703f96b73eed234de0e6264bba95ef2e959f48ad0783150276ef0d4d6232d61` |
-| `capacity_progress_queue_only_wip_limit` | `8ec0a248b82f9735ca8d60362f6df7c227ec3b63fafad6db3054d1ecf50b28a3` |
-| `capacity_progress_queue_only_contention` | `bd0755593c9acaabfe6bf446d29dfb2f26a272a3a690498c7b4be1e17606c880` |
-| `capacity_progress_positive_credit` | `2f5d2a289dff1609e1746a6aaba9fb129290d96510cd11b4d31798251360b577` |
+| `capacity_progress_queue_only_capacity` | `946988588be1c30e93ac0e30953a29ff93d569cf904759a9550f2e37d06a7bd9` |
+| `capacity_progress_queue_only_wip_limit` | `d04051738db9809f0728de8c7f57846facc226cf5c94628cc2988d37808da933` |
+| `capacity_progress_queue_only_contention` | `e1aa4cc79bcf76684bf0cdfe8d7ac2f539ad55b3d23cb6438178b684fcff6543` |
+| `capacity_progress_positive_credit` | `f8f26ab604f623b20223c2eacccffe5a8d39415a8af4c49e4a350d93e34c1e3d` |
 | `work_item_assigned_internal` | `422c86cea2d64d28e80f235a2fb8f918711e6c1160c016d0fc1849ecdd336245` |
 | `work_item_released_internal` | `19899a58ec84b2287d153796d91a7c10b6df3c90e0a78d10d05ebc2ed34094d8` |
 
@@ -1294,8 +1322,12 @@ The fixed digest table is:
   `test_capacity_credit_fixture_coordinates_are_semantically_coherent`. Load and authenticate
   `resolved_scrum_blueprint.json`, assert its canonical digest is exactly
   `830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276`, then assert the fixture's
-  team/run/member/item/visit/overlay IDs equal the exact helper derivations specified above. This
-  coherence assertion runs before any evidence-builder, canonical-string, or hash comparison.
+  team/run/member/item/visit/overlay IDs equal the exact helper derivations specified above. Load and
+  authenticate the matching `StatusVisitSample`; assert
+  `sample.required_work_microseconds == 8_647_914_917`, visit/sample required values are equal, and
+  `visit.required_work_microseconds == (visit.elapsed_work_microseconds +
+  visit.remaining_work_microseconds)`. This coherence assertion runs before any evidence-builder,
+  canonical-string, or hash comparison.
 
   ```python
   assert tuple(map(str, (team_id, run_id, member_id, item_id, visit_id, overlay_id))) == (
@@ -1361,14 +1393,18 @@ The fixed digest table is:
   `test_queue_only_progress_is_canonical_and_unique_for_each_denial_reason`, parameterized over
   `CAPACITY`, `WIP_LIMIT`, and `CONTENTION`, with zero labor/null member/null proficiency, exact
   before/after queue values, one `capacity-progress/.../<visit>` key, matching independent hash, and
-  no duplicate progress draft. Add
+  no duplicate progress draft. For each variant assert authenticated sample required work equals
+  both `elapsed_before + remaining_before` and `elapsed_after + remaining_after`. Add
   `test_positive_credit_progress_builder_matches_literal_canonical_json_and_sha256`, asserting exact
   non-null member/proficiency, `1_800_000_000` labor/credit, `queue is None`, boundary/intervals, and
-  touch `0/1_800_000_000` elapsed, `7_200_000_000/5_400_000_000` remaining, queue `0/0`, and credited-
-  labor `0/1_800_000_000` balances before comparing the literal canonical string/hash.
+  touch `0/1_800_000_000` elapsed, `8_647_914_917/6_847_914_917` remaining, queue `0/0`, and
+  credited-labor `0/1_800_000_000` balances. Assert the authenticated required-work equation before
+  comparing the literal canonical string/hash.
 - [ ] Parameterize `test_capacity_credit_command_rejects_invalid_coordinates_before_ports` over
   naive time, target before current runtime, wrong business date, beyond sprint end, foreign
-  team/run/blueprint, and forged exact-value subclasses. Add
+  team/run/blueprint, and forged exact-value subclasses. Use strict reader/allocator/committer fakes
+  and add named `test_preallocation_validation_errors_never_call_injected_allocator`; assert every
+  parameterized failure before allocation makes zero allocator and committer calls. Add
   `test_target_equal_to_current_raises_capacity_credit_target_reached_without_port_calls` asserting
   exact type/message and zero allocator/committer calls. Add
   `test_later_same_date_after_hours_target_raises_typed_working_interval_error_without_writes` using
@@ -1394,6 +1430,8 @@ The fixed digest table is:
   evidence/command builder or commit orchestration. This checkpoint changes no schema and is not a
   partial Task 8 commit.
 - [ ] Write strict-fake then SQLite service cases
+  `test_capacity_credit_dependencies_are_frozen`,
+  `test_service_passes_exact_request_to_injected_allocator_once`,
   `test_service_calls_allocator_and_committer_once_for_first_bounded_segment`,
   `test_service_preserves_four_field_order_in_selection_ground_truth`,
   `test_service_sticky_exhausted_owner_a_reports_capacity_with_idle_member_b`, and
@@ -1402,7 +1440,14 @@ The fixed digest table is:
   `test_service_touch_completed_during_segment_releases_at_end_and_keeps_visit_open`, and
   `test_service_owner_bearing_zero_required_visit_rejects_before_committer`. Assert exact visit/
   consumption after-images, opposed item-UUID/entry-instant order, queue microseconds, and no work/
-  sprint/status/sample mutation. The one-member/two-owned-visits service vector emits positive credit
+  sprint/status/sample mutation. Construct the expected immutable `CapacityAllocationRequest` from
+  the strict reader view's exact blueprint/state objects, expected interval, and expected ordered
+  visit IDs. Have the allocator fake retain its sole positional argument; assert
+  `captured_request.blueprint is view.blueprint`, `captured_request.state is view.state`, and
+  `captured_request == expected_request` before returning its one result. Assert exactly one
+  allocator call and exactly one committer call. The frozen-dependency test rejects attribute
+  replacement and proves the service retains the exact bundle. The one-member/two-owned-visits
+  service vector emits positive credit
   only for the higher order and one queue-only `CONTENTION` progress draft for the lower order. The
   preexisting-complete vector emits start-time `PREEXISTING_TOUCH_COMPLETE` activity and one owner-
   only progress record with null labor/proficiency/queue, unchanged balances/consumption, and an
@@ -1433,6 +1478,7 @@ The fixed digest table is:
   level replay or prior-response reconstruction.
 - [ ] Add named architecture checks
   `test_capacity_credit_dependency_direction_and_session_boundary`,
+  `test_capacity_credit_uses_only_the_injected_allocator_protocol`,
   `test_capacity_credit_derives_blueprint_digest_from_view_without_runtime_digest_field`,
   `test_capacity_credit_has_no_transition_or_external_imports`, and
   `test_capacity_credit_does_not_create_revision_016`. Spies must reject visit/sample factories,
@@ -1477,13 +1523,17 @@ The fixed digest table is:
       )
 
   def commit(self, command):
-      view = self._reader.get_authoritative_view(command.team_id)
+      dependencies = self._dependencies
+      view = dependencies.reader.get_authoritative_view(command.team_id)
       context = _validate_target_and_view(command, view)
       eligible_ids = _eligible_visit_ids(context)
-      allocation = allocate_capacity(_allocation_request(context, eligible_ids))
+      request = _allocation_request(context, eligible_ids)
+      allocation = dependencies.allocator(request)
       _validate_strictly_positive_contiguous_segment(context, allocation)
       _validate_allocation_blueprint_digest(context, allocation)
-      committed = self._committer.commit_authoritative_slice(_build_commit(context, allocation))
+      committed = dependencies.committer.commit_authoritative_slice(
+          _build_commit(context, allocation)
+      )
       return CommittedCapacityCredit(allocation, committed)
   ```
 
@@ -1491,7 +1541,9 @@ The fixed digest table is:
   it derives the optional working interval, validates the half-open cursor/target bounds, and computes
   `canonical_sha256(json.loads(view.blueprint.canonical_json()))` into `_CommitContext`. It builds no
   session or draft. `_eligible_visit_ids` retains the four-field order plus the bounded preexisting-
-  complete normalization case. `_validate_allocation_blueprint_digest` requires the result and each
+  complete normalization case. The local `request` is the exact immutable object passed once to
+  `dependencies.allocator(request)`; no module-global allocator call or fallback is permitted.
+  `_validate_allocation_blueprint_digest` requires the result and each
   blueprint contributor to equal the context digest before any command/port call. `_resolution_drafts`,
   `_selection_drafts`, `_progress_drafts`, and `_activity_drafts` serialize only Task 7 typed traces
   with the frozen schemas/keys/order above; `_progress_drafts` joins each changed after-image to its
@@ -1511,8 +1563,9 @@ The fixed digest table is:
 - [ ] Record the reader checkpoint, exact command/payload schemas and independent golden digests,
   semantic-fixture coordinate proof, contributor-authority/boundary/release traces, work-interval/
   workday-end matrix, rollback/response-loss/target-reached/restart matrix, explicit no-receipt and
-  deferred-`WORK_CREDITED` limitations, no-transition/no-adapter proofs, test counts, warnings,
-  environment, and commands in `evidence/v2/M1-T08/README.md`.
+  deferred-`WORK_CREDITED` limitations, exact injected-allocator request/call-count and zero-call
+  validation matrices, no-transition/no-adapter proofs, test counts, warnings, environment, and
+  commands in `evidence/v2/M1-T08/README.md`.
 - [ ] Complete mandatory documentation, mark Task 8 complete only after both review stages are clean,
   leave this plan complete but M1 in progress for separately planned flow/planning/lifecycle work,
   inspect the staged diff, and commit exactly:
@@ -1522,8 +1575,10 @@ The fixed digest table is:
   ```
 
 **Done condition:** One application command reads a coherent authoritative view, deterministically
-selects existing active-sprint touch visits, and commits one Task 7 segment's runtime/state,
-assignment/release activity, and resolution/selection/visit-progress ground truth through Task 6. Queue
+selects existing active-sprint touch visits, passes one exact immutable request to its injected
+allocator exactly once, and commits one Task 7 segment's runtime/state, assignment/release activity,
+and resolution/selection/visit-progress ground truth through Task 6. Every pre-allocation rejection
+calls the allocator zero times. Queue
 advances only for exact eligible-denial business subsegments. After response loss, the same desired
 target either commits only the next versioned segment or raises `CapacityCreditTargetReached` with
 zero writes at the target; it never duplicates prior credit/progress key and never reconstructs the

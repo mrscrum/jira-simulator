@@ -85,13 +85,19 @@ Each extracted task brief repeats its applicable authority/shared contract. Task
 `DraftEnvelope.schema_version="1.0"`, frozen canonical resolution/selection/visit-progress and owner-
 activity payload schemas, five payload families with eight independent canonical JSON/SHA-256
 goldens derived from the real canonical resolved-blueprint fixture, including a literal positive-
-credit progress vector, and exactly one
+credit progress vector. Its authenticated sample requires exactly `8_647_914_917` microseconds, so
+every progress golden satisfies `required == elapsed + remaining`. Task 8 emits exactly one
 `capacity-progress/<team>/<run>/<expected-version>/<visit>` ground-truth record per changed visit,
 including queue-only zero-labor visits. Owner activity remains only catalogue
 `WORK_ITEM_ASSIGNED_INTERNAL`/`WORK_ITEM_RELEASED_INTERNAL`; required `WORK_CREDITED` activity is
 deferred to the full event-time/per-visit-version slice while every credit remains durable ground
 truth. Task 8 has an internal reader/view review checkpoint before commit orchestration. Its retry
 contract treats `CommitCapacityCreditCommand.through` as a desired horizon, never an idempotency key.
+Task 8 injects its Task 7 policy through `CapacityAllocator.__call__` in the frozen
+`CapacityCreditDependencies(reader, allocator, committer)` bundle. The service accepts and retains
+only that bundle, then calls exactly one `dependencies.allocator(request)` with the exact immutable
+request; pre-allocation validation and target-reached paths call the allocator zero times. It must
+not import or call module-global `allocate_capacity`.
 The authoritative contributor digest is computed only from the authenticated view blueprint; no
 runtime digest field exists. A later target must be no later than the current working interval end;
 the exact after-hours error is `CapacityCreditTargetOutsideWorkingInterval` with no allocator/commit
