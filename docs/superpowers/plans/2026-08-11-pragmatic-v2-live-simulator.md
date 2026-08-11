@@ -53,7 +53,7 @@ Then add these five outcomes to the relevant v2 backlog files before production 
 
 ```python
 class DrawSource(Protocol):
-    def unit(self, decision: DecisionOccurrence, draw_index: int = 0) -> float: ...
+    def draw(self, decision: DecisionOccurrence, draw_index: int = 0) -> UniformDraw: ...
 
 @dataclass(frozen=True)
 class LiveTeamState:
@@ -69,9 +69,9 @@ class LiveTeamStore(Protocol):
     def ensure_bootstrapped(self, team_id: UUID, started_at: datetime) -> LiveTeamState: ...
 ```
 
-`SeededDrawSource` is the small adapter over the accepted Task 3 stream. `SqlAlchemyLiveTeamStore` performs each load in one transaction and calls the accepted `SqlAlchemyScrumStateMapper` with its caller-owned session. Bootstrap creates member identities, ranked target-depth backlog, one fixed-boundary active sprint, selected scope, initial route visits and samples, and a `RUNNING` runtime with its first wake. A repeated call returns the same rows; an injected failure rolls back runtime and all Scrum rows. No migration.
+`SeededDrawSource` delegates to the accepted Task 3 `DeterministicRandomStream.draw`; bootstrap, tick, and risk callers use the returned `UniformDraw.unit_value` while retaining the accepted draw object wherever existing sample/evidence contracts require it. `SqlAlchemyLiveTeamStore` performs each load in one transaction and calls the accepted `SqlAlchemyScrumStateMapper` with its caller-owned session. Bootstrap creates member identities, ranked target-depth backlog, one fixed-boundary active sprint, selected scope, and a `RUNNING` runtime with its first wake. It persists open visits and samples only for timed, capacity-consuming route steps; zero-touch steps are applied as state transitions without fabricated visits or samples until the first timed step or terminal state. A repeated call returns the same rows; an injected failure rolls back runtime and all Scrum rows. No migration.
 
-- [ ] **RED:** Add one-team tests for deterministic complete bootstrap, idempotency, rollback, and a detached complete reload after a new session/process boundary.
+- [ ] **RED:** Add one-team tests for deterministic complete bootstrap, zero-touch transition without a fabricated sample, idempotency, rollback, and a detached complete reload after a new session/process boundary.
 
   Run: `cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_scrum_bootstrap.py tests/v2/integration/test_live_team_store.py -q`
 
@@ -145,6 +145,8 @@ class SprintTransition:
     activity: tuple[ActivityEventDraft, ...]
     ground_truth: tuple[GroundTruthRecordDraft, ...]
     projection_intents: tuple[ProjectionIntentDraft, ...]
+    counter_claims: tuple[SemanticCounterClaim, ...]
+    natural_decision_claims: tuple[EligibleNaturalDecisionClaim, ...]
 
 def cross_sprint_boundary(state: LiveTeamState, boundary: datetime) -> SprintTransition: ...
 
@@ -185,13 +187,16 @@ At a fixed boundary, close once; preserve every unfinished item's status, owner,
 **Files:**
 - Create: `backend/alembic/versions/016_add_v2_jira_delivery_state.py`
 - Create: `backend/app/v2/domain/jira_delivery.py`
+- Create: `backend/app/v2/application/jira_delivery.py`
 - Create: `backend/app/v2/persistence/jira_delivery_models.py`
 - Create: `backend/app/v2/persistence/jira_delivery_store.py`
-- Create: `backend/app/v2/integrations/jira_intent_adapter.py`
-- Create: `backend/app/v2/integrations/jira_delivery_worker.py`
+- Create: `backend/app/integrations/v2_jira_intent_adapter.py`
 - Modify: `backend/app/models/__init__.py`
 - Modify: `backend/app/v2/runtime.py`
 - Modify: `backend/app/main.py`
+- Modify: `backend/tests/v2/unit/test_architecture_boundaries.py`
+- Modify: `backend/tests/v2/integration/test_migration_014.py`
+- Modify: `backend/tests/v2/integration/test_migration_015.py`
 - Create: `backend/tests/v2/integration/test_migration_016.py`
 - Create: `backend/tests/v2/unit/test_jira_delivery_worker.py`
 - Create: `backend/tests/v2/integration/test_jira_delivery_store.py`
@@ -218,7 +223,6 @@ class PendingJiraIntent:
 class JiraDeliverySuccess:
     intent_id: UUID
     mappings: tuple[JiraResourceMapping, ...]
-    canonical_response: str
     delivered_at: datetime
 
 @dataclass(frozen=True)
@@ -247,17 +251,17 @@ class JiraDeliveryWorker:
     async def drain_once(self, as_of: datetime, limit: int = 50) -> DeliveryBatchResult: ...
 ```
 
-Revision 016 adds exactly `v2_jira_delivery_receipts` (intent ID/state, attempts, retry time, delivered time, last error, canonical response) and `v2_jira_resource_mappings` (team, internal kind/ID, Jira ID/key), with ownership/uniqueness/indexes and a populated-015 round trip. It does not alter authoritative state or projection-intent rows. The store selects undelivered due intents in append order and releases an intent only after all `depends_on` semantic keys have delivered receipts. The adapter reuses existing `JiraClient` methods; create operations first resolve a stable v2 marker/mapping so retry after a crash cannot duplicate resources. The worker is sequential, paced, maps 429 to `retry_after`, records other failures as retryable, and never changes committed simulation state.
+Revision 016 adds exactly `v2_jira_delivery_receipts` (intent ID/state, attempts, retry time, delivered time, and last error) and `v2_jira_resource_mappings` (team, internal kind/ID, Jira ID/key), with ownership/uniqueness/indexes and a populated-015 round trip. It does not alter authoritative state or projection-intent rows and stores no provider response payload. Preserve every explicit revision-015 upgrade compatibility check in the 014/015 migration tests; advance only their current-head and no-revision-016 assertions to the new sole 016 head. The store selects undelivered due intents in append order and releases an intent only after all `depends_on` semantic keys have delivered receipts. `JiraIntentAdapter` and `JiraDeliveryWorker` live in the v2 application module; the concrete `JiraClientV2IntentAdapter` lives at the existing integration boundary, reuses `JiraClient`, and is constructed/injected from `main.py`. Create operations first resolve a stable v2 marker/mapping so retry after a crash cannot duplicate resources. The worker is sequential, paced, maps 429 to `retry_after`, records other failures as retryable, and never changes committed simulation state.
 
-- [ ] **RED:** Add migration parity/round-trip tests and fake-client tests for dependency order, stable resource reuse, successful receipt, provider error, 429 pacing, restart retry, and exactly-once convergence.
+- [ ] **RED:** Add migration parity/round-trip tests and fake-client tests for dependency order, stable resource reuse, successful receipt, provider error, 429 pacing, restart retry, and exactly-once convergence. Update the architecture boundary test for application protocol/concrete-adapter separation, retain explicit 015 upgrade coverage, and change only current-head/no-016 expectations to 016.
 
-  Run: `cd backend && ../.venv/bin/python -m pytest tests/v2/integration/test_migration_016.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py -q`
+  Run: `cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_migration_014.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_migration_016.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py -q`
 
   Expected: non-zero because revision 016 and delivery interfaces do not exist.
 
 - [ ] **GREEN/REFACTOR:** Implement only the two-table migration, store, adapter, and worker; register the worker job after startup reconciliation and outside tick transactions.
 
-  Run: `cd backend && ../.venv/bin/python -m pytest tests/v2/integration/test_migration_016.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py tests/unit/test_jira_client.py -q && ../.venv/bin/python -m alembic heads`
+  Run: `cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_architecture_boundaries.py tests/v2/integration/test_migration_014.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_migration_016.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py tests/unit/test_jira_client.py -q && ../.venv/bin/python -m alembic heads`
 
   Expected: tests pass and the sole head is `016`.
 
@@ -282,6 +286,8 @@ class RiskEvaluation:
     activity: tuple[ActivityEventDraft, ...]
     ground_truth: tuple[GroundTruthRecordDraft, ...]
     projection_intents: tuple[ProjectionIntentDraft, ...]
+    counter_claims: tuple[SemanticCounterClaim, ...]
+    natural_decision_claims: tuple[EligibleNaturalDecisionClaim, ...]
 
 def evaluate_due_risks(
     state: LiveTeamState, as_of: datetime, draws: DrawSource
