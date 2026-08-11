@@ -75,7 +75,9 @@ timezone. It normalizes aware inputs and results to UTC, calculates exact calend
 elapsed time, adds business durations across workdays/holidays, and exposes business-date,
 working-interval, next-working-instant, and business-day-end queries. Local work and cadence
 boundaries are resolved through UTC round trips so nonexistent or ambiguous DST wall times reject
-instead of silently choosing a fold.
+instead of silently choosing a fold. If an otherwise aware instant or local boundary cannot be
+represented at Python's minimum/maximum datetime after a zone conversion, every public calendar
+operation raises the same stable domain `ValueError` instead of leaking `OverflowError`.
 
 Fixed sprint cadence remains independent of business-calendar adjustment: each ordinal retains the
 original local anchor clock across DST and is never shifted for a weekend or holiday. Pure

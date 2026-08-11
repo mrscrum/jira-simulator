@@ -1,0 +1,213 @@
+..............................................FFF.........F............. [ 50%]
+.....F..............F.................................................   [100%]
+=================================== FAILURES ===================================
+_ test_business_date_reports_stable_datetime_range_error[Pacific/Kiritimati-instant0] _
+
+timezone_name = 'Pacific/Kiritimati'
+instant = datetime.datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+
+    @pytest.mark.parametrize(
+        ("timezone_name", "instant"),
+        [
+            (KIRITIMATI_TIMEZONE, MAXIMUM_UTC_INSTANT),
+            (TEAM_TIMEZONE, MINIMUM_UTC_INSTANT),
+        ],
+    )
+    def test_business_date_reports_stable_datetime_range_error(
+        timezone_name: str, instant: datetime
+    ):
+        calendar = _calendar_for_zone(
+            timezone_name, holiday_horizon_end=date.max, holidays=()
+        )
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           calendar.business_date(instant)
+
+tests/v2/unit/test_business_calendar.py:241:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='Pacific/Kiritimati', timezone=zoneinfo.ZoneInfo(...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+instant = datetime.datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+
+    def business_date(self, instant: datetime) -> date:
+        normalized = _aware_utc(instant, "instant")
+>       return normalized.astimezone(self._configuration.timezone).date()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:222: OverflowError
+_ test_business_date_reports_stable_datetime_range_error[America/Los_Angeles-instant1] _
+
+timezone_name = 'America/Los_Angeles'
+instant = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+
+    @pytest.mark.parametrize(
+        ("timezone_name", "instant"),
+        [
+            (KIRITIMATI_TIMEZONE, MAXIMUM_UTC_INSTANT),
+            (TEAM_TIMEZONE, MINIMUM_UTC_INSTANT),
+        ],
+    )
+    def test_business_date_reports_stable_datetime_range_error(
+        timezone_name: str, instant: datetime
+    ):
+        calendar = _calendar_for_zone(
+            timezone_name, holiday_horizon_end=date.max, holidays=()
+        )
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           calendar.business_date(instant)
+
+tests/v2/unit/test_business_calendar.py:241:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='America/Los_Angeles', timezone=zoneinfo.ZoneInfo...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+instant = datetime.datetime(1, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+
+    def business_date(self, instant: datetime) -> date:
+        normalized = _aware_utc(instant, "instant")
+>       return normalized.astimezone(self._configuration.timezone).date()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:222: OverflowError
+_______ test_working_interval_reports_stable_local_boundary_range_error ________
+
+    def test_working_interval_reports_stable_local_boundary_range_error():
+        calendar = _calendar_for_zone(
+            TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+        )
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           calendar.working_interval(date.max)
+
+tests/v2/unit/test_business_calendar.py:250:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:232: in working_interval
+    end = _resolve_local(config.timezone, resolved_day, config.workday_end)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:177: in _resolve_local
+    candidates = tuple(
+app/v2/domain/business_calendar.py:180: in <genexpr>
+    if (candidate := _roundtrip_candidate(naive, zone, fold)) is not None
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+naive = datetime.datetime(9999, 12, 31, 17, 0)
+zone = zoneinfo.ZoneInfo(key='America/Los_Angeles'), fold = 0
+
+    def _roundtrip_candidate(naive: datetime, zone: ZoneInfo, fold: int) -> datetime | None:
+        localized = naive.replace(tzinfo=zone, fold=fold)
+>       candidate = localized.astimezone(UTC)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:168: OverflowError
+_______ test_next_working_instant_propagates_stable_datetime_range_error _______
+
+    def test_next_working_instant_propagates_stable_datetime_range_error():
+        calendar = _calendar_for_zone(
+            TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+        )
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           calendar.next_working_instant(MAXIMUM_UTC_INSTANT)
+
+tests/v2/unit/test_business_calendar.py:293:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:243: in next_working_instant
+    interval = self.working_interval(day)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:232: in working_interval
+    end = _resolve_local(config.timezone, resolved_day, config.workday_end)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:177: in _resolve_local
+    candidates = tuple(
+app/v2/domain/business_calendar.py:180: in <genexpr>
+    if (candidate := _roundtrip_candidate(naive, zone, fold)) is not None
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+naive = datetime.datetime(9999, 12, 31, 17, 0)
+zone = zoneinfo.ZoneInfo(key='America/Los_Angeles'), fold = 0
+
+    def _roundtrip_candidate(naive: datetime, zone: ZoneInfo, fold: int) -> datetime | None:
+        localized = naive.replace(tzinfo=zone, fold=fold)
+>       candidate = localized.astimezone(UTC)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:168: OverflowError
+_______________ test_add_propagates_stable_datetime_range_error ________________
+
+    def test_add_propagates_stable_datetime_range_error():
+        calendar = _calendar_for_zone(
+            TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+        )
+        request = BusinessTimeAddition(MAXIMUM_UTC_INSTANT, ONE_HOUR)
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           calendar.add(request)
+
+tests/v2/unit/test_business_calendar.py:415:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:275: in add
+    cursor = self.next_working_instant(request.start)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:243: in next_working_instant
+    interval = self.working_interval(day)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:232: in working_interval
+    end = _resolve_local(config.timezone, resolved_day, config.workday_end)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/domain/business_calendar.py:177: in _resolve_local
+    candidates = tuple(
+app/v2/domain/business_calendar.py:180: in <genexpr>
+    if (candidate := _roundtrip_candidate(naive, zone, fold)) is not None
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+naive = datetime.datetime(9999, 12, 31, 17, 0)
+zone = zoneinfo.ZoneInfo(key='America/Los_Angeles'), fold = 0
+
+    def _roundtrip_candidate(naive: datetime, zone: ZoneInfo, fold: int) -> datetime | None:
+        localized = naive.replace(tzinfo=zone, fold=fold)
+>       candidate = localized.astimezone(UTC)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:168: OverflowError
+____________ test_cadence_reports_stable_maximum_anchor_range_error ____________
+
+    def test_cadence_reports_stable_maximum_anchor_range_error():
+        calendar = _calendar_for_zone(
+            KIRITIMATI_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+        )
+
+        with pytest.raises(ValueError, match="supported datetime range"):
+>           cadence_boundary(calendar, CadenceRule(MAXIMUM_UTC_INSTANT, 14), 1)
+
+tests/v2/unit/test_business_calendar.py:504:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:299: in cadence_boundary
+    local_anchor = calendar._local_datetime(rule.anchor)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='Pacific/Kiritimati', timezone=zoneinfo.ZoneInfo(...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(9999, 12, 31), holidays=frozenset()))
+instant = datetime.datetime(9999, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+
+    def _local_datetime(self, instant: datetime) -> datetime:
+>       return _aware_utc(instant, "instant").astimezone(self._configuration.timezone)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       OverflowError: date value out of range
+
+app/v2/domain/business_calendar.py:287: OverflowError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_business_calendar.py::test_business_date_reports_stable_datetime_range_error[Pacific/Kiritimati-instant0]
+FAILED tests/v2/unit/test_business_calendar.py::test_business_date_reports_stable_datetime_range_error[America/Los_Angeles-instant1]
+FAILED tests/v2/unit/test_business_calendar.py::test_working_interval_reports_stable_local_boundary_range_error
+FAILED tests/v2/unit/test_business_calendar.py::test_next_working_instant_propagates_stable_datetime_range_error
+FAILED tests/v2/unit/test_business_calendar.py::test_add_propagates_stable_datetime_range_error
+FAILED tests/v2/unit/test_business_calendar.py::test_cadence_reports_stable_maximum_anchor_range_error
+6 failed, 136 passed in 0.36s

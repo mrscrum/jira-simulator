@@ -292,9 +292,10 @@ The complete output is retained in `fix-round-1-green.txt`. The new cases prove:
   horizon through `2056-12-31`, and identical replay returns the same object;
 - missing, extra, non-observed, partial-start, and partial-end federal horizons reject before the
   extension/no-op decision without mutating input;
-- `next_working_instant`, `add`, and final-day elapsed calculations do not leak `OverflowError` at
-  horizon exhaustion or `date.max`; and the actual `BusinessCalendar._configuration` field remains
-  frozen and identity-stable.
+- the round-1 `Etc/UTC` next-working/addition exhaustion and final-day elapsed cases do not leak
+  `OverflowError` at the horizon or `date.max`; cross-zone extreme conversion was not covered until
+  review fix round 2. The actual `BusinessCalendar._configuration` field remains frozen and
+  identity-stable.
 
 ### Regression and static verification
 
@@ -458,3 +459,93 @@ git diff --check 2>&1 | tee evidence/v2/M1-T04/fix-round-1-diff-check.txt
 
 Result: exit `0` with empty output. The final cached diff is checked separately after explicit
 staging and before the exact-subject commit.
+
+## Review fix round 2 — normalize calendar range errors
+
+Review-fix base: `bfc97caccd3c40bba8c9db435972b0d7c8582b05`.
+
+The six extreme-range regressions were added before the production edit. Exact RED from
+`backend/`:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_business_calendar.py tests/v2/unit/test_us_federal_calendar.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-red.txt
+```
+
+Result: exit `1`, `6 failed, 136 passed in 0.36s`. Each failure was the expected raw
+`OverflowError: date value out of range` from a real public path: maximum UTC converted to
+Kiritimati, minimum UTC converted to Los Angeles, a `date.max` Los Angeles work boundary,
+propagation through `next_working_instant` and `add`, and maximum-anchor Kiritimati cadence. No
+fixture, syntax, timezone-data, or unrelated assertion failed.
+
+The minimum implementation routed every calendar `astimezone` operation through one short helper
+that translates only `OverflowError` to `ValueError("calendar operation exceeds the supported
+datetime range")`; cadence date arithmetic uses the same stable message. Exact GREEN:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_business_calendar.py tests/v2/unit/test_us_federal_calendar.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-green.txt
+```
+
+Result: exit `0`, `142 passed in 0.44s`.
+
+### Review-fix regression verification
+
+All commands ran from `backend/` with pipeline failure propagation.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2 -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-v2-suite.txt
+```
+
+Result: `556 passed, 1 warning in 4.34s`.
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests -q 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-full-suite.txt
+```
+
+Result: `1074 passed, 43 skipped, 15 warnings in 30.82s`. The warnings remain the documented
+baseline categories: one Starlette/httpx deprecation, 13 Jira-bootstrapper unawaited-`AsyncMock`
+warnings, and one SQLAlchemy identity-map warning.
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m ruff check --no-cache . 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-ruff.txt
+```
+
+Result: exit `0`, `All checks passed!`.
+
+```bash
+set -o pipefail
+../.venv/bin/python -B -m alembic heads --verbose 2>&1 | tee ../evidence/v2/M1-T04/fix-round-2-alembic.txt
+../.venv/bin/python -B -m alembic branches --verbose 2>&1 | tee -a ../evidence/v2/M1-T04/fix-round-2-alembic.txt
+../.venv/bin/python -B -m alembic history 2>&1 | tee -a ../evidence/v2/M1-T04/fix-round-2-alembic.txt
+```
+
+Result: sole `Rev: 014 (head)` with parent `013`, empty branches, and linear history from `001`
+through `014`. No migration or schema file changed.
+
+The exact Task 4 AST command used the same fully recorded scan above with base changed to
+`bfc97caccd3c40bba8c9db435972b0d7c8582b05`; its discovered touched files were only
+`business_calendar.py` and `test_business_calendar.py`. Complete output is retained in
+`fix-round-2-code-shape.txt`:
+
+```text
+Functions over 30 lines: []
+Functions over 3 arguments: []
+Architecture violations: []
+```
+
+Review-fix scope contains no migration, persistence, UOW, federal algorithm, Task 3 vector,
+ordinary DST/cadence/horizon behavior, v1, scheduler, engine, Jira/OpenAI, frontend,
+infrastructure, deployment, push, UAT, or M1-completion change.
+
+Final tracked whitespace command from the repository root:
+
+```bash
+set -o pipefail
+git diff --check 2>&1 | tee evidence/v2/M1-T04/fix-round-2-diff-check.txt
+```
+
+Result: exit `0` with empty output. The cached diff receives the same check after explicit staging.

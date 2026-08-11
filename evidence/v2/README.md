@@ -13,4 +13,4 @@ deployment, UAT, live Jira/OpenAI access, or M1 completion.
 
 `M1-T04` also retains its review-fix proof for team-zone-derived starter years, strict available
 IANA keys, authenticated canonical federal horizons, stale catch-up idempotency, stable horizon
-exhaustion errors, and the unchanged migration boundary.
+exhaustion and extreme timezone-conversion errors, and the unchanged migration boundary.

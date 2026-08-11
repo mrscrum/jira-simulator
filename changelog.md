@@ -307,3 +307,14 @@
 - Far-stale extension now catches up in one call and identical replay preserves object identity.
 - No persistence, schema, scheduler, engine, v1, Jira/OpenAI, frontend, or deployment behavior was
   changed.
+
+## [2026-08-11] M1 — Normalize calendar range errors
+### Changed
+- Centralized all pure business-calendar timezone conversions behind one bounded conversion helper.
+- Added exact minimum/maximum datetime regressions for business dates, local work boundaries,
+  next-working lookup, business-time addition, and fixed cadence.
+### Fixed
+- Extreme UTC-to-team-zone and local-boundary-to-UTC conversions now raise a stable domain
+  `ValueError` instead of leaking Python `OverflowError`.
+- Ordinary DST, holiday horizon, federal calendar, cadence, persistence, and external boundaries
+  remain unchanged.

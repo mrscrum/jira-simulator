@@ -19,10 +19,13 @@ from app.v2.domain.business_calendar import (
 from app.v2.domain.team_blueprint import CalendarBlueprint, ResolvedTeamBlueprint
 
 TEAM_TIMEZONE = "America/Los_Angeles"
+KIRITIMATI_TIMEZONE = "Pacific/Kiritimati"
 UTC_TIMEZONE = "Etc/UTC"
 ONE_HOUR = timedelta(hours=1)
 HALF_HOUR = timedelta(minutes=30)
 RANDOM_CALENDAR_SEED = 20260811
+MAXIMUM_UTC_INSTANT = datetime.max.replace(tzinfo=UTC)
+MINIMUM_UTC_INSTANT = datetime.min.replace(tzinfo=UTC)
 _utc = partial(datetime, tzinfo=UTC)
 
 
@@ -221,6 +224,33 @@ def test_business_date_rejects_naive_instant():
 
 
 @pytest.mark.parametrize(
+    ("timezone_name", "instant"),
+    [
+        (KIRITIMATI_TIMEZONE, MAXIMUM_UTC_INSTANT),
+        (TEAM_TIMEZONE, MINIMUM_UTC_INSTANT),
+    ],
+)
+def test_business_date_reports_stable_datetime_range_error(
+    timezone_name: str, instant: datetime
+):
+    calendar = _calendar_for_zone(
+        timezone_name, holiday_horizon_end=date.max, holidays=()
+    )
+
+    with pytest.raises(ValueError, match="supported datetime range"):
+        calendar.business_date(instant)
+
+
+def test_working_interval_reports_stable_local_boundary_range_error():
+    calendar = _calendar_for_zone(
+        TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+    )
+
+    with pytest.raises(ValueError, match="supported datetime range"):
+        calendar.working_interval(date.max)
+
+
+@pytest.mark.parametrize(
     ("instant", "expected"),
     [
         (_utc(2026, 8, 10, 15), _utc(2026, 8, 10, 16)),
@@ -252,6 +282,15 @@ def test_next_working_instant_reports_stable_horizon_exhaustion(last_day: date):
 
     with pytest.raises(ValueError, match="holiday horizon"):
         calendar.next_working_instant(after_close)
+
+
+def test_next_working_instant_propagates_stable_datetime_range_error():
+    calendar = _calendar_for_zone(
+        TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+    )
+
+    with pytest.raises(ValueError, match="supported datetime range"):
+        calendar.next_working_instant(MAXIMUM_UTC_INSTANT)
 
 
 def test_elapsed_counts_a_partial_workday_in_both_clocks():
@@ -366,6 +405,16 @@ def test_add_reports_stable_horizon_exhaustion(last_day: date):
         calendar.add(request)
 
 
+def test_add_propagates_stable_datetime_range_error():
+    calendar = _calendar_for_zone(
+        TEAM_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+    )
+    request = BusinessTimeAddition(MAXIMUM_UTC_INSTANT, ONE_HOUR)
+
+    with pytest.raises(ValueError, match="supported datetime range"):
+        calendar.add(request)
+
+
 @pytest.mark.parametrize(
     "case",
     [
@@ -444,6 +493,15 @@ def test_cadence_rejects_invalid_ordinal(ordinal: object):
 def test_cadence_rejects_target_local_dst_gap_or_overlap(anchor: datetime, error: str):
     with pytest.raises(ValueError, match=error):
         cadence_boundary(_calendar(), CadenceRule(anchor, 14), 1)
+
+
+def test_cadence_reports_stable_maximum_anchor_range_error():
+    calendar = _calendar_for_zone(
+        KIRITIMATI_TIMEZONE, holiday_horizon_end=date.max, holidays=()
+    )
+
+    with pytest.raises(ValueError, match="supported datetime range"):
+        cadence_boundary(calendar, CadenceRule(MAXIMUM_UTC_INSTANT, 14), 1)
 
 
 def test_calendar_operations_do_not_shift_resolved_first_boundary(

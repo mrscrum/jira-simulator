@@ -28,8 +28,8 @@ review-hardened slotted/reconstruction-resistant HMAC-U53 provenance, scoped saf
 coordinates, and formula-bound dwell/touch samples; Task 4 provides pure dual-clock/DST-safe
 business-calendar, fixed-cadence, and review-hardened `US_FEDERAL_V1` horizon primitives. The
 starter year is team-zone-derived, only available IANA keys are accepted, canonical horizons are
-authenticated before use, and stale extensions catch up idempotently in ten-year blocks. M1
-remains in progress.
+authenticated before use, stale extensions catch up idempotently in ten-year blocks, and extreme
+timezone/local-boundary conversions expose a stable domain range error. M1 remains in progress.
 Work/sprint/status-visit persistence is the next plan decision and must not be guessed from the
 historical detailed backlog.
 

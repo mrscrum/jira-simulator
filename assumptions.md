@@ -251,3 +251,11 @@
 - Used `zoneinfo.available_timezones()` as the acceptance boundary and explicitly excluded its
   non-geographic pseudo keys `Factory`, `localtime`, and `posixrules`.
 - Kept M1 in progress and did not infer the next persistence or engine slice.
+
+## [2026-08-11] M1 — Normalize calendar range errors
+- Used one stable message, `calendar operation exceeds the supported datetime range`, for both
+  timezone-conversion overflow and cadence date arithmetic overflow so nested public operations
+  propagate one domain boundary.
+- Caught only Python `OverflowError`; ordinary validation and DST `ValueError` categories retain
+  their existing messages and behavior.
+- No next M1 slice or wider date representation was assumed.

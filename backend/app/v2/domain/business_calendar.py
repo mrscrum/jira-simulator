@@ -1,7 +1,7 @@
 """Pure timezone-aware business and fixed-cadence arithmetic."""
 
 import re
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from zoneinfo import ZoneInfo
 
 from app.v2.domain.iana_timezone import resolve_iana_timezone
@@ -10,14 +10,22 @@ from app.v2.domain.team_blueprint import WEEKDAYS, CalendarBlueprint
 
 LOCAL_TIME_PATTERN = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 DATETIME_RESOLUTION = timedelta.resolution
+DATETIME_RANGE_ERROR = "calendar operation exceeds the supported datetime range"
 ONE_DAY = timedelta(days=1)
 ZERO_DURATION = timedelta()
+
+
+def _convert_timezone(value: datetime, zone: tzinfo) -> datetime:
+    try:
+        return value.astimezone(zone)
+    except OverflowError as error:
+        raise ValueError(DATETIME_RANGE_ERROR) from error
 
 
 def _aware_utc(value: object, label: str) -> datetime:
     if type(value) is not datetime or value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{label} must be an aware datetime")
-    return value.astimezone(UTC)
+    return _convert_timezone(value, UTC)
 
 
 def _duration(value: object, label: str) -> timedelta:
@@ -165,8 +173,8 @@ def _calendar_configuration(
 
 def _roundtrip_candidate(naive: datetime, zone: ZoneInfo, fold: int) -> datetime | None:
     localized = naive.replace(tzinfo=zone, fold=fold)
-    candidate = localized.astimezone(UTC)
-    roundtrip = candidate.astimezone(zone)
+    candidate = _convert_timezone(localized, UTC)
+    roundtrip = _convert_timezone(candidate, zone)
     if roundtrip.replace(tzinfo=None) != naive or roundtrip.fold != fold:
         return None
     return candidate
@@ -219,7 +227,7 @@ class BusinessCalendar(ImmutableValue):
 
     def business_date(self, instant: datetime) -> date:
         normalized = _aware_utc(instant, "instant")
-        return normalized.astimezone(self._configuration.timezone).date()
+        return _convert_timezone(normalized, self._configuration.timezone).date()
 
     def working_interval(self, day: date) -> UtcInterval | None:
         resolved_day = _calendar_date(day)
@@ -284,7 +292,8 @@ class BusinessCalendar(ImmutableValue):
             cursor = self.next_working_instant(interval.end)
 
     def _local_datetime(self, instant: datetime) -> datetime:
-        return _aware_utc(instant, "instant").astimezone(self._configuration.timezone)
+        normalized = _aware_utc(instant, "instant")
+        return _convert_timezone(normalized, self._configuration.timezone)
 
     def _resolve_local(self, day: date, clock: time) -> datetime:
         return _resolve_local(self._configuration.timezone, day, clock)
@@ -300,7 +309,7 @@ def cadence_boundary(calendar: BusinessCalendar, rule: CadenceRule, ordinal: int
     try:
         target_day = local_anchor.date() + timedelta(days=rule.cadence_days * position)
     except OverflowError as error:
-        raise ValueError("cadence boundary exceeds the supported date range") from error
+        raise ValueError(DATETIME_RANGE_ERROR) from error
     local_clock = time(
         local_anchor.hour, local_anchor.minute, local_anchor.second, local_anchor.microsecond
     )

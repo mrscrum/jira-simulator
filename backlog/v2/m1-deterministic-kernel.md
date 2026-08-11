@@ -30,7 +30,7 @@ Status: COMPLETE
 
 - [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fixes round 1 and 2 completed 2026-08-11
 - [x] Task 4 — Add dual-clock, DST-safe business-calendar primitives — completed 2026-08-11;
-  review fix round 1 completed 2026-08-11
+  review fixes round 1 and 2 completed 2026-08-11
 
 ## Deferred Non-Blocking Validation Hardening
 
@@ -286,3 +286,14 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
   DST round trips, immutable-value policy, revision-014 graph, and all prior v2 regressions.
 - [x] Retain truthful RED/GREEN/full/Ruff/Alembic/shape evidence and commit separately as
   `fix(v2): harden calendar horizon contracts`; M1 remains in progress.
+
+### Task 4 review fix round 2 — completed 2026-08-11
+
+- [x] Normalize UTC-to-team-zone and local-boundary-to-UTC representational overflow through one
+  stable domain `ValueError` boundary.
+- [x] Cover maximum UTC in Kiritimati, minimum UTC in Los Angeles, `date.max` work boundaries in a
+  negative-offset zone, nested next-working/addition propagation, and maximum-anchor cadence.
+- [x] Preserve ordinary DST, horizon, federal calendar, fixed cadence, immutable-value, and pure
+  architecture behavior.
+- [x] Retain exact RED/GREEN/v2/full/Ruff/Alembic/shape evidence and commit separately as
+  `fix(v2): normalize calendar range errors`; M1 remains in progress.
