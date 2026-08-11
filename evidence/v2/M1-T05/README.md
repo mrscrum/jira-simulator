@@ -9,9 +9,10 @@ Commit history: original Task 5 implementation `a46b615` (`feat(v2): persist aut
 state`); review fix round 1 `b44d74a` (`fix(v2): bind authoritative scrum state`); review fix round
 2 `234397c` (`fix(v2): support sparse scrum after-images`); review fix round 3 `e9dd4cf`
 (`fix(v2): harden scrum mapper boundaries`); review fix round 4 `9049e1a`
-(`fix(v2): refresh authoritative scrum reads`). Review fix round 5 is fully verified on base
-`9049e1a`; the exact commit subject `fix(v2): detach cascaded scrum identities` remains pending, so
-no round-5 hash is claimed here.
+(`fix(v2): refresh authoritative scrum reads`); review fix round 5 `0782070`
+(`fix(v2): detach cascaded scrum identities`). The subsequent independent Ultra technical review
+reported CLEAN with no Critical or Important findings. Task 5 is accepted; Task 6 remains open and
+M1 remains in progress.
 
 Scope: immutable authoritative Scrum-state values, eleven relational mappings, a detached
 caller-owned-session mapper, and reversible Alembic revision 015. This task does not implement a
@@ -576,10 +577,9 @@ The 15 full-suite warnings remain the existing baseline categories. Round 4 was 
 
 ## Fix round 5 — cascaded identity detachment evidence
 
-Review-fix base: `9049e1a` (`fix(v2): refresh authoritative scrum reads`). The exact pending
-round-5 commit subject is `fix(v2): detach cascaded scrum identities`; no commit hash is claimed
-before that commit exists. Scope remains limited to Task 5 target-local identity-map handling, its
-regression, evidence, and documentation.
+Review-fix base: `9049e1a` (`fix(v2): refresh authoritative scrum reads`). The verified fix was
+committed as `0782070` (`fix(v2): detach cascaded scrum identities`). Scope remained limited to
+Task 5 target-local identity-map handling, its regression, evidence, and documentation.
 
 ### Isolated RED
 
@@ -630,5 +630,7 @@ Retained final verification:
 - `review-fix-round-5-code-shape.txt`: two touched Python files, no function over 30 lines, and no
   function accepting more than three arguments.
 
-The 15 full-suite warnings remain the existing baseline categories. Round-5 verification is
-complete; only the exact pending commit remains, so no round-5 hash is claimed yet.
+The 15 full-suite warnings remain the existing baseline categories. Round 5 was committed as
+`0782070` (`fix(v2): detach cascaded scrum identities`). The subsequent independent Ultra
+technical review reported CLEAN with no Critical or Important findings, completing Task 5
+technical acceptance. Task 6 remains open and M1 remains in progress.

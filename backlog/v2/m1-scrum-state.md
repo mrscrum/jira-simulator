@@ -69,8 +69,8 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and review-hardened
-  2026-08-11; narrow review fix round 5 exact commit pending after final verification
+- [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and technically
+  accepted 2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
 - [ ] Task 6 — Commit authoritative Scrum state atomically
 
 ## Deferred Validation Hardening Outside These Tasks
@@ -130,15 +130,16 @@ warnings. Focused and full verification were GREEN on review-fix base `e9dd4cf`,
 change was committed as `9049e1a` (`fix(v2): refresh authoritative scrum reads`). Revision 015 and
 the Task 6 boundary remain unchanged.
 
-Review fix round 5 remains a narrow, fully verified follow-up on base `9049e1a`. A complete same-key
+Review fix round 5 is a narrow, accepted follow-up on base `9049e1a`. A complete same-key
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
 identities after an external cascade deletion, while unrelated caller cache entries remain
 preserved. The isolated regression moved from `1 failed in 0.28s`, caused by two sample
 identity-conflict `SAWarning`s, to `1 passed in 0.27s`; Task 5 focused, all-v2, full backend, Ruff,
-Alembic/parity, cold-import, architecture, shape, and the direct self-probe are GREEN. Only the exact
-pending commit subject `fix(v2): detach cascaded scrum identities` remains open. This does not broaden Task 5
-into generalized Task 6 CAS/upsert, lifecycle/allocation behavior, revision 016, external access,
-deployment, push, or UAT.
+Alembic/parity, cold-import, architecture, shape, and the direct self-probe are GREEN. The fix was
+committed as `0782070` (`fix(v2): detach cascaded scrum identities`), and independent Ultra
+technical review reported CLEAN with no Critical or Important findings. This does not broaden
+Task 5 into generalized Task 6 CAS/upsert, lifecycle/allocation behavior, revision 016, external
+access, deployment, push, or UAT. Task 6 remains open and M1 remains in progress.
 
 ## Task 5: Persist authoritative Scrum state at revision 015
 

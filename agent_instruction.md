@@ -51,9 +51,10 @@ On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A co
 visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
 identities after an external cascade deletion, eliminating two sample identity-conflict
 `SAWarning`s while preserving unrelated caller cache entries. The isolated TDD regression moved
-from `1 failed in 0.28s` to `1 passed in 0.27s`. The full verification matrix is GREEN; only the
-exact pending commit subject `fix(v2): detach cascaded scrum identities` remains open, so no
-round-5 commit hash is claimed.
+from `1 failed in 0.28s` to `1 passed in 0.27s`. The full verification matrix is GREEN, the fix was
+committed as `0782070` (`fix(v2): detach cascaded scrum identities`), and the subsequent independent
+Ultra technical review reported CLEAN with no Critical or Important findings. Task 5 is accepted;
+Task 6 remains open and M1 remains in progress.
 
 On 2026-08-11, Task 5 review fix round 4 made every mapper authority/state read refresh matching
 clean ORM identities from the current transaction's database view. Cached team/run/blueprint/sample
@@ -278,9 +279,8 @@ Current local evidence after Task 5 review fix round 5 verification:
 
 ## Next Task
 
-Create the exact pending `fix(v2): detach cascaded scrum identities` commit on base `9049e1a`, then
-execute Task 6 from
-`backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
+Execute Task 6 from `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR
+cycle. Task 5 is technically accepted at `0782070`; Task 6 must keep
 revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
 counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
 allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI

@@ -9,8 +9,8 @@ not a fixed microtask sequence.
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
-  state at revision 015 with its fourth review-fix committed as `9049e1a`; a narrow fifth fix has
-  completed final verification while its exact commit remains pending, and Task 6 remains open in
+  state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
+  reported CLEAN with no Critical or Important findings; Task 6 remains open in
   [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
@@ -41,11 +41,11 @@ work, empty write sets reject before SQL, every nested draw is exactly typed and
 HMAC-authenticated, and retained sample units are exact finite built-in floats. Matching clean ORM
 identities are refreshed for every authority/state read, so committed updates, corruption, and
 deletion cannot be masked by caller cache state; deleted cached visits can be restored from complete
-after-images. The pending round-5 fix narrowly detaches the confirmed-missing same-key visit and
-sample identities during cascade restoration while preserving unrelated caller cache entries; its
-isolated and full verification is GREEN while its exact commit remains pending. Task 6 remains open
-to integrate that state with the existing atomic runtime-CAS/live-ledger unit of work without a
-revision 016. Capacity
+after-images. Round-5 commit `0782070` narrowly detaches the confirmed-missing same-key visit and
+sample identities during cascade restoration while preserving unrelated caller cache entries. Its
+isolated and full verification is GREEN, and independent Ultra technical review reported CLEAN
+with no Critical or Important findings. Task 6 remains open to integrate that accepted state with
+the existing atomic runtime-CAS/live-ledger unit of work without a revision 016. Capacity
 allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
 wiring, and UAT remain deferred.
 
