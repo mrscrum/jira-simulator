@@ -119,6 +119,17 @@ equality-spoofing subclasses and low-level reconstructed factory inputs. Retaine
 unit values are exact finite built-in floats in `[0, 1]` and stateful subclasses reject before SQL.
 Revision 015 remains unchanged and no revision 016 exists.
 
+Review fix round 4 extends that boundary to clean, already-loaded ORM identities. Every mapper
+authority/state read refreshes matching identities from the current transaction's database view,
+including team/run primary keys, blueprint/member selects, all eleven state collections, and the
+visit existence check. Cached corruption and deleted run authority reject; valid external changes
+appear in complete returned snapshots without expiring unrelated caller identities. A complete
+visit/sample after-image can restore an externally deleted cached visit after narrowly detaching
+only the confirmed-missing stale identity, avoiding `StaleDataError` and SQLAlchemy identity-map
+warnings. Focused and full verification are GREEN on committed base `e9dd4cf`; only the exact
+pending `fix(v2): refresh authoritative scrum reads` commit remains open. Revision 015 and the Task
+6 boundary remain unchanged.
+
 ## Task 5: Persist authoritative Scrum state at revision 015
 
 **Goal:** Define, validate, persist, and restart-reload a representative authoritative Scrum state
@@ -277,13 +288,15 @@ class SqlAlchemyScrumStateMapper:
 ```
 
 Both entry points reject non-empty caller ORM `new`, `dirty`, or `deleted` state before authority
-SQL. `load` then returns a complete detached immutable snapshot in deterministic semantic order and
-reauthenticates stored samples against the persisted blueprint. `add` rejects an empty
+SQL. Matching authoritative ORM identities are then refreshed from the current transaction's
+database view. `load` returns a complete detached immutable snapshot in deterministic semantic order
+and reauthenticates stored samples against the persisted blueprint. `add` rejects an empty
 coordinate-free write set before SQL, validates a non-empty sparse write set structurally, loads
 team/blueprint/run authority plus omitted persisted owners without autoflush, merges a complete
 candidate snapshot, and completes blueprint/reference/sample validation before Task 5 DML. It
 applies only touched Task 5 rows, narrowly updating existing visit after-images while preserving
-reviewed insert semantics elsewhere, flushes so constraints surface inside the caller's
+reviewed insert semantics elsewhere, including warning-free restoration of a confirmed-missing
+cached visit from a complete visit/sample after-image, flushes so constraints surface inside the caller's
 transaction, and returns the complete detached snapshot. The caller decides to commit or roll back;
 a mapper exception leaves that decision and any rejected pending ORM state with the caller.
 

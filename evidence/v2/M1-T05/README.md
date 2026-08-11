@@ -7,8 +7,10 @@ descendant of reviewed Task 4 head `11f3663`.
 
 Commit history: original Task 5 implementation `a46b615` (`feat(v2): persist authoritative scrum
 state`); review fix round 1 `b44d74a` (`fix(v2): bind authoritative scrum state`); review fix round
-2 `234397c` (`fix(v2): support sparse scrum after-images`). Review fix round 3 is verified on
-`234397c`; its fix commit is pending, so no final hash is claimed here.
+2 `234397c` (`fix(v2): support sparse scrum after-images`); review fix round 3 `e9dd4cf`
+(`fix(v2): harden scrum mapper boundaries`). Review fix round 4 has focused GREEN on committed base
+`e9dd4cf` and final verification is complete. The exact commit
+`fix(v2): refresh authoritative scrum reads` is pending, so no final hash is claimed here.
 
 Scope: immutable authoritative Scrum-state values, eleven relational mappings, a detached
 caller-owned-session mapper, and reversible Alembic revision 015. This task does not implement a
@@ -219,7 +221,8 @@ Static results:
 - Repository `git diff --check`: exit `0` with empty output.
 
 The exact outputs are retained beside this README. The original Task 5 evidence was committed in
-`a46b615`, review fix round 1 in `b44d74a`, and review fix round 2 in `234397c`. No push,
+`a46b615`, review fix round 1 in `b44d74a`, review fix round 2 in `234397c`, and review fix round 3
+in `e9dd4cf`. No push,
 deployment, live-system access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016
 occurred during these verification rounds.
 
@@ -410,9 +413,9 @@ Task 6 implementation, or revision 016 was accessed or introduced.
 
 ## Fix round 3 — clean-session and sample-authentication evidence
 
-Review-fix base: `234397c` (`fix(v2): support sparse scrum after-images`). The exact round-3 fix
-commit is pending; no final hash is claimed before that commit exists. Scope remains limited to
-Task 5 domain validation, caller-session mapping, tests, and documentation. It adds no Task 6
+Review-fix base: `234397c` (`fix(v2): support sparse scrum after-images`). The round-3 fix is
+committed as `e9dd4cf` (`fix(v2): harden scrum mapper boundaries`). Scope remains limited to Task 5
+domain validation, caller-session mapping, tests, and documentation. It adds no Task 6
 upsert/CAS behavior, revision 016, frontend, adapter, external call, deployment, push, or UAT action.
 
 ### Consolidated and supplemental RED
@@ -491,3 +494,82 @@ PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pyte
 The 15 full-suite warnings remain the existing baseline categories. No secret, external provider,
 Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,
 Task 6 implementation, or revision 016 was accessed or introduced.
+
+## Fix round 4 — authoritative identity-map refresh evidence
+
+Review-fix base: `e9dd4cf` (`fix(v2): harden scrum mapper boundaries`). The exact pending round-4
+commit subject is `fix(v2): refresh authoritative scrum reads`; no commit hash is claimed before
+that commit exists. Scope remains limited to Task 5 caller-session reads, deleted-visit identity
+handling, tests, evidence, and documentation. It adds no Task 6 CAS/counter claim, revision 016,
+external call, deployment, push, or UAT action.
+
+### Genuine and supplemental RED
+
+The standard five-file Task 5 regression selection was extended before production changes and
+retained in `review-fix-round-4-red.txt`. It recorded exactly:
+
+```text
+11 failed, 314 passed in 18.46s
+```
+
+Those failures proved that a clean caller `Session` could retain unexpired ORM identities after a
+separate committed update: cached team, run, blueprint, sample, and ordinary state attributes hid
+persisted corruption or valid changes from both `load` and sparse `add`; a cached deleted run could
+produce a false partial snapshot instead of rejecting. The failures were not pending-unit-of-work
+cases: `Session.new`, `Session.dirty`, and `Session.deleted` remained empty.
+
+The independently identified member-only and deleted-visit branches were added before their fixes.
+`review-fix-round-4-supplemental-red.txt` recorded exactly `2 failed in 0.74s`: the member-only
+candidate read trusted a cached externally corrupted member, and a cached externally deleted visit
+raised `StaleDataError` instead of accepting its complete visit/sample after-image. After the fresh
+visit lookup was added, `review-fix-round-4-identity-red.txt` recorded exactly `1 failed in 0.33s`
+because reinsertion still emitted SQLAlchemy identity-map conflict warnings. That warning RED
+preceded explicit stale-identity detachment.
+
+### Corrected boundary
+
+- Team, run, and visit primary-key reads force `populate_existing`; blueprint, member-only, and all
+  eleven ordered state-collection selects also populate existing identities from the current
+  transaction's visible database state.
+- Persisted authority/sample corruption and a deleted run can no longer be hidden by a clean
+  unexpired identity-map entry. Valid external state updates appear in complete returned snapshots,
+  while unrelated cached identities remain unexpired and untouched.
+- Expired, detached, and post-rollback caller objects remain supported. The existing pre-SQL gate
+  still rejects genuine ORM `new`, `dirty`, or `deleted` work and preserves caller rollback
+  ownership.
+- When a complete visit/sample after-image recreates an externally deleted visit, the mapper
+  removes only that confirmed-missing stale visit identity before adding the replacement. The
+  reinsert succeeds without `SAWarning`, preserves complete restart state, and does not broaden the
+  narrow Task 5 visit-after-image behavior into Task 6 CAS/upsert semantics.
+
+### Focused GREEN and final verification
+
+The identical standard five-file selection first reached behavioral GREEN at exactly:
+
+```text
+327 passed in 18.79s
+```
+
+The supplemental member-only/deleted-visit selection is retained separately in
+`review-fix-round-4-supplemental-green.txt`. After the warning-specific RED and fix, a fresh final
+standard run overwrote `review-fix-round-4-green.txt` with `327 passed in 20.84s`.
+
+Retained final verification:
+
+- Task 1 focused: `56 passed, 1 warning in 2.32s`.
+- Task 2 focused: `186 passed in 14.02s`.
+- Task 3 focused: `251 passed in 0.92s`.
+- Task 4 focused: `146 passed in 0.62s`.
+- Task 5 focused: `327 passed in 20.84s`.
+- All v2: `865 passed, 1 warning in 23.38s`.
+- Full safe backend: `1383 passed, 43 skipped, 15 warnings in 53.57s`.
+- Ruff: exit `0`, `All checks passed!`.
+- Alembic: sole head `015` with parent `014`, empty branches, and linear history.
+- Migration parity and populated round trip: `4 passed in 1.72s`.
+- Cold-import selection: `39 passed, 2 deselected in 10.54s`.
+- Architecture boundary selection: `15 passed in 0.28s`.
+- Shape scan: two touched Python files, no function over 30 lines, and no function accepting more
+  than three arguments.
+
+The 15 full-suite warnings remain the existing baseline categories. No final round-4 commit hash
+is claimed yet.

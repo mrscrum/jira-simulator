@@ -47,6 +47,17 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 4 made every mapper authority/state read refresh matching
+clean ORM identities from the current transaction's database view. Cached team/run/blueprint/sample
+corruption and run deletion now reject; valid external state updates appear in complete `load` and
+sparse-`add` snapshots without broadly expiring unrelated caller identities. Member-only reads use
+the same boundary. A complete visit/sample after-image can restore an externally deleted cached
+visit without `StaleDataError` or SQLAlchemy identity-conflict warnings because only the
+confirmed-missing stale visit identity is detached first. The focused and full round-4 verification
+matrix is GREEN; only the exact pending commit `fix(v2): refresh authoritative scrum reads` remains
+open on base `e9dd4cf`. Revision 015, Task 6, external calls, deployment, UAT, and M1 completion
+remain unchanged.
+
 On 2026-08-11, Task 5 review fix round 3 made both caller-session mapper entry points reject
 non-empty ORM `new`, `dirty`, or `deleted` state before authority/candidate SQL, preserving rollback
 ownership and preventing implicit flushes or identity-map leakage into detached snapshots. Empty,
@@ -179,17 +190,19 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 5 review fix round 3:
+Current local evidence after Task 5 review fix round 4 verification:
 
-- Backend: 1367 passed, 43 skipped, 15 baseline warnings.
-- V2: 849 passed, 1 baseline warning.
-- Task 5 focused: 311 passed.
-- Task 4 focused: 146 passed.
-- Task 3 focused: 251 passed.
-- Task 1 focused: 56 passed, 1 baseline warning.
-- Task 2 focused: 186 passed.
-- Ruff: passed.
-- Alembic: sole revision 015 head, no branches; populated round trip and ORM parity passed.
+- Round-4 Task 5 focused: 327 passed in 20.84s; the preceding behavioral GREEN was 327 passed in
+  18.79s.
+- Round-4 genuine RED: 11 failed, 314 passed in 18.46s; supplemental RED: 2 failed; warning RED:
+  1 failed.
+- Backend: 1383 passed, 43 skipped, 15 baseline warnings.
+- V2: 865 passed, 1 baseline warning.
+- Task 1: 56 passed, 1 warning; Task 2: 186 passed; Task 3: 251 passed; Task 4: 146 passed.
+- Ruff passed. Alembic remains sole revision 015 with parent 014, no branches, linear history, and
+  passing parity/populated round trip.
+- Cold import: 39 passed, 2 deselected; architecture: 15 passed; two touched Python files have no
+  function over 30 lines or more than three arguments.
 - Real Jira integration tests were not run and remain skipped in normal CI.
 
 ## Key Files
@@ -239,8 +252,9 @@ Current local evidence after Task 5 review fix round 3:
 - `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
   exact composite ownership, check, unique, and partial-index constraints.
 - `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load mapping; it
-  resolves sparse omitted owners, validates a complete merged snapshot before DML, narrowly updates
-  existing visits, and flushes but never opens, commits, or rolls back a transaction.
+  refreshes authoritative ORM reads, resolves sparse omitted owners, validates a complete merged
+  snapshot before DML, narrowly updates/restores visits, and flushes but never opens, commits, or
+  rolls back a transaction.
 - `backend/alembic/versions/015_add_v2_authoritative_scrum_state.py` — reversible Task 5 schema above
   populated revision 014.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
@@ -257,7 +271,7 @@ Current local evidence after Task 5 review fix round 3:
 
 ## Next Task
 
-After the pending exact Task 5 review-fix round 3 commit, execute Task 6 from
+After the pending exact `fix(v2): refresh authoritative scrum reads` commit, execute Task 6 from
 `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
 revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
 counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
@@ -318,6 +332,9 @@ calls, deployment, UAT, or M1 completion.
 - Task 5 mapper `add` and `load` require clean caller ORM `new`/`dirty`/`deleted` collections before
   authority SQL. Task 6 must flush or otherwise finish its ORM work before calling them and must
   skip `add` entirely when the Task 5 write set is empty.
+- Task 5 authoritative reads deliberately populate matching existing ORM identities so clean caller
+  cache state cannot hide committed database updates, corruption, or deletion. This refresh is
+  limited to queried team/run state and does not expire unrelated identities.
 
 ## Mandatory Development Flow
 

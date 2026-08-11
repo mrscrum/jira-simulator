@@ -170,6 +170,7 @@ def _load_team_members(session: Session, team_id: UUID) -> tuple[MemberIdentity,
     statement = select(V2MemberIdentityModel).where(
         V2MemberIdentityModel.team_id == str(team_id)
     )
+    statement = statement.execution_options(populate_existing=True)
     models = session.scalars(statement.order_by(V2MemberIdentityModel.blueprint_index)).all()
     return tuple(_domain_record(model, MemberIdentity) for model in models)
 
@@ -177,9 +178,11 @@ def _load_team_members(session: Session, team_id: UUID) -> tuple[MemberIdentity,
 def _load_authority(
     session: Session, team_id: UUID, run_id: UUID | None
 ) -> ResolvedTeamBlueprint:
-    team = session.get(V2TeamModel, str(team_id))
+    team = session.get(V2TeamModel, str(team_id), populate_existing=True)
     blueprint_row = session.scalar(
-        select(V2TeamBlueprintModel).where(V2TeamBlueprintModel.team_id == str(team_id))
+        select(V2TeamBlueprintModel)
+        .where(V2TeamBlueprintModel.team_id == str(team_id))
+        .execution_options(populate_existing=True)
     )
     if team is None or blueprint_row is None:
         raise ValueError("persisted team/run blueprint authority is incomplete")
@@ -202,7 +205,7 @@ def _validated_blueprint(
 
 
 def _validate_run(session: Session, team_id: UUID, run_id: UUID) -> None:
-    run = session.get(V2RunModel, str(run_id))
+    run = session.get(V2RunModel, str(run_id), populate_existing=True)
     if run is None or run.team_id != str(team_id):
         raise ValueError("persisted team/run ownership does not match")
     if run.id != str(run_rng_id(team_id, run.ordinal)):
@@ -220,12 +223,20 @@ def _apply_collection(session: Session, items: tuple[object, ...], model_type: t
 def _apply_visits(session: Session, items: tuple[object, ...]) -> None:
     for item in items:
         values = _record_values(item)
-        model = session.get(V2StatusVisitModel, values["id"])
+        model = session.get(V2StatusVisitModel, values["id"], populate_existing=True)
         if model is None:
+            _expunge_missing_visit(session, values["id"])
             session.add(V2StatusVisitModel(**values))
             continue
         for field_name, value in values.items():
             setattr(model, field_name, value)
+
+
+def _expunge_missing_visit(session: Session, identity: object) -> None:
+    identity_key = session.identity_key(V2StatusVisitModel, identity)
+    stale = session.identity_map.get(identity_key)
+    if stale is not None:
+        session.expunge(stale)
 
 
 def _merged_snapshot(
@@ -326,6 +337,7 @@ def _load_collection(session: Session, query: ScrumStateQuery, spec: tuple) -> t
     statement = select(model_type).where(model_type.team_id == str(query.team_id))
     if hasattr(model_type, "run_id"):
         statement = statement.where(model_type.run_id == str(query.run_id))
+    statement = statement.execution_options(populate_existing=True)
     order_columns = tuple(getattr(model_type, name) for name in order_names)
     models = session.scalars(statement.order_by(*order_columns)).all()
     return tuple(_domain_record(model, value_type) for model in models)

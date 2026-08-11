@@ -66,6 +66,14 @@ caller ORM unit of work (`new`, `dirty`, and `deleted`) before authority SQL so 
 be implicitly flushed or reflected in the returned snapshot. `add` also rejects a coordinate-free
 empty write set before SQL; callers with no Task 5 after-images skip the mapper.
 
+All Task 5 authority and state reads refresh matching ORM identities from the current transaction's
+database view instead of trusting clean, unexpired caller cache entries. Persisted team/run/
+blueprint/sample corruption and deleted run authority therefore reject, while valid external state
+updates appear in the complete returned snapshot without expiring unrelated cached identities.
+Member-only candidate reads use the same boundary. If a complete visit/sample after-image restores
+an externally deleted cached visit, the mapper detaches only the confirmed-missing stale visit
+identity before insertion, avoiding stale-row errors and SQLAlchemy identity-conflict warnings.
+
 Status visits use an exact `str | None` activity key. Approved null-activity route steps persist and
 restart only as zero-touch visits with no member owner, while activity-bearing steps require their
 exact activity/member binding. Every complete snapshot and newly inserted visit has exactly one

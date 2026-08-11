@@ -1,5 +1,6 @@
 import ast
 import json
+import warnings
 from dataclasses import fields, replace
 from datetime import timedelta
 from pathlib import Path
@@ -7,7 +8,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import create_engine, delete, event, func, inspect, select, text, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SAWarning
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import Base
@@ -49,6 +50,7 @@ from app.v2.persistence.team_models import V2RunModel, V2TeamBlueprintModel, V2T
 from tests.v2.live_slice_support import create_aggregate
 from tests.v2.scrum_state_support import (
     BLUEPRINT,
+    BLUEPRINT_SHA256,
     BUSINESS_DATE,
     ITEM_ID,
     NOW,
@@ -146,6 +148,24 @@ TRUE_INTEGER_COLUMNS = (
     (V2StatusVisitSampleModel, "required_work_microseconds"),
     (V2SemanticCounterModel, "next_value"),
     (V2NaturalDecisionEvaluationModel, "occurrence"),
+)
+CORRUPT_SHA256 = "f" * 64
+AUTHORITY_CORRUPTIONS = (
+    (
+        V2TeamModel,
+        str(TEAM_ID),
+        {"blueprint_sha256": CORRUPT_SHA256},
+    ),
+    (
+        V2RunModel,
+        str(RUN_ID),
+        {"ordinal": 1},
+    ),
+    (
+        V2TeamBlueprintModel,
+        str(semantic_uuid(f"blueprint/{TEAM_ID}/{BLUEPRINT_SHA256}")),
+        {"sha256": CORRUPT_SHA256},
+    ),
 )
 
 
@@ -327,6 +347,218 @@ def _pending_collection(session: Session, case: str):
         "dirty_visit": session.dirty,
         "unrelated_new": session.new,
     }[case]
+
+
+def _persist_complete_state(v2_session_factory) -> ScrumStateWriteSet:
+    seed_parent_team_and_run(v2_session_factory)
+    state = make_write_set()
+    with v2_session_factory.begin() as session:
+        SqlAlchemyScrumStateMapper().add(session, state)
+    return state
+
+
+def _load_cached_state(session: Session, _state: ScrumStateWriteSet) -> ScrumStateSnapshot:
+    return SqlAlchemyScrumStateMapper().load(session, ScrumStateQuery(TEAM_ID, RUN_ID))
+
+
+def _add_sparse_cached_state(session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot:
+    visit = state.status_visits[0]
+    updated = replace(visit, queue_microseconds=visit.queue_microseconds + 1)
+    return SqlAlchemyScrumStateMapper().add(session, ScrumStateWriteSet(status_visits=(updated,)))
+
+
+def _externally_update(v2_session_factory, case: tuple) -> None:
+    model_type, identity, values = case
+    identity_column = inspect(model_type).primary_key[0]
+    with v2_session_factory.begin() as session:
+        result = session.execute(
+            update(model_type).where(identity_column == identity).values(**values)
+        )
+        assert result.rowcount == 1
+
+
+@pytest.mark.parametrize(
+    "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+)
+def test_cached_sample_external_corruption_is_refreshed_before_use(v2_session_factory, operation):
+    state = _persist_complete_state(v2_session_factory)
+    sample_identity = str(state.status_visit_samples[0].visit_id)
+    corruption = (
+        V2StatusVisitSampleModel,
+        sample_identity,
+        {"timing_profile": "CORRUPT"},
+    )
+    engine = v2_session_factory.kw["bind"]
+
+    with v2_session_factory() as session:
+        cached = session.get(V2StatusVisitSampleModel, sample_identity)
+        assert cached is not None
+        _externally_update(v2_session_factory, corruption)
+        statements, listener = _task5_dml(engine)
+        try:
+            with pytest.raises(ValueError):
+                operation(session, state)
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        assert statements == []
+
+
+@pytest.mark.parametrize(
+    "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+)
+@pytest.mark.parametrize(
+    "case",
+    AUTHORITY_CORRUPTIONS,
+    ids=["team", "run", "blueprint"],
+)
+def test_cached_external_authority_corruption_is_refreshed_before_use(
+    v2_session_factory, case, operation
+):
+    state = _persist_complete_state(v2_session_factory)
+    model_type, identity, _values = case
+    engine = v2_session_factory.kw["bind"]
+
+    with v2_session_factory() as session:
+        cached = session.get(model_type, identity)
+        assert cached is not None
+        _externally_update(v2_session_factory, case)
+        statements, listener = _task5_dml(engine)
+        try:
+            with pytest.raises(ValueError):
+                operation(session, state)
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        assert statements == []
+
+
+def test_cached_external_run_deletion_cannot_return_an_empty_snapshot(
+    v2_session_factory,
+):
+    state = _persist_complete_state(v2_session_factory)
+
+    with v2_session_factory() as session:
+        cached = session.get(V2RunModel, str(RUN_ID))
+        assert cached is not None
+        with v2_session_factory.begin() as external:
+            result = external.execute(delete(V2RunModel).where(V2RunModel.id == str(RUN_ID)))
+            assert result.rowcount == 1
+        with pytest.raises(ValueError):
+            _load_cached_state(session, state)
+
+
+@pytest.mark.parametrize(
+    "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+)
+def test_valid_external_update_is_reflected_without_expiring_unrelated_cache(
+    v2_session_factory, operation
+):
+    state = _persist_complete_state(v2_session_factory)
+    other_team_id, _other_run_id = _seed_second_team_and_run(v2_session_factory)
+    factor_identity = str(state.work_item_factors[0].id)
+    external_value = 0.75
+
+    with v2_session_factory() as session:
+        cached_factor = session.get(V2WorkItemFactorModel, factor_identity)
+        assert cached_factor is not None
+        unrelated = session.get(V2TeamModel, str(other_team_id))
+        assert unrelated is not None
+        _externally_update(
+            v2_session_factory,
+            (V2WorkItemFactorModel, factor_identity, {"value": external_value}),
+        )
+
+        snapshot = operation(session, state)
+
+        assert snapshot.work_item_factors[0].value == external_value
+        assert len(_flatten(snapshot)) == len(TASK5_MODELS)
+        assert not inspect(unrelated).expired
+        assert unrelated.name == "Other"
+
+
+def test_member_only_add_refreshes_cached_external_member_corruption(
+    v2_session_factory,
+):
+    state = _persist_complete_state(v2_session_factory)
+    member_identity = str(state.member_identities[0].id)
+    corruption = (V2MemberIdentityModel, member_identity, {"blueprint_index": 0})
+    additional = MemberIdentity(member_rng_id(TEAM_ID, 0), TEAM_ID, 0)
+    engine = v2_session_factory.kw["bind"]
+
+    with v2_session_factory() as session:
+        cached = session.get(V2MemberIdentityModel, member_identity)
+        assert cached is not None
+        _externally_update(v2_session_factory, corruption)
+        statements, listener = _task5_dml(engine)
+        try:
+            with pytest.raises(ValueError):
+                SqlAlchemyScrumStateMapper().add(
+                    session, ScrumStateWriteSet(member_identities=(additional,))
+                )
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        assert statements == []
+
+
+def test_externally_deleted_cached_visit_can_be_reinserted_from_after_image(
+    v2_session_factory,
+):
+    state = _persist_complete_state(v2_session_factory)
+    visit = state.status_visits[0]
+    updated = replace(visit, queue_microseconds=visit.queue_microseconds + 1)
+    after_image = ScrumStateWriteSet(
+        status_visits=(updated,),
+        status_visit_samples=state.status_visit_samples,
+    )
+
+    with v2_session_factory() as session:
+        cached = session.get(V2StatusVisitModel, str(visit.id))
+        assert cached is not None
+        with v2_session_factory.begin() as external:
+            external.execute(
+                delete(V2StatusVisitModel).where(V2StatusVisitModel.id == str(visit.id))
+            )
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always")
+            restored = SqlAlchemyScrumStateMapper().add(session, after_image)
+        assert not [item for item in captured if issubclass(item.category, SAWarning)]
+        session.commit()
+
+    with v2_session_factory() as session:
+        assert _counts(session) == (1,) * len(TASK5_MODELS)
+        assert (
+            SqlAlchemyScrumStateMapper().load(session, ScrumStateQuery(TEAM_ID, RUN_ID)) == restored
+        )
+
+
+def _expire_cached(session: Session, model: object) -> None:
+    session.expire(model)
+
+
+def _detach_cached(session: Session, model: object) -> None:
+    session.expunge(model)
+
+
+def _rollback_cached(session: Session, _model: object) -> None:
+    session.rollback()
+
+
+@pytest.mark.parametrize(
+    "transition",
+    [_expire_cached, _detach_cached, _rollback_cached],
+    ids=["expired", "detached", "post-rollback"],
+)
+def test_authoritative_refresh_supports_clean_cached_object_lifecycles(
+    v2_session_factory, transition
+):
+    state = _persist_complete_state(v2_session_factory)
+    expected = ScrumStateSnapshot.from_write_set(state)
+    sample_identity = str(state.status_visit_samples[0].visit_id)
+
+    with v2_session_factory() as session:
+        cached = session.get(V2StatusVisitSampleModel, sample_identity)
+        assert cached is not None
+        transition(session, cached)
+        assert _load_cached_state(session, state) == expected
 
 
 @pytest.mark.parametrize("populated", [False, True])

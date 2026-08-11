@@ -396,3 +396,23 @@
   persistence; retained dwell/touch units require exact finite built-in floats in `[0, 1]`.
 - Task 6, revision 016, generalized upsert/CAS, external calls, deployment, UAT, and M1 completion
   remain deferred.
+
+## [2026-08-11] M1 — Refresh authoritative Scrum reads
+
+### Changed
+
+- Made every Task 5 authority/state read populate matching existing ORM identities from the current
+  transaction's database view without broadly expiring unrelated caller cache entries.
+- Added round-4 genuine, supplemental, warning, and focused GREEN evidence on committed base
+  `e9dd4cf`; final regression/static verification is complete and only the exact pending
+  `fix(v2): refresh authoritative scrum reads` commit remains open.
+
+### Fixed
+
+- Cached clean team/run/blueprint/sample corruption, valid external state updates, and deleted run
+  authority can no longer be masked during `load` or sparse `add`.
+- Member-only candidate reads now refresh cached members before validation.
+- Complete visit/sample after-images can restore an externally deleted cached visit without
+  `StaleDataError` or SQLAlchemy identity-map conflict warnings.
+- Revision 015, Task 6, generalized runtime CAS/counter allocation, external calls, deployment,
+  UAT, and M1 completion remain unchanged.
