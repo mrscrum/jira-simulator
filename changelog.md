@@ -318,3 +318,21 @@
   `ValueError` instead of leaking Python `OverflowError`.
 - Ordinary DST, holiday horizon, federal calendar, cadence, persistence, and external boundaries
   remain unchanged.
+
+## [2026-08-11] M1 — Persist authoritative Scrum state
+### Changed
+- Added frozen, slotted authoritative member, work/factor, sprint/scope, status-visit/sample,
+  semantic-counter, natural-evaluation, tuple write-set, query, and detached snapshot contracts.
+- Added 11 isolated Task 5 mappings plus reversible Alembic revision 015 with composite team/run
+  ownership, true-integer bounds, exact duration balance, semantic uniqueness, and partial indexes.
+- Added a caller-owned-session mapper that validates before inserts, flushes without transaction
+  ownership, returns deterministic semantic ordering, and reloads exactly after engine disposal.
+- Added complete TDD, constraint/FK, import-order, populated migration, restart, regression, static,
+  and no-external evidence under `evidence/v2/M1-T05/`.
+### Fixed
+- Bound persisted timing samples to the exact visit required-work amount and Task 3 draw coordinates.
+- Rejected non-integer/overflowing duration and semantic values at both domain and SQLite boundaries.
+- Normalized every aware state instant to UTC, preserved caller rollback after integrity failures,
+  and made ORM-created and migration-created Task 5 schemas match exactly.
+- No lifecycle transition, counter allocation, UOW integration, scheduler, Jira/OpenAI call,
+  deployment, UAT, revision 016, or M1 completion was added.

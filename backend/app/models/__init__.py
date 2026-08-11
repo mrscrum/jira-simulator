@@ -1,3 +1,4 @@
+import importlib
 import sys
 
 from app.models.base import Base
@@ -30,6 +31,7 @@ from app.models.workflow_step import WorkflowStep
 
 _V2_LIVE_MODULE = "app.v2.persistence.live_models"
 _V2_TEAM_MODULE = "app.v2.persistence.team_models"
+_V2_SCRUM_MODULE = "app.v2.persistence.scrum_state_models"
 _V2_LIVE_MODELS = {
     "V2ActivityEventModel",
     "V2GroundTruthRecordModel",
@@ -41,33 +43,23 @@ _V2_TEAM_MODELS = {
     "V2TeamModel",
     "V2TeamRuntimeModel",
 }
+_V2_SCRUM_MODELS = {
+    "V2MemberAvailabilityOverlayModel",
+    "V2MemberBusinessDateConsumptionModel",
+    "V2MemberIdentityModel",
+    "V2NaturalDecisionEvaluationModel",
+    "V2SemanticCounterModel",
+    "V2SprintModel",
+    "V2SprintScopeModel",
+    "V2StatusVisitModel",
+    "V2StatusVisitSampleModel",
+    "V2WorkItemFactorModel",
+    "V2WorkItemModel",
+}
 
-
-if _V2_LIVE_MODULE in sys.modules:
-    from app.v2.persistence.team_models import (
-        V2RunModel,
-        V2TeamBlueprintModel,
-        V2TeamModel,
-        V2TeamRuntimeModel,
-    )
-elif _V2_TEAM_MODULE in sys.modules:
-    from app.v2.persistence.live_models import (
-        V2ActivityEventModel,
-        V2GroundTruthRecordModel,
-        V2ProjectionIntentModel,
-    )
-else:
-    from app.v2.persistence.live_models import (
-        V2ActivityEventModel,
-        V2GroundTruthRecordModel,
-        V2ProjectionIntentModel,
-    )
-    from app.v2.persistence.team_models import (
-        V2RunModel,
-        V2TeamBlueprintModel,
-        V2TeamModel,
-        V2TeamRuntimeModel,
-    )
+for _v2_module in (_V2_TEAM_MODULE, _V2_LIVE_MODULE, _V2_SCRUM_MODULE):
+    if _v2_module not in sys.modules:
+        importlib.import_module(_v2_module)
 
 __all__ = [
     "Base",
@@ -101,6 +93,17 @@ __all__ = [
     "V2TeamBlueprintModel",
     "V2TeamModel",
     "V2TeamRuntimeModel",
+    "V2MemberAvailabilityOverlayModel",
+    "V2MemberBusinessDateConsumptionModel",
+    "V2MemberIdentityModel",
+    "V2NaturalDecisionEvaluationModel",
+    "V2SemanticCounterModel",
+    "V2SprintModel",
+    "V2SprintScopeModel",
+    "V2StatusVisitModel",
+    "V2StatusVisitSampleModel",
+    "V2WorkItemFactorModel",
+    "V2WorkItemModel",
     "Workflow",
     "WorkflowStep",
 ]
@@ -115,4 +118,8 @@ def __getattr__(name: str) -> object:
         from app.v2.persistence import team_models
 
         return getattr(team_models, name)
+    if name in _V2_SCRUM_MODELS:
+        from app.v2.persistence import scrum_state_models
+
+        return getattr(scrum_state_models, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

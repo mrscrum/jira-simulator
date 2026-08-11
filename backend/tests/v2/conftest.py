@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 
@@ -29,8 +29,15 @@ def v2_session_factory(tmp_path):
 
     database_path = tmp_path / "v2.db"
     engine = create_engine(f"sqlite:///{database_path}")
+    event.listen(engine, "connect", _enable_foreign_keys)
     Base.metadata.create_all(engine)
     try:
         yield sessionmaker(bind=engine)
     finally:
         engine.dispose()
+
+
+def _enable_foreign_keys(dbapi_connection, _connection_record) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()

@@ -18,7 +18,60 @@ V2_TABLE_NAMES = {
     "v2_activity_events",
     "v2_ground_truth_records",
     "v2_projection_intents",
+    "v2_member_identities",
+    "v2_member_availability_overlays",
+    "v2_member_business_date_consumption",
+    "v2_work_items",
+    "v2_work_item_factors",
+    "v2_sprints",
+    "v2_sprint_scope",
+    "v2_status_visits",
+    "v2_status_visit_samples",
+    "v2_semantic_counters",
+    "v2_natural_decision_evaluations",
 }
+TEAM_MODEL_NAMES = ("V2TeamModel", "V2TeamBlueprintModel", "V2RunModel", "V2TeamRuntimeModel")
+LIVE_MODEL_NAMES = (
+    "V2ActivityEventModel",
+    "V2GroundTruthRecordModel",
+    "V2ProjectionIntentModel",
+)
+SCRUM_MODEL_NAMES = (
+    "V2MemberIdentityModel",
+    "V2MemberAvailabilityOverlayModel",
+    "V2MemberBusinessDateConsumptionModel",
+    "V2WorkItemModel",
+    "V2WorkItemFactorModel",
+    "V2SprintModel",
+    "V2SprintScopeModel",
+    "V2StatusVisitModel",
+    "V2StatusVisitSampleModel",
+    "V2SemanticCounterModel",
+    "V2NaturalDecisionEvaluationModel",
+)
+
+
+def _first_import_statements() -> tuple[str, ...]:
+    direct = (
+        *(f"from app.v2.persistence.team_models import {name}" for name in TEAM_MODEL_NAMES),
+        *(f"from app.v2.persistence.live_models import {name}" for name in LIVE_MODEL_NAMES),
+        *(
+            f"from app.v2.persistence.scrum_state_models import {name}"
+            for name in SCRUM_MODEL_NAMES
+        ),
+        "from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork",
+        "from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper",
+    )
+    lazy_names = (
+        *LIVE_MODEL_NAMES,
+        *SCRUM_MODEL_NAMES,
+        "SemanticDeduplicationConflict",
+        "SqlAlchemyV2UnitOfWork",
+        "StaleRuntimeVersion",
+        "V2UnitOfWork",
+    )
+    lazy = tuple(f"from app.v2.persistence import {name}" for name in lazy_names)
+    return (*direct, *lazy, "from app.v2.persistence import SqlAlchemyScrumStateMapper")
 
 
 class ProjectionAdapter(Protocol):
@@ -39,13 +92,18 @@ class ExplodingProjectionAdapter:
 def _schema_creation_script(statement: str) -> str:
     return f"""
 {statement}
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, event, inspect
 from app.models import Base
 required = {V2_TABLE_NAMES!r}
 assert required <= set(Base.metadata.tables)
 engine = create_engine('sqlite://')
+@event.listens_for(engine, 'connect')
+def enable_foreign_keys(connection, _record):
+    connection.execute('PRAGMA foreign_keys=ON')
 Base.metadata.create_all(engine)
 assert required <= set(inspect(engine).get_table_names())
+with engine.connect() as connection:
+    assert connection.exec_driver_sql('PRAGMA foreign_keys').scalar_one() == 1
 """
 
 
@@ -79,9 +137,7 @@ def test_unit_of_work_has_no_projection_adapter_or_external_client_boundary():
     module_path = Path(__file__).parents[3] / "app" / "v2" / "persistence" / "unit_of_work.py"
     tree = ast.parse(module_path.read_text(encoding="utf-8"))
     imported_modules = {
-        node.module or ""
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom)
+        node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
     }
     imported_modules.update(
         alias.name
@@ -103,13 +159,7 @@ def test_unit_of_work_has_no_projection_adapter_or_external_client_boundary():
 
 @pytest.mark.parametrize(
     "statement",
-    [
-        "from app.v2.persistence.team_models import V2TeamModel",
-        "from app.v2.persistence.live_models import V2ActivityEventModel",
-        "from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork",
-        "from app.v2.persistence import SqlAlchemyV2UnitOfWork",
-        "from app.v2.persistence import V2ActivityEventModel",
-    ],
+    _first_import_statements(),
 )
 def test_first_persistence_import_registers_all_v2_tables_and_creates_schema(statement):
     backend_root = Path(__file__).parents[3]

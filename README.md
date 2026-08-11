@@ -15,9 +15,9 @@ control, transport delivery, and Jira-side manual-intervention ingestion are not
 
 ## V2 persistence spine
 
-The first two additive v2 persistence slices are implemented locally. A fully resolved canonical Scrum blueprint can
-be atomically persisted as an isolated `v2_teams` aggregate with one immutable blueprint, initial
-run, and runtime shell. Revision `013` owns that four-table shell. Revision `014` adds explicit
+The first three additive v2 persistence slices are implemented locally. A fully resolved canonical
+Scrum blueprint can be atomically persisted as an isolated `v2_teams` aggregate with one immutable
+blueprint, initial run, and runtime shell. Revision `013` owns that four-table shell. Revision `014` adds explicit
 runtime versions plus ordered activity, immutable ground-truth, and generic pending projection
 intent ledgers; it independently downgrades to `013`. Neither revision alters v1 API behavior or
 invokes Jira/OpenAI. Aware boundary, availability, runtime, and ledger offsets are
@@ -34,7 +34,26 @@ error. Public drafts revalidate deterministic identity, canonical bytes/hash, ty
 versions, and aware instants on direct construction, replacement, and before a UOW opens a session.
 Each ledger pages by its own exclusive append-sequence cursor. Projection intents are transport
 neutral and remain `PENDING`; delivery adapters are deliberately outside this unit of work. Every
-public v2 persistence import order registers all seven v2 tables before schema creation.
+public v2 persistence import order registers all 18 v2 tables before schema creation.
+
+Revision `015` adds detached, immutable authoritative Scrum state without changing lifecycle state
+or taking transaction ownership. The relational state covers semantic member identities,
+run-scoped availability overlays and business-date consumption, work items and immutable factors,
+sprints and scope, status visits and exact deterministic timing provenance, explicit semantic
+counters, and committed natural-decision eligibility. Every run-derived child uses composite
+team/run ownership, duration state uses checked signed 64-bit integer microseconds, and semantic
+coordinates use true safe integers. Partial uniqueness enforces one active sprint, one current
+scope row per item, and one open visit per item.
+
+`SqlAlchemyScrumStateMapper` accepts a caller-owned SQLAlchemy `Session`, validates the complete
+tuple-only write set before its first insert, flushes constraints without commit/rollback, returns
+detached values in deterministic semantic order, and reloads the same state after engine disposal.
+Aware offset instants normalize to UTC while naive instants reject. The canonical resolved blueprint
+remains the only home for names, roles, configured capacity/WIP, responsibilities, proficiency,
+routes, timing grids, calendar, and policy configuration. Revision `015` independently downgrades to
+populated revision `014` without changing its legacy, runtime, or live-ledger rows. Atomic
+integration of these after-images with the live-slice unit of work is deferred to Task 6; this slice
+adds no allocator, lifecycle transition, scheduler, or external delivery.
 
 From `backend/`, run:
 
@@ -202,10 +221,10 @@ contract.
 
 ## Data Model
 
-SQLAlchemy metadata currently defines 32 tables covering core team/workflow state, Jira queue and
+SQLAlchemy metadata currently defines 43 tables covering core team/workflow state, Jira queue and
 mapping state, distribution/move-left configuration, timing templates, precomputation runs,
-scheduled events, audit records, and the isolated seven-table v2 persistence spine. Alembic has 14
-migrations (`001`–`014`).
+scheduled events, audit records, and the isolated 18-table v2 persistence/state boundary. Alembic
+has 15 migrations (`001`–`015`).
 
 SQLite support enables WAL mode and foreign keys. However, the current production Compose file
 forces PostgreSQL and stores it in a Docker named volume; this conflicts with the project rule that

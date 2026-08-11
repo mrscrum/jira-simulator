@@ -27,7 +27,7 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## What Is Implemented
 
-- FastAPI backend with 76 OpenAPI operations and 32 SQLAlchemy tables.
+- FastAPI backend with 76 OpenAPI operations and 43 SQLAlchemy tables.
 - React UI for teams, members, workflows, timing templates, move-left configuration,
   dependencies, simulation controls, and sprint/event schedules.
 - Per-team project key/board, members, workflow, timing, sprint, calendar, and backlog settings.
@@ -40,18 +40,23 @@ plan. Historical Stage 4/5 plans are not executable for v2.
   persistence/external dependency.
 - Pure v2 aware-UTC/business-time arithmetic, DST-safe IANA local-boundary resolution, fixed local
   sprint cadence, and bounded `US_FEDERAL_V1` holiday-horizon materialization/extension.
+- Immutable detached authoritative Scrum state across member execution, work/factors,
+  sprints/scope, status visits/samples, semantic counters, and natural evaluations at reversible
+  Alembic revision 015, with a caller-owned-session mapper and composite ownership constraints.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
 
-On 2026-08-11, the next M1 implementation boundary was frozen in
-`backlog/v2/m1-scrum-state.md`. Task 5 owns immutable authoritative Scrum-state contracts,
-caller-owned-session mapping, composite team/run constraints, and reversible revision 015. Task 6
-then wraps the reviewed `TickSliceCommit` and commits runtime CAS, state after-images, semantic
-counter/eligible occurrence claims, existing ledgers, and pending projection intent once without a
-revision 016. The canonical blueprint remains the sole configuration authority; allocator,
-live-flow/lifecycle, planning, dependencies, risks, Jira/OpenAI, deployment, UAT, and M1 completion
-remain out of scope. This planning change adds no production/test behavior or migration.
+On 2026-08-11, M1 Scrum-state Task 5 added immutable, slotted authoritative state values and the
+third isolated v2 mapping module. Revision 015 creates 11 constrained tables for semantic member
+identity, runtime availability/consumption, work/factors, sprints/scope, status visits/samples,
+counters, and natural-decision eligibility; it adds no transition or allocation behavior. Every
+run-derived reference is composite team/run owned, duration state is exact signed-range integer
+microseconds, and timing provenance is canonical and bound to its visit/sample coordinates. The
+caller-owned mapper validates before inserts, flushes without transaction ownership, returns
+detached semantic ordering, and reloads exactly after engine disposal. Populated revision 014
+survives 014→015→014→015 unchanged. Task 6 remains open; Jira/OpenAI, deployment, UAT, and M1
+completion were not touched.
 
 On 2026-08-11, Task 4 review fix round 2 centralized business-calendar timezone conversion and
 local-boundary range handling. `business_date`, `working_interval`, nested next-working/addition,
@@ -197,6 +202,14 @@ Current local evidence after Task 4 review fix round 2:
 - `backend/app/v2/domain/us_federal_calendar.py` — exact observed `US_FEDERAL_V1` rules plus pure
   team-zone-derived starter materialization, canonical-horizon authentication, and idempotent
   ten-year-block catch-up.
+- `backend/app/v2/domain/scrum_state.py` — frozen Task 5 lifecycle/state, exact clocks/provenance,
+  simulator rank, semantic counter, evaluation, write-set, query, and detached snapshot contracts.
+- `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
+  exact composite ownership, check, unique, and partial-index constraints.
+- `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load mapping; it
+  flushes but never opens, commits, or rolls back a transaction.
+- `backend/alembic/versions/015_add_v2_authoritative_scrum_state.py` — reversible Task 5 schema above
+  populated revision 014.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
   message/digest/U53/unit literals, including Unicode NFC equivalence.
 - `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
@@ -211,12 +224,12 @@ Current local evidence after Task 4 review fix round 2:
 
 ## Next Task
 
-Execute Task 5 from `backlog/v2/m1-scrum-state.md` through strict RED -> GREEN -> REFACTOR and its
-task-scoped review gate. It alone authorizes revision 015, immutable authoritative Scrum-state
-contracts, the third v2 model module, caller-owned-session mapping, populated migration round-trip,
-cold-import, composite-FK, and restart proof. Do not begin Task 6 until Task 5 is reviewed and
-committed exactly as the plan requires. Do not add allocator/live-flow/lifecycle/planning,
-dependencies, risks, scheduler/engine wiring, Jira/OpenAI calls, deployment, UAT, or M1 completion.
+Review the committed Task 5 evidence and then execute Task 6 from
+`backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
+revision 015 unchanged while atomically combining runtime CAS, Task 5 after-images, semantic
+counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
+allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
+calls, deployment, UAT, or M1 completion.
 
 ## Active Decisions and External Gates
 

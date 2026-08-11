@@ -1,0 +1,40 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_sample_draw_message_rejects_boolean_coordinates[occurrence] _______
+
+field_name = 'occurrence'
+
+    @pytest.mark.parametrize("field_name", ["occurrence", "draw_index"])
+    def test_sample_draw_message_rejects_boolean_coordinates(field_name: str):
+        sample = make_sample()
+        document = json.loads(sample.dwell_draw_json)
+        message = json.loads(document["canonical_message"])
+        message[field_name] = False
+        document["canonical_message"] = canonical_json(message)
+        forged_json = canonical_json(document)
+>       with pytest.raises(TypeError, match="integer"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_scrum_state.py:278: Failed
+_______ test_sample_draw_message_rejects_boolean_coordinates[draw_index] _______
+
+field_name = 'draw_index'
+
+    @pytest.mark.parametrize("field_name", ["occurrence", "draw_index"])
+    def test_sample_draw_message_rejects_boolean_coordinates(field_name: str):
+        sample = make_sample()
+        document = json.loads(sample.dwell_draw_json)
+        message = json.loads(document["canonical_message"])
+        message[field_name] = False
+        document["canonical_message"] = canonical_json(message)
+        forged_json = canonical_json(document)
+>       with pytest.raises(TypeError, match="integer"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_scrum_state.py:278: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_draw_message_rejects_boolean_coordinates[occurrence]
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_draw_message_rejects_boolean_coordinates[draw_index]
+2 failed in 0.18s

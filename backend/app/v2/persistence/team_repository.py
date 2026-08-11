@@ -81,8 +81,10 @@ class SqlAlchemyV2TeamRepository(V2TeamRepository):
 
     def _add_models(self, session: Session, aggregate: PersistedTeamAggregate) -> None:
         self._add_team(session, aggregate)
+        session.flush()
         self._add_blueprint(session, aggregate)
         self._add_run(session, aggregate)
+        session.flush()
         self._add_runtime(session, aggregate)
 
     @staticmethod

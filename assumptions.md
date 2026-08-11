@@ -259,3 +259,17 @@
 - Caught only Python `OverflowError`; ordinary validation and DST `ValueError` categories retain
   their existing messages and behavior.
 - No next M1 slice or wider date representation was assumed.
+
+## [2026-08-11] M1 — Persist authoritative Scrum state
+- Used semantic order keys matching each persisted uniqueness coordinate because the brief required
+  deterministic mapper ordering but did not prescribe one total ordering for every collection.
+- Kept member configuration exclusively in the persisted canonical blueprint. `MemberIdentity`
+  stores only the team UUID and blueprint array position, derives its UUID from that position, and
+  does not duplicate a member-count bound in revision 015.
+- Treated caller-supplied UUIDs whose semantic path was not specified (such as availability overlay
+  IDs) as already allocated semantic identities; every identity with an approved Task 3 or explicit
+  Task 5 path is reconstructed and validated before persistence.
+- Used existing bounded v2 text-column conventions where Task 5 specified content but not physical
+  string lengths. No server-generated identity, counter default, or timestamp was introduced.
+- No Task 6 atomic integration, transition/allocation behavior, revision 016, external call,
+  deployment, UAT, or M1 completion was assumed.

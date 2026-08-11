@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -35,7 +35,10 @@ class V2TeamBlueprintModel(Base):
 
 class V2RunModel(Base):
     __tablename__ = "v2_runs"
-    __table_args__ = (UniqueConstraint("team_id", "ordinal", name="uq_v2_runs_team_ordinal"),)
+    __table_args__ = (
+        UniqueConstraint("team_id", "ordinal", name="uq_v2_runs_team_ordinal"),
+        Index("ux_v2_runs_team_id", "team_id", "id", unique=True),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     team_id: Mapped[str] = mapped_column(

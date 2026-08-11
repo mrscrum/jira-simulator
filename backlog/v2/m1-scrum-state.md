@@ -69,7 +69,7 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [ ] Task 5 — Persist authoritative Scrum state at revision 015
+- [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed 2026-08-11
 - [ ] Task 6 — Commit authoritative Scrum state atomically
 
 ## Deferred Validation Hardening Outside These Tasks
@@ -238,61 +238,61 @@ commit or roll back; a mapper exception leaves that decision with the caller.
 
 ### RED and focused behavior
 
-- [ ] Write all Task 5 unit/integration/migration/import tests before production or migration code.
-- [ ] Cover exact closed enums; strict scalar/UUID/UTC/date validation; direct construction,
+- [x] Write all Task 5 unit/integration/migration/import tests before production or migration code.
+- [x] Cover exact closed enums; strict scalar/UUID/UTC/date validation; direct construction,
   replacement, copy, deepcopy, and reconstruction policy; supported Fibonacci points; rank ordering
   through every tie; boolean/negative/unsafe integer rejection; microsecond balance; lifecycle/time
   coherence; canonical sample/factor payload and digest validation; and tuple/deep immutability.
-- [ ] Prove blueprint-only configuration: semantic member IDs derive from persisted blueprint array
+- [x] Prove blueprint-only configuration: semantic member IDs derive from persisted blueprint array
   position, while no new table contains names, roles, configured capacity/WIP, responsibility,
   proficiency, route, timing-grid, calendar, or policy configuration.
-- [ ] Prove the mapper opens no session and owns no transaction, emits no commit/rollback, flushes
+- [x] Prove the mapper opens no session and owns no transaction, emits no commit/rollback, flushes
   within a caller transaction, reloads every state type exactly, and a caller rollback leaves every
   new table empty.
-- [ ] With `PRAGMA foreign_keys=ON`, reject mixed team/run member, work, sprint, scope, visit, sample,
+- [x] With `PRAGMA foreign_keys=ON`, reject mixed team/run member, work, sprint, scope, visit, sample,
   counter, and evaluation references. Prove one-active-sprint, one-open-visit, one-current-scope,
   unique ordinal/factor/eligibility constraints, and every SQL check.
-- [ ] Dispose the engine, create a fresh engine/session factory, and prove all detached state,
+- [x] Dispose the engine, create a fresh engine/session factory, and prove all detached state,
   microseconds, canonical provenance, counters, eligibility assignments, and ordering reload exactly.
-- [ ] Cold-import each team/live/Scrum-state model and each lazy persistence/UOW export first in a
+- [x] Cold-import each team/live/Scrum-state model and each lazy persistence/UOW export first in a
   fresh process; prove `Base.metadata.create_all()` registers all revision-015 tables with no cycle.
-- [ ] Seed populated legacy, Task 1, and Task 2 tables at revision 014, including runtime version and
+- [x] Seed populated legacy, Task 1, and Task 2 tables at revision 014, including runtime version and
   all three ledgers. Prove `014 -> 015 -> 014 -> 015` preserves their ordered content and table,
   column, index, FK, and check metadata byte-for-byte; downgrade removes only Task 5 tables and
   re-upgrade recreates them empty with sole head 015.
-- [ ] From `backend/`, run the exact RED command with pipeline propagation:
+- [x] From `backend/`, run the exact RED command with pipeline propagation:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/red.txt
   ```
 
-- [ ] Confirm non-zero RED is caused only by absent Task 5 modules/interfaces/revision 015 and new
+- [x] Confirm non-zero RED is caused only by absent Task 5 modules/interfaces/revision 015 and new
   table expectations, not malformed tests, an import cycle, or a Task 1-4 regression.
 
 ### GREEN, refactor, and verification
 
-- [ ] Implement the minimum domain values and validation needed for the complete RED selection.
-- [ ] Implement mappings and migration in the exact schema order above; use existing `UTCDateTime`,
+- [x] Implement the minimum domain values and validation needed for the complete RED selection.
+- [x] Implement mappings and migration in the exact schema order above; use existing `UTCDateTime`,
   canonical JSON/hash, immutable-value, and semantic-ID helpers instead of copies.
-- [ ] Implement the caller-owned-session mapper with short table-specific mapping helpers. Do not add
+- [x] Implement the caller-owned-session mapper with short table-specific mapping helpers. Do not add
   a service, transition method, allocator, implicit clock, counter claim, or commit/rollback call.
-- [ ] Rerun the identical focused command, replacing only `red.txt` with `green.txt`; retain GREEN.
-- [ ] Refactor while focused GREEN remains unchanged and run an AST scan proving every touched/new
+- [x] Rerun the identical focused command, replacing only `red.txt` with `green.txt`; retain GREEN.
+- [x] Refactor while focused GREEN remains unchanged and run an AST scan proving every touched/new
   function is at most 30 lines and accepts at most three arguments.
-- [ ] From `backend/`, retain these exact verification classes under `evidence/v2/M1-T05/` using
+- [x] From `backend/`, retain these exact verification classes under `evidence/v2/M1-T05/` using
   `set -o pipefail`: Task 1 focused, Task 2 focused, Task 3 focused, Task 4 focused, all `tests/v2 -q`,
   full safe `tests -q`, Ruff `../.venv/bin/python -B -m ruff check --no-cache .`, Alembic `heads
   --verbose`, `branches --verbose`, `history`, the populated round trip, the AST/import scan, and
   repository-root `git diff --check`.
-- [ ] Write `evidence/v2/M1-T05/README.md` with base/head, environment, exact RED reason, GREEN and
+- [x] Write `evidence/v2/M1-T05/README.md` with base/head, environment, exact RED reason, GREEN and
   regression counts, schema/constraint inventory, PRAGMA proof, caller-transaction rollback,
   disposed-engine restart, cold-import matrix, populated migration round trip, sole head, warning
   inventory, static checks, and explicit no-external/no-live statement. Include no secrets.
-- [ ] Append Task 5 to `changelog.md` and `assumptions.md`; update current-state `README.md`,
+- [x] Append Task 5 to `changelog.md` and `assumptions.md`; update current-state `README.md`,
   `agent_instruction.md`, `backlog/v2/README.md`, and this plan. Mark Task 5 complete only after its
   task review is clean; leave Task 6 unchecked and M1 in progress.
-- [ ] Stage only Task 5 production/tests/migration/evidence/mandatory documentation, verify
+- [x] Stage only Task 5 production/tests/migration/evidence/mandatory documentation, verify
   `git diff --cached --check`, and commit exactly:
 
   ```bash

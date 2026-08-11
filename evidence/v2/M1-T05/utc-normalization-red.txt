@@ -1,0 +1,39 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_aware_instants_normalize_to_utc_and_naive_values_are_rejected ______
+
+    def test_aware_instants_normalize_to_utc_and_naive_values_are_rejected():
+        with pytest.raises(ValueError, match="aware"):
+            replace(make_overlay(), starts_at=datetime(2026, 8, 10, 18, 30))
+        offset_end = LATER.astimezone(timezone(timedelta(hours=-7)))
+>       normalized = replace(make_overlay(), ends_at=offset_end)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_scrum_state.py:187:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/dataclasses.py:1588: in replace
+    return obj.__class__(**changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:16: in __init__
+    ???
+app/v2/domain/scrum_state.py:238: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:249: in validate
+    if _require_utc(self.starts_at, "starts_at") >= _require_utc(self.ends_at, "ends_at"):
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = datetime.datetime(2026, 8, 10, 15, 30, tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=61200)))
+label = 'ends_at'
+
+    def _require_utc(value: object, label: str) -> datetime:
+        if not isinstance(value, datetime) or value.tzinfo is None:
+            raise ValueError(f"{label} must be an aware UTC datetime")
+        if value.utcoffset() != UTC.utcoffset(value):
+>           raise ValueError(f"{label} must use UTC")
+E           ValueError: ends_at must use UTC
+
+app/v2/domain/scrum_state.py:147: ValueError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_scrum_state.py::test_aware_instants_normalize_to_utc_and_naive_values_are_rejected
+1 failed in 0.18s
