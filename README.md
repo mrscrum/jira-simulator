@@ -10,7 +10,8 @@ for the assessed boundaries and gaps.
 **Approved future plan:** The concise requirements, architecture, and milestone roadmap for the
 additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
 milestone status under [backlog/v2/](backlog/v2/README.md). These are planning artifacts only; none of the v2 behavior,
-including Codex control or Jira-side manual-intervention ingestion, is implemented yet.
+including Codex control or Jira-side manual-intervention ingestion, is implemented beyond the
+local persistence shell described below.
 
 ## V2 persistence shell
 
@@ -135,13 +136,14 @@ contract.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Health check (`{"status":"ok","stage":"3"}`) |
+| `GET` | `/health` | Health check (`{"status":"ok","stage":"4"}`) |
 
 ## Data Model
 
-SQLAlchemy metadata currently defines 25 tables covering core team/workflow state, Jira queue and
+SQLAlchemy metadata currently defines 29 tables covering core team/workflow state, Jira queue and
 mapping state, distribution/move-left configuration, timing templates, precomputation runs,
-scheduled events, and audit records. Alembic has 12 migrations (`001`–`012`).
+scheduled events, audit records, and the isolated four-table v2 persistence shell. Alembic has 13
+migrations (`001`–`013`).
 
 SQLite support enables WAL mode and foreign keys. However, the current production Compose file
 forces PostgreSQL and stores it in a Docker named volume; this conflicts with the project rule that

@@ -6,6 +6,7 @@ from app.v2.application.create_team import (
     CreateTeamCommand,
     CreateTeamService,
     InvalidResolvedBlueprint,
+    TeamCreationConflict,
 )
 from app.v2.persistence.team_repository import SqlAlchemyV2TeamRepository
 
@@ -34,7 +35,7 @@ def test_create_team_is_idempotent_and_conflicts_on_different_blueprint(
     second = service.create(command)
 
     assert second == first
-    with pytest.raises(Exception, match="idempotency"):
+    with pytest.raises(TeamCreationConflict, match="idempotency"):
         service.create(
             CreateTeamCommand(
                 "request-1",

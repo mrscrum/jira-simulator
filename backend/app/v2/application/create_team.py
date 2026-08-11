@@ -65,8 +65,8 @@ class CreateTeamService:
             team_id,
             idempotency_key,
             blueprint_hash,
-            str(blueprint.team["name"]),
-            str(blueprint.team["methodology"]),
+            blueprint.team.name,
+            blueprint.team.methodology,
             requested_at,
         )
         run = V2Run(run_id, team_id, 0, "CREATED", requested_at)

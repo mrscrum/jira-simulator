@@ -53,3 +53,41 @@ GREEN used the identical command. Output: `19 passed in 0.38s`.
 
 - The full suite retains the pre-existing 15 warnings recorded in the baseline; this task did not
   broaden scope to change them.
+
+## Fix round 1 — 2026-08-10
+
+### Review findings resolved
+
+- Replaced nested `dict`/`list` blueprint state with explicit frozen Pydantic models, tuples, and
+  immutable mappings. Nested extras and mutation now fail.
+- Added UTC-only validation for the first Scrum boundary and configured availability instants,
+  plus ordered/non-overlapping interval validation.
+- Added route/status/activity, staffed-responsibility, timing-grid, timing-anchor, issue-type, and
+  risk materialization validation.
+- Made idempotency conflict coverage assert `TeamCreationConflict` specifically.
+- Replaced the nominal restart with disposal plus a new engine/session factory, and replaced the
+  pre-flush monkeypatch with failure on the actual final runtime INSERT.
+- Added one legacy Team and proved both `select(Team)` and `GET /teams` remain v1-only while v2
+  reload remains available.
+- Replaced table-name-only migration coverage with a row in every revision-012 legacy table and
+  exact ordered row plus column/index/FK metadata comparison across `012 -> 013 -> 012 -> 013`.
+- Split repository and migration helpers; the recorded AST check finds no touched/new function over
+  30 lines.
+
+### RED / GREEN / verification
+
+- RED command: focused blueprint/service tests. `fix-round-1-red-blueprint.txt` records 11 failures
+  for the missing deep type/freeze, nested validation, UTC, materialization, and cross-field rules.
+- A separate single-test RED showed the newly required `team.purpose` was rejected as an extra
+  field before it was added to the resolved contract.
+- GREEN exact Task 1 command: `31 passed, 1 warning in 1.07s`.
+- Full safe backend suite: `549 passed, 43 skipped, 15 warnings in 27.23s`.
+- Ruff: `All checks passed!`; Alembic: sole head `013`, no branch, linear history.
+- Evidence files: `fix-round-1-green.txt`, `fix-round-1-full-suite.txt`, and
+  `fix-round-1-verification.txt` contain the exact outputs.
+
+### Self-review and concerns
+
+- Confirmed revision 013 remains additive and its reverse downgrade owns only the four v2 tables.
+- Confirmed no Task 2/migration 014, live provider, deployment, push, or UAT work entered the diff.
+- The full suite retains only the documented 15 baseline warnings.

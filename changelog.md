@@ -167,6 +167,15 @@
 ### Fixed
 - No v1 behavior changed; v2 model registration is additive only.
 
+## [2026-08-10] M1 — Task 1 review fix round 1
+### Changed
+- Replaced mutable blueprint dictionaries with deep typed/frozen models and cross-field validation.
+- Strengthened restart, final SQL INSERT rollback, v1 invisibility, and populated migration round-trip tests.
+- Updated current-state counts and retained exact fix-round verification evidence.
+### Fixed
+- Rejects nested extras, non-UTC blueprint instants, incomplete timing/risk materialization, invalid
+  workflow references, unsupported activities, unordered timing anchors, and overlapping availability.
+
 ## [2026-08-10] V2 Stage 0 — Add independent implementation prompt
 ### Changed
 - Added a ready-to-paste v2 implementation prompt with direct links to the active requirements,

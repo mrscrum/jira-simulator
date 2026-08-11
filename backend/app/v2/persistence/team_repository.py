@@ -80,6 +80,13 @@ class SqlAlchemyV2TeamRepository(V2TeamRepository):
         return existing
 
     def _add_models(self, session: Session, aggregate: PersistedTeamAggregate) -> None:
+        self._add_team(session, aggregate)
+        self._add_blueprint(session, aggregate)
+        self._add_run(session, aggregate)
+        self._add_runtime(session, aggregate)
+
+    @staticmethod
+    def _add_team(session: Session, aggregate: PersistedTeamAggregate) -> None:
         team = aggregate.team
         session.add(
             V2TeamModel(
@@ -91,16 +98,22 @@ class SqlAlchemyV2TeamRepository(V2TeamRepository):
                 created_at=team.created_at,
             )
         )
+
+    @staticmethod
+    def _add_blueprint(session: Session, aggregate: PersistedTeamAggregate) -> None:
         session.add(
             V2TeamBlueprintModel(
                 id=str(aggregate.blueprint_id),
-                team_id=str(team.id),
+                team_id=str(aggregate.team.id),
                 schema_version=aggregate.blueprint.schema_version,
                 canonical_json=aggregate.blueprint.canonical_json(),
                 sha256=aggregate.blueprint_sha256,
                 recorded_at=aggregate.blueprint_recorded_at,
             )
         )
+
+    @staticmethod
+    def _add_run(session: Session, aggregate: PersistedTeamAggregate) -> None:
         run = aggregate.run
         session.add(
             V2RunModel(
@@ -111,7 +124,6 @@ class SqlAlchemyV2TeamRepository(V2TeamRepository):
                 created_at=run.created_at,
             )
         )
-        self._add_runtime(session, aggregate)
 
     @staticmethod
     def _add_runtime(session: Session, aggregate: PersistedTeamAggregate) -> None:
@@ -141,27 +153,39 @@ class SqlAlchemyV2TeamRepository(V2TeamRepository):
         if blueprint is None or run is None or runtime is None:
             raise RuntimeError("persisted v2 team aggregate is incomplete")
         return PersistedTeamAggregate(
-            team=V2Team(
-                UUID(team.id),
-                team.idempotency_key,
-                team.blueprint_sha256,
-                team.name,
-                team.methodology,
-                team.created_at,
-            ),
+            team=SqlAlchemyV2TeamRepository._map_team(team),
             blueprint_id=UUID(blueprint.id),
             blueprint=ResolvedTeamBlueprint.from_canonical_json(blueprint.canonical_json),
             blueprint_sha256=blueprint.sha256,
             blueprint_recorded_at=blueprint.recorded_at,
-            run=V2Run(UUID(run.id), UUID(run.team_id), run.ordinal, run.state, run.created_at),
-            runtime=TeamRuntime(
-                UUID(runtime.id),
-                UUID(runtime.team_id),
-                UUID(runtime.run_id),
-                runtime.state,
-                runtime.simulation_time,
-                runtime.next_wake_at,
-                runtime.created_at,
-                runtime.updated_at,
-            ),
+            run=SqlAlchemyV2TeamRepository._map_run(run),
+            runtime=SqlAlchemyV2TeamRepository._map_runtime(runtime),
+        )
+
+    @staticmethod
+    def _map_team(team: V2TeamModel) -> V2Team:
+        return V2Team(
+            UUID(team.id),
+            team.idempotency_key,
+            team.blueprint_sha256,
+            team.name,
+            team.methodology,
+            team.created_at,
+        )
+
+    @staticmethod
+    def _map_run(run: V2RunModel) -> V2Run:
+        return V2Run(UUID(run.id), UUID(run.team_id), run.ordinal, run.state, run.created_at)
+
+    @staticmethod
+    def _map_runtime(runtime: V2TeamRuntimeModel) -> TeamRuntime:
+        return TeamRuntime(
+            UUID(runtime.id),
+            UUID(runtime.team_id),
+            UUID(runtime.run_id),
+            runtime.state,
+            runtime.simulation_time,
+            runtime.next_wake_at,
+            runtime.created_at,
+            runtime.updated_at,
         )

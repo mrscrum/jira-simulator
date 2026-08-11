@@ -160,3 +160,6 @@
 ## [2026-08-10] M1 — Persist isolated team runtime shell
 - Used compact, sorted-key UTF-8 JSON with the documented fixed UUIDv5 namespace for canonical v2 identities.
 - Kept Task 1 runtime state at `CREATED`; optimistic runtime versioning remains Task 2/migration 014.
+
+## [2026-08-10] M1 — Task 1 review fix round 1
+- No new product assumptions made; this round implemented the approved Task 1 invariants and review findings.

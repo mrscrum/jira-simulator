@@ -18,6 +18,13 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    _create_teams()
+    _create_blueprints()
+    _create_runs()
+    _create_runtimes()
+
+
+def _create_teams() -> None:
     op.create_table(
         "v2_teams",
         sa.Column("id", sa.String(36), primary_key=True),
@@ -27,6 +34,9 @@ def upgrade() -> None:
         sa.Column("methodology", sa.String(20), nullable=False),
         sa.Column("created_at", UTCDateTime(), nullable=False),
     )
+
+
+def _create_blueprints() -> None:
     op.create_table(
         "v2_team_blueprints",
         sa.Column("id", sa.String(36), primary_key=True),
@@ -42,6 +52,9 @@ def upgrade() -> None:
         sa.Column("sha256", sa.String(64), nullable=False),
         sa.Column("recorded_at", UTCDateTime(), nullable=False),
     )
+
+
+def _create_runs() -> None:
     op.create_table(
         "v2_runs",
         sa.Column("id", sa.String(36), primary_key=True),
@@ -56,6 +69,9 @@ def upgrade() -> None:
         sa.Column("created_at", UTCDateTime(), nullable=False),
         sa.UniqueConstraint("team_id", "ordinal", name="uq_v2_runs_team_ordinal"),
     )
+
+
+def _create_runtimes() -> None:
     op.create_table(
         "v2_team_runtimes",
         sa.Column("id", sa.String(36), primary_key=True),

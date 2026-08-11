@@ -55,7 +55,7 @@ runtime changes were made.
 
 Local evidence:
 
-- Backend: 518 passed, 43 skipped, 15 warnings.
+- Backend: 549 passed, 43 skipped, 15 warnings.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.
