@@ -13,7 +13,8 @@ not a fixed microtask sequence.
   reported CLEAN with no Critical or Important findings; Task 6 commit chain `4cfaa65` → `6bac956`
   → `47f9e55` is also technically accepted after independent Ultra review reported CLEAN with no
   Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan;
-  the next detailed M1 slice has not yet been selected
+  the active [`m1-capacity-credit.md`](m1-capacity-credit.md) plan now selects pure deterministic
+  capacity allocation as Task 7 followed by atomic touch-credit application as Task 8
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -59,9 +60,14 @@ added. Verification is 252 focused, 1037 all-v2 with one baseline warning, and 1
 with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and no-migration checks are clean.
 Original commit `4cfaa65`, round-1 commit `6bac956`, and round-2 commit `47f9e55` are verified; the
 independent Ultra technical review reported CLEAN with no Critical or Important findings. Task 6 and
-the Scrum-state plan are complete, while M1 remains in progress. Capacity
-allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
-wiring, UAT, and any next task remain deferred.
+the Scrum-state plan are complete, while M1 remains in progress. The active
+[`m1-capacity-credit.md`](m1-capacity-credit.md) plan contains exactly two next slices: Task 7 adds
+pure `AVAILABILITY_OVERLAY_V1`/`CAPACITY_ALLOCATOR_V1` ownership, daily consumption, queue-business,
+and segment-local proficiency credit; Task 8 reads one coherent authoritative view and commits one
+bounded credit segment plus internal owner-change activity and calibration ground truth through the
+accepted Task 6 operation. It adds no revision 016 and performs no visit close/open, dwell gate,
+route/status transition, monitor, sprint planning/lifecycle, scheduler, risk/dependency, Jira/OpenAI,
+projection delivery, deployment, or UAT. Task 7 is next; neither task is implemented yet.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

@@ -13,8 +13,9 @@ evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
 `backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
-two-task Scrum-state plan. The next detailed M1 slice has not been selected. Historical Stage 4/5
-plans are not executable for v2.
+two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is the active next two-task plan;
+Task 7 pure deterministic capacity allocation is next, and neither Task 7 nor Task 8 is implemented.
+Historical Stage 4/5 plans are not executable for v2.
 
 ## Product Boundary
 
@@ -50,6 +51,17 @@ plans are not executable for v2.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the next active M1 plan was selected as
+`backlog/v2/m1-capacity-credit.md`. Task 7 will add pure immutable
+`AVAILABILITY_OVERLAY_V1`/`CAPACITY_ALLOCATOR_V1` decisions with exact segment-local half-even
+proficiency credit, sticky ownership, WIP, daily consumption, and eligible-denial queue-business
+accounting. Task 8 will add one coherent authoritative read and commit one bounded credit segment
+through the accepted Task 6 operation, with internal owner assignment/release activity, calibration
+ground truth, and empty projection. This is planning only: no capacity code, tests, state mutation,
+schema, migration, or implementation evidence exists yet. Both tasks leave visits open, do not
+evaluate dwell or transition status/lifecycle, and defer fractional residue/arbitrary scheduler
+partition invariance to a later schema task rather than creating revision 016.
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
 fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
@@ -245,6 +257,8 @@ Accepted Task 6 evidence:
   evidence, and completion gates.
 - `backlog/v2/m1-scrum-state.md` — completed and technically accepted Tasks 5/6 requirements:
   revision-015 authoritative Scrum state followed by atomic runtime-CAS/UOW integration.
+- `backlog/v2/m1-capacity-credit.md` — active Tasks 7/8 requirements: pure deterministic capacity
+  allocation followed by one coherent-read, atomic, no-transition touch-credit slice.
 - Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
   not the active contract or mandatory task sequence.
 - `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
@@ -303,11 +317,12 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-No next task is approved. Await a separately reviewed plan for the next M1 slice before
-implementation; do not select or guess Task 7 from this completed plan. M1 remains in progress. Do
-not add revision 016,
-allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
-calls, deployment, UAT, or M1 completion.
+Execute only Task 7 from `backlog/v2/m1-capacity-credit.md` after reading its extracted brief and
+re-running the accepted baseline. Use strict RED -> GREEN -> REFACTOR and both review stages. Task 8
+must wait for Task 7 acceptance. M1 remains in progress. Do not create revision 016 or add the Task 8
+read/commit service early; do not add visit close/open, dwell gates, route/status or lifecycle
+transitions, monitors, planning/carryover, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
+calls, projection delivery, deployment, UAT, or M1 completion.
 
 ## Active Decisions and External Gates
 
