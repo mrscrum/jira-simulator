@@ -2,9 +2,10 @@
 
 Implementation status: **M1 IN PROGRESS** — the isolated persistence spine, deterministic kernel,
 revision-015 authoritative Scrum state, and atomic runtime-CAS/unit-of-work integration are
-implemented and review-hardened locally. The active next implementation plan is
-[`/backlog/v2/m1-capacity-credit.md`](/backlog/v2/m1-capacity-credit.md); its Task 7 is next and
-neither capacity task is implemented yet.
+implemented and review-hardened locally. Accepted Tasks 1–6 remain frozen and usable. The active
+implementation design is
+[`pragmatic-v2-live-simulator-design.md`](../superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md);
+the former capacity-credit Tasks 7/8 are superseded and must not be resumed.
 
 Pavel requested a high-level plan and explicitly left implementation detail to the capable model
 that will build it. The active product and architecture plan is therefore:
@@ -63,11 +64,10 @@ operation, unchanged carryover without an automatic penalty, or internal-only tr
 The high-level plan remains authoritative. Follow the active context-sized plan linked from
 `/backlog/v2/README.md`; preserve unrelated work, verify the mandatory TDD skill required by
 `/AGENTS.md`, and keep live Jira work behind a separately authorized disposable project/tenant. The
-completed Scrum-state plan remains the accepted revision-015/atomic-UOW base. The active plan now
-authorizes only pure deterministic capacity allocation followed by one coherent-read/atomic
-touch-credit slice. It keeps queue as bounded business-time denial accounting, leaves visits open
-and statuses/lifecycles unchanged, emits no projection, creates no revision 016, and does not
-authorize dwell/live-flow transitions, planning, scheduler/risk/external calls, deployment, or UAT.
+completed Scrum-state plan remains the accepted revision-015/atomic-UOW base. Select the next
+reviewable slice from the pragmatic v2 design: coherent bootstrap/read, incremental Scrum tick,
+sprint lifecycle/scheduler/restart, Jira delivery, then vertical proof and realism. Team count is
+configuration; a five-team run is a UAT/load fixture and never a separate functional path.
 
 ## Resumption Rule
 

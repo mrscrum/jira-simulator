@@ -29,7 +29,10 @@ event-log and operational dashboard.
   required for v2.
 - After restart, resume from committed state without replaying missed daily work. Reconcile Jira
   before generating new changes.
-- Start with five concurrent teams. Validate the target load before expanding to 11–14 teams.
+- Team count is ordinary configuration. Every active team uses the same independent scheduler and
+  simulation loop; there is no single-team versus multi-team functional architecture. Five
+  heterogeneous teams are an initial UAT/load scenario, not a minimum, maximum, or hard parameter.
+  Measure higher configured loads only when operational evidence makes that useful.
 - Expose the complete simulation ground truth needed to calibrate and validate analytics.
 - Use the server OpenAI API key only for autonomous content generation. User conversation and
   control run through Codex and a private simulator plugin/MCP interface.
@@ -163,12 +166,14 @@ functionality merely for consistency.
    safely, and prove one prompt can preview, create, start, inspect, pause, and resume one team.
 3. **Resilience and realism** — add Jira-side intervention reconciliation, required causal risks,
    autonomous content, internal transcripts, restart/outage behavior, and ground truth.
-4. **Five-team Scrum MVP** — add the observation dashboard and run five heterogeneous teams through
-   multiple sprint boundaries, manual Jira edits, restart, and provider outages.
+4. **Scrum MVP and configured-load UAT** — add the observation dashboard and run heterogeneous
+   configured teams through multiple sprint boundaries, manual Jira edits, restart, and provider
+   outages. The initial UAT/load fixture contains five teams but uses no separate code path.
 5. **Kanban increment** — add arrival/replenishment, pull/WIP, classes of service, business-hour
    SLA/SLE, Jira/Codex/dashboard parity, and a mixed-team acceptance run.
-6. **Scale and hardening** — test 11–14 teams, measure SQLite and Jira throughput, harden security,
-   backup/restore, deployment, and operations based on evidence.
+6. **Scale and hardening** — measure higher configured loads (initially 11–14 teams as a load
+   scenario), then harden SQLite/Jira throughput, security, backup/restore, deployment, and
+   operations only where evidence requires it.
 
 Each milestone should be implemented test-first in reviewable slices under `AGENTS.md`; the capable
 implementing model chooses the detailed schemas, algorithms, and task split unless they would change
@@ -176,11 +181,13 @@ a confirmed product decision above.
 
 ## MVP acceptance
 
-The first production-capable release is accepted when five Scrum teams can be created through Codex,
-run autonomously through at least two sprint boundaries, converge with Jira after supported manual
-edits and a restart/outage, produce no duplicate Jira resources or lost committed work, retain
-transcripts and calibration ground truth, and remain understandable/controllable from the event
-dashboard. Kanban and the 11–14-team expansion follow that gate.
+The first production-capable release is accepted when configured Scrum teams can be created through
+Codex, run autonomously through at least two sprint boundaries, converge with Jira after supported
+manual edits and a restart/outage, produce no duplicate Jira resources or lost committed work,
+retain transcripts and calibration ground truth, and remain understandable/controllable from the
+event dashboard. Initial UAT exercises this with five heterogeneous teams as a load fixture only;
+team count never changes functional behavior. Kanban and measured higher-load validation follow
+that gate.
 
 ## Deferred
 

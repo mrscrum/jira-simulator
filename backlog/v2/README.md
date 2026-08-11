@@ -4,6 +4,12 @@ Product authority is [`/docs/v2/high-level-plan.md`](/docs/v2/high-level-plan.md
 implementation detail be left to the capable implementing model, so this backlog tracks outcomes,
 not a fixed microtask sequence.
 
+The approved execution design is
+[`2026-08-11-pragmatic-v2-live-simulator-design.md`](../../docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md).
+Accepted Tasks 1–6 remain frozen and usable. The capacity-credit Tasks 7/8 are superseded,
+non-binding planning history and must not be resumed. Team count is configuration; five teams are a
+UAT/load fixture only.
+
 ## Milestones
 
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
@@ -12,14 +18,14 @@ not a fixed microtask sequence.
   state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
   reported CLEAN with no Critical or Important findings; Task 6 commit chain `4cfaa65` → `6bac956`
   → `47f9e55` is also technically accepted after independent Ultra review reported CLEAN with no
-  Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan;
-  the active [`m1-capacity-credit.md`](m1-capacity-credit.md) plan now selects pure deterministic
-  capacity allocation as Task 7 followed by atomic touch-credit application as Task 8
-- [ ] M2 — Deliver one-team live Jira and Codex alpha
+  Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan.
+  Next work follows the pragmatic v2 slices: coherent bootstrap/read, incremental Scrum tick,
+  lifecycle/scheduler/restart, Jira delivery, then vertical proof and realism
+- [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
-- [ ] M4 — Release the dashboard-backed five-team Scrum MVP
+- [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT
 - [ ] M5 — Add and accept the Kanban vertical slice
-- [ ] M6 — Validate 11–14-team scale and harden operations
+- [ ] M6 — Measure higher configured loads and harden operations where evidence requires it
 
 For each milestone, the implementing model should create only the reviewable, context-sized tasks
 needed at that time, following `/AGENTS.md`, and update the relevant stage file before code changes.
@@ -60,14 +66,10 @@ added. Verification is 252 focused, 1037 all-v2 with one baseline warning, and 1
 with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and no-migration checks are clean.
 Original commit `4cfaa65`, round-1 commit `6bac956`, and round-2 commit `47f9e55` are verified; the
 independent Ultra technical review reported CLEAN with no Critical or Important findings. Task 6 and
-the Scrum-state plan are complete, while M1 remains in progress. The active
-[`m1-capacity-credit.md`](m1-capacity-credit.md) plan contains exactly two next slices: Task 7 adds
-pure `AVAILABILITY_OVERLAY_V1`/`CAPACITY_ALLOCATOR_V1` ownership, daily consumption, queue-business,
-and segment-local proficiency credit; Task 8 reads one coherent authoritative view and commits one
-bounded credit segment plus internal owner-change activity and calibration ground truth through the
-accepted Task 6 operation. It adds no revision 016 and performs no visit close/open, dwell gate,
-route/status transition, monitor, sprint planning/lifecycle, scheduler, risk/dependency, Jira/OpenAI,
-projection delivery, deployment, or UAT. Task 7 is next; neither task is implemented yet.
+the Scrum-state plan are complete, while M1 remains in progress. The former
+[`m1-capacity-credit.md`](m1-capacity-credit.md) Tasks 7/8 are preserved as superseded planning
+history and are not implementation or acceptance authority. The next task must be selected from the
+approved pragmatic-v2 implementation slices rather than continuing the capacity-credit matrix.
 
 Before each M1 slice, preserve unrelated work and verify the mandatory Superpowers TDD skill required
 by `/AGENTS.md`. Live Jira mutation always requires a designated disposable project/tenant and

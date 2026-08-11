@@ -1,5 +1,11 @@
 # Agent Instruction — Jira Team Simulator
 
+> **CURRENT EXECUTION POINTER (2026-08-11):** Pavel approved
+> [`docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md`](docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md).
+> V2 remains authoritative, accepted Tasks 1–6 stay frozen, and the capacity-credit Tasks 7/8 are
+> superseded/non-binding. Do not resume their exact-arithmetic or adversarial-hardening work. Team
+> count is configuration; five teams are a UAT/load fixture only.
+
 ## Current Stage and Baseline
 
 Stage labels in `backlog/` are not a reliable description of the code. The repository contains
@@ -13,9 +19,9 @@ evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
 tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
 `backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
-two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is the active next two-task plan;
-Task 7 pure deterministic capacity allocation is next, and neither Task 7 nor Task 8 is implemented.
-Historical Stage 4/5 plans are not executable for v2.
+two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is preserved planning history only.
+Choose the next reviewable slice from the approved pragmatic-v2 design. Historical Stage 4/5 plans
+are not executable for v2.
 
 ## Product Boundary
 
@@ -52,64 +58,21 @@ Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
-On 2026-08-11, the next active M1 plan was selected as
-`backlog/v2/m1-capacity-credit.md`. Task 7 will add pure immutable
-`AVAILABILITY_OVERLAY_V1`/`CAPACITY_ALLOCATOR_V1` decisions with exact segment-local half-even
-proficiency credit, sticky ownership, WIP, daily consumption, and eligible-denial queue-business
-accounting. Task 8 will add one coherent authoritative read and commit one bounded credit segment
-through the accepted Task 6 operation, with internal owner assignment/release activity, calibration
-ground truth, and empty projection. This is planning only: no capacity code, tests, state mutation,
-schema, migration, or implementation evidence exists yet. Both tasks leave visits open, do not
-evaluate dwell or transition status/lifecycle, and defer fractional residue/arbitrary scheduler
-partition invariance to a later schema task rather than creating revision 016.
-Independent plan review corrected two binding details before implementation: work order is exactly
-`(WORK_PRIORITY_ORDER index, relative_rank, visit.entered_at, work_item.id)`, never `SimulatorRank`
-or visit UUID, and a retained sticky owner with exhausted effective labor yields `CAPACITY` even
-when another eligible member is idle. Task 7's tests and Task 8's selection ground truth must retain
-those exact rules.
-The follow-up independent plan verdict also binds composed availability rounding to independently
-rounded blueprint hours caps before one fraction multiplication; runtime overlay integer ceilings
-remain exact and are never interpreted as hours. Its blueprint mandatory golden is
-`1.000000001 hours -> 3_600_000_004`, then `0.95 -> 3_420_000_004`; the reassociated blueprint result
-`3_420_000_003` is forbidden. By contrast, exact runtime ceiling `3_600_000_003` followed by the one
-fraction step intentionally yields `3_420_000_003`. Capacity segments must advance strictly beyond a
-working start: candidates at/before start are ignored, a non-working start rejects, and exhaustion at
-start advances a positive zero-labor denial segment. A member serving its highest-ordered owned visit
-gives lower owned visits exact `CONTENTION` queue time. Typed contributor, processed-boundary, and
-release-cause traces carry all evidence facts without Task 8 reconstruction. Preexisting positive-
-touch completion releases a stray owner at segment start with `PREEXISTING_TOUCH_COMPLETE` and no
-labor/queue; only credit-driven completion releases at segment end with `TOUCH_COMPLETED`. Task 8
-includes the former solely for owner normalization and rejects owner-bearing zero-required visits.
-Capacity boundaries are the closed six-value set `REQUEST_END`, `WORKDAY_END`,
-`CONFIGURED_AVAILABILITY_CHANGE`, `RUNTIME_OVERLAY_CHANGE`, `DAILY_CAPACITY_EXHAUSTION`, and
-`TOUCH_COMPLETION`. No separate date-end cause exists: configured workdays are ordered within one
-local date and cannot use `24:00`, so `WORKDAY_END` strictly precedes date rollover.
+On 2026-08-11, Pavel approved the pragmatic v2 live-simulator design. It preserves the high-level v2
+product plan and Tasks 1–6, but replaces the binding capacity-credit Task 7/8 plan with a practical
+incremental loop: coherent bootstrap/read, capacity/WIP and workflow progress, fixed sprint
+boundaries with unchanged carryover, atomic state/evidence/Jira-intent commit, asynchronous Jira
+delivery, and restart continuation. It explicitly cuts further hostile-object hardening,
+proof-per-decision hashing, exact half-even/microsecond mechanics, theoretical replay protocols, and
+exhaustive failure matrices. No production code was added by this decision.
 
-Each extracted task brief repeats its applicable authority/shared contract. Task 8 uses exact
-`DraftEnvelope.schema_version="1.0"`, frozen canonical resolution/selection/visit-progress and owner-
-activity payload schemas, five payload families with eight independent canonical JSON/SHA-256
-goldens derived from the real canonical resolved-blueprint fixture, including a literal positive-
-credit progress vector. Its authenticated sample requires exactly `8_647_914_917` microseconds, so
-every progress golden satisfies `required == elapsed + remaining`. Task 8 emits exactly one
-`capacity-progress/<team>/<run>/<expected-version>/<visit>` ground-truth record per changed visit,
-including queue-only zero-labor visits. Owner activity remains only catalogue
-`WORK_ITEM_ASSIGNED_INTERNAL`/`WORK_ITEM_RELEASED_INTERNAL`; required `WORK_CREDITED` activity is
-deferred to the full event-time/per-visit-version slice while every credit remains durable ground
-truth. Task 8 has an internal reader/view review checkpoint before commit orchestration. Its retry
-contract treats `CommitCapacityCreditCommand.through` as a desired horizon, never an idempotency key.
-Task 8 injects its Task 7 policy through `CapacityAllocator.__call__` in the frozen
-`CapacityCreditDependencies(reader, allocator, committer)` bundle. The service accepts and retains
-only that bundle, then calls exactly one `dependencies.allocator(request)` with the exact immutable
-request; pre-allocation validation and target-reached paths call the allocator zero times. It must
-not import or call module-global `allocate_capacity`.
-The authoritative contributor digest is computed only from the authenticated view blueprint; no
-runtime digest field exists. A later target must be no later than the current working interval end;
-the exact after-hours error is `CapacityCreditTargetOutsideWorkingInterval` with no allocator/commit
-effect, which makes repeated workday-end targets reachable.
-After response loss, the same target commits only the next segment when runtime is below it; at
-equality, exact `CapacityCreditTargetReached(ValueError)` with message
-`capacity credit target is already reached` guarantees zero writes. Prior-response reconstruction or
-durable request replay requires a separately planned receipt/idempotency seam.
+Current uncommitted Task 7 tests and evidence are preserved and must not be deleted, reset, staged,
+or treated as acceptance gates. Focused behavioral ideas may be salvaged later under the new design.
+
+The superseded capacity-credit details remain in `backlog/v2/m1-capacity-credit.md` as historical
+planning only; they are intentionally omitted from this current handoff.
+
+## Accepted Task 1–6 History
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
 fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
@@ -297,6 +260,8 @@ Accepted Task 6 evidence:
 - `AGENTS.md` — mandatory development flow and highest-priority repository rules.
 - `docs/requirements-functionality-map.md` — current requirements/functionality baseline.
 - `docs/v2/high-level-plan.md` — active v2 requirements, architecture, roadmap, and MVP acceptance.
+- `docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md` — approved execution
+  design and proportional engineering boundary for the live v2 loop.
 - `docs/v2/implementation-prompt.md` — ready-to-paste mandate for a long independent implementation
   run, including autonomy, safety, priorities, verification, and morning handoff.
 - `docs/v2/README.md` — authority and resumption instructions.
@@ -305,8 +270,7 @@ Accepted Task 6 evidence:
   evidence, and completion gates.
 - `backlog/v2/m1-scrum-state.md` — completed and technically accepted Tasks 5/6 requirements:
   revision-015 authoritative Scrum state followed by atomic runtime-CAS/UOW integration.
-- `backlog/v2/m1-capacity-credit.md` — active Tasks 7/8 requirements: pure deterministic capacity
-  allocation followed by one coherent-read, atomic, no-transition touch-credit slice.
+- `backlog/v2/m1-capacity-credit.md` — superseded Tasks 7/8 planning history; do not execute it.
 - Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
   not the active contract or mandatory task sequence.
 - `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
@@ -365,18 +329,17 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Execute only Task 7 from `backlog/v2/m1-capacity-credit.md` after reading its extracted brief and
-re-running the accepted baseline. Use strict RED -> GREEN -> REFACTOR and both review stages. Task 8
-must wait for Task 7 acceptance. M1 remains in progress. Do not create revision 016 or add the Task 8
-read/commit service early; do not add visit close/open, dwell gates, route/status or lifecycle
-transitions, monitors, planning/carryover, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
-calls, projection delivery, deployment, UAT, or M1 completion.
+Create a concise implementation plan for pragmatic-v2 slice 1: coherent authoritative read plus
+idempotent initial Scrum-state bootstrap and restart reload proof. Preserve accepted Tasks 1–6 and
+all uncommitted Task 7 artifacts. Use strict RED -> GREEN -> REFACTOR, keep the slice free of Jira or
+OpenAI network calls, and do not resume `m1-capacity-credit.md` Tasks 7/8.
 
 ## Active Decisions and External Gates
 
 1. Build an additive persisted-live v2 modular monolith, initially using SQLite/WAL on EBS and one
    scheduler owner.
-2. Deliver Scrum and Codex first, accept five teams, then add Kanban and validate 11–14-team load.
+2. Deliver Scrum and Codex first, then add Kanban. Team count is ordinary configuration; five teams
+   are an initial UAT/load fixture, and higher counts are measured only to discover actual limits.
 3. Use fixed sprint boundaries, unchanged carryover, team business-time mechanics, and both
    business/calendar analytics.
 4. Use one company-managed project/board per team, virtual identity fields, internal transcripts,

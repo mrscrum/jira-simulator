@@ -1,5 +1,13 @@
 # M1 Deterministic Capacity Credit Implementation Plan
 
+> **SUPERSEDED — HISTORICAL RECORD ONLY (2026-08-11).** Pavel approved the pragmatic v2 live
+> simulator design in
+> [`docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md`](../../docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md).
+> Do not implement the Task 7/8 contracts below, treat them as acceptance requirements, or resume
+> their exact-arithmetic/adversarial-hardening test work. Accepted Tasks 1–6 remain frozen and
+> usable. The content below is preserved unchanged as planning history; current uncommitted Task 7
+> tests and evidence are preserved but are not proof of an implemented or accepted capability.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
