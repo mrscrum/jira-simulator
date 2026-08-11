@@ -67,6 +67,23 @@ table, migration, scheduler, engine, or external adapter. Direct construction an
 parameters and draw. This ordinary immutability contract does not claim resistance to deliberate
 low-level mutation through `object.__setattr__`.
 
+## V2 dual-clock business calendar
+
+The reviewed deterministic kernel also contains a pure, immutable business-calendar boundary.
+`BusinessCalendar` is constructed only from a resolved calendar blueprint plus its exact IANA
+timezone. It normalizes aware inputs and results to UTC, calculates exact calendar and business
+elapsed time, adds business durations across workdays/holidays, and exposes business-date,
+working-interval, next-working-instant, and business-day-end queries. Local work and cadence
+boundaries are resolved through UTC round trips so nonexistent or ambiguous DST wall times reject
+instead of silently choosing a fold.
+
+Fixed sprint cadence remains independent of business-calendar adjustment: each ordinal retains the
+original local anchor clock across DST and is never shifted for a weekend or holiday. Pure
+`US_FEDERAL_V1` helpers materialize the documented observed federal holidays over a bounded starter
+horizon and extend that immutable data by ten years only after fewer than two complete local years
+remain. These helpers persist nothing and do not implement sprint lifecycle, capacity, scheduling,
+or external delivery.
+
 ## Prerequisites
 
 - AWS account with an EC2 key pair created
@@ -218,6 +235,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - The API has no authentication and Nginx has no working TLS configuration.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
-- V2 currently provides persistence contracts plus pure deterministic decision/timing primitives;
-  it has no occurrence allocator, live tick engine, business-calendar kernel, scheduler wiring,
-  projection worker, API routes, Jira/OpenAI adapter, or live-provider validation.
+- V2 currently provides persistence contracts plus pure deterministic decision/timing/calendar
+  primitives; it has no occurrence allocator, work/sprint/status-visit persistence, live tick
+  engine, scheduler wiring, projection worker, API routes, Jira/OpenAI adapter, or live-provider
+  validation.

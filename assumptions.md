@@ -226,3 +226,16 @@
   instance-mapping, copy-clone, and reconstruction mutation paths, but do not claim protection from
   deliberate low-level `object.__setattr__` calls, as required by the review finding.
 - No product behavior, algorithm, coordinate, formula, persistence, or schema assumption was added.
+
+## [2026-08-11] M1 — Add dual-clock business calendar
+- Used exact identity `US_FEDERAL_V1` with version `1`, matching the resolved starter blueprint and
+  approved authority.
+- Treated the start of the penultimate horizon year as still having exactly two complete local
+  calendar years remaining, so extension is a no-op through that date and begins only after it.
+- Allowed an elapsed half-open interval to end exactly at midnight immediately after the final
+  holiday-horizon date, because that exclusive endpoint requires no policy decision for the next
+  day; ordinary calendar queries beyond the horizon still reject.
+- Materialized the starter horizon from the aware `first_start` value's represented local calendar
+  year rather than first converting it to UTC, preserving the caller's explicit local-date anchor.
+- No next M1 implementation slice was assumed. Work/sprint/status-visit persistence now requires a
+  separate plan decision; M1 remains in progress.

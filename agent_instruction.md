@@ -11,8 +11,9 @@ Read `docs/requirements-functionality-map.md` before planning implementation. It
 evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
 The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
-tracked under `backlog/v2/`; its active near-term plan is
-`backlog/v2/m1-deterministic-kernel.md`. Historical Stage 4/5 plans are not executable for v2.
+tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
+`backlog/v2/`, and the next M1 slice needs a new reviewable plan. Historical Stage 4/5 plans are
+not executable for v2.
 
 ## Product Boundary
 
@@ -37,9 +38,21 @@ tracked under `backlog/v2/`; its active near-term plan is
 - Pure v2 deterministic semantic identities, `HMAC_SHA256_U53_V1` decision draws, and bounded
   dwell/touch sampling with slotted, reconstruction-resistant, formula-bound provenance and no
   persistence/external dependency.
+- Pure v2 aware-UTC/business-time arithmetic, DST-safe IANA local-boundary resolution, fixed local
+  sprint cadence, and bounded `US_FEDERAL_V1` holiday-horizon materialization/extension.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, deterministic-kernel Task 4 added the pure dual-clock calendar boundary.
+`BusinessCalendar` is constructed only from a resolved `CalendarBlueprint` and explicit IANA zone;
+it provides exact UTC/calendar and business elapsed time, business-duration addition, working
+interval/date/end queries, and next-working resolution. Local boundaries reject nonexistent or
+ambiguous DST wall times by UTC round trip. Fixed cadence preserves the anchor's local clock across
+DST and never shifts for weekends or holidays. `US_FEDERAL_V1` materialization contains the exact
+observed federal rules, excludes Inauguration Day, and extends its immutable horizon by ten years
+only when fewer than two complete local years remain. This task added no schema, persistence,
+scheduler, engine, external call, deployment, UAT, or M1 completion.
 
 On 2026-08-11, Task 3 review fix round 2 moved all six deterministic decision/sampling value
 dataclasses onto one frozen/slotted policy. They expose no instance `__dict__`, shallow/deep copy
@@ -104,13 +117,14 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 3 review fix round 2:
+Current local evidence after Task 4:
 
-- Backend: 939 passed, 43 skipped, 15 baseline warnings.
-- V2: 421 passed, 1 baseline warning.
-- Task 3 focused: 243 passed.
-- Task 1 focused: 48 passed, 1 baseline warning.
-- Task 2 focused: 144 passed.
+- Backend: 1049 passed, 43 skipped, 15 baseline warnings.
+- V2: 531 passed, 1 baseline warning.
+- Task 4 focused: 117 passed.
+- Task 3 focused: 247 passed.
+- Task 1 focused: 52 passed, 1 baseline warning.
+- Task 2 focused: 148 passed.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.
@@ -147,9 +161,14 @@ Current local evidence after Task 3 review fix round 2:
   policy; the policy covers ordinary mutation paths, not explicit `object.__setattr__` misuse.
 - `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
   bounded duration samples whose retained result is formula-validated.
+- `backend/app/v2/domain/business_calendar.py` — resolved immutable business calendar, strict
+  aware-UTC inputs, dual elapsed/addition queries, and fixed unadjusted local cadence.
+- `backend/app/v2/domain/us_federal_calendar.py` — exact observed `US_FEDERAL_V1` rules plus pure
+  starter-horizon materialization and idempotent ten-year extension.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
   message/digest/U53/unit literals, including Unicode NFC equivalence.
 - `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
+- `evidence/v2/M1-T04/README.md` — Task 4 TDD, DST/cadence/holiday, regression, and isolation proof.
 - `backend/app/v2/persistence/unit_of_work.py` — the v2 persistence port and atomic SQLAlchemy
   compare-and-swap implementation; it must not import or call an external adapter.
 - `backend/app/v2/persistence/live_models.py` — the three append-oriented ledger mappings.
@@ -160,12 +179,12 @@ Current local evidence after Task 3 review fix round 2:
 
 ## Next Task
 
-After accepting the reviewed Task 3 fix, implement Task 4 from
-`backlog/v2/m1-deterministic-kernel.md`: pure dual-clock, DST-safe business-calendar/cadence
-primitives and `US_FEDERAL_V1` horizon materialization through a separate strict RED -> GREEN ->
-REFACTOR cycle. Do not modify Task 3 algorithms/vectors, add a
-migration or persistence occurrence allocation, wire a scheduler, call Jira/OpenAI, deploy, claim
-UAT, or mark M1 complete.
+The two-task deterministic-kernel plan is complete, but M1 remains in progress. Do not guess the
+next implementation slice. First create and review a context-sized plan for authoritative
+work/sprint/status-visit persistence and commit-time occurrence allocation, preserving the reviewed
+Task 1-4 identities, ledgers, decision coordinates, calendar semantics, and revision-014 boundary.
+Do not add a migration, scheduler/engine wiring, Jira/OpenAI call, deployment, UAT claim, or M1
+completion until that next slice explicitly authorizes it.
 
 ## Active Decisions and External Gates
 

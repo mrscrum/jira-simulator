@@ -120,3 +120,69 @@ def test_task3_public_exports_are_additive_and_closed():
 
     assert expected <= set(domain.__all__)
     assert all(hasattr(domain, name) for name in expected)
+
+
+def _task4_source_trees() -> tuple[ast.Module, ...]:
+    domain_root = Path(__file__).parents[3] / "app" / "v2" / "domain"
+    return tuple(
+        ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+        for filename in ("business_calendar.py", "us_federal_calendar.py")
+    )
+
+
+def test_task4_modules_import_only_pure_local_domain_dependencies():
+    prohibited_prefixes = (
+        "aiohttp", "app.database", "app.engine", "app.integrations", "app.models",
+        "app.v2.persistence", "httpx", "requests", "socket", "sqlalchemy", "urllib",
+    )
+
+    for tree in _task4_source_trees():
+        imported = [
+            node.module for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module
+        ]
+        imported.extend(
+            alias.name for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names
+        )
+        assert all(not name.startswith(prohibited_prefixes) for name in imported)
+
+
+def test_task4_modules_do_not_read_host_clock_locale_or_timezone():
+    prohibited_calls = {"now", "today", "utcnow"}
+
+    for tree in _task4_source_trees():
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
+        called_attributes = {
+            node.func.attr for node in calls if isinstance(node.func, ast.Attribute)
+        }
+        assert not prohibited_calls & called_attributes
+        local_timezone_calls = [
+            node for node in calls
+            if isinstance(node.func, ast.Attribute)
+            and node.func.attr == "astimezone" and not node.args and not node.keywords
+        ]
+        assert not local_timezone_calls
+
+
+def test_task4_modules_have_no_mutable_module_level_state():
+    mutable_nodes = (ast.Dict, ast.List, ast.Set)
+
+    for tree in _task4_source_trees():
+        assignments = (
+            node for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+        )
+        for assignment in assignments:
+            assert not isinstance(assignment.value, mutable_nodes)
+
+
+def test_task4_public_exports_are_additive_and_closed():
+    domain = importlib.import_module("app.v2.domain")
+    expected = {
+        "BusinessCalendar", "BusinessTimeAddition", "CadenceRule", "DualElapsed",
+        "HolidayHorizon", "UtcInterval", "cadence_boundary", "extend_us_federal_horizon",
+        "materialize_us_federal_horizon",
+    }
+
+    assert expected <= set(domain.__all__)
+    assert all(hasattr(domain, name) for name in expected)

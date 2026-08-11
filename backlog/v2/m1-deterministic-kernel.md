@@ -24,12 +24,12 @@
 
 ---
 
-Status: IN PROGRESS
+Status: COMPLETE
 
 ## Task Checklist
 
 - [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fixes round 1 and 2 completed 2026-08-11
-- [ ] Task 4 — Add dual-clock, DST-safe business-calendar primitives
+- [x] Task 4 — Add dual-clock, DST-safe business-calendar primitives — completed 2026-08-11
 
 ## Deferred Non-Blocking Validation Hardening
 
@@ -229,43 +229,43 @@ index, and one validated timing entry's five dwell anchors plus touch bounds.
 
 **RED command and required failures:**
 
-- [ ] Write tests first. From `backend/`, run exactly:
+- [x] Write tests first. From `backend/`, run exactly:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_business_calendar.py tests/v2/unit/test_us_federal_calendar.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/red.txt
   ```
 
-- [ ] Confirm the command exits non-zero because the new calendar modules/interfaces are absent, not because the timezone database, fixtures, or assertions are malformed.
-- [ ] Cover naive/reversed intervals, invalid timezone/weekday/local interval/holiday horizon, exact zero and negative additions, start/middle/end-of-day behavior, partial day, an elapsed interval spanning overnight, weekend, explicit holiday, multi-day addition, and intervals containing no business time.
-- [ ] Cover `America/Los_Angeles` spring-forward and fall-back with fixed UTC inputs, UTC/local round-trip, exact calendar-versus-business elapsed results, and configured nonexistent/ambiguous local boundaries failing explicitly.
-- [ ] Cover business date/end and next-working behavior at boundaries, weekends, holidays, and year change.
-- [ ] Cover cadence ordinal `0`, positive ordinals, invalid bool/negative ordinal, 14-local-day boundaries across both DST changes, and proof that weekend/holiday boundaries retain the anchored local clock without adjustment.
-- [ ] Cover every exact `US_FEDERAL_V1` rule, Saturday/Sunday observation, cross-year New Year observation, Inauguration exclusion, initial starter horizon, no-op threshold, ten-year extension, uniqueness/order, and idempotent repeated extension.
-- [ ] AST/import tests reject v1 calendar/engine/scheduler, database/ORM, Jira/OpenAI, host-local timezone state, and external network dependencies.
+- [x] Confirm the command exits non-zero because the new calendar modules/interfaces are absent, not because the timezone database, fixtures, or assertions are malformed.
+- [x] Cover naive/reversed intervals, invalid timezone/weekday/local interval/holiday horizon, exact zero and negative additions, start/middle/end-of-day behavior, partial day, an elapsed interval spanning overnight, weekend, explicit holiday, multi-day addition, and intervals containing no business time.
+- [x] Cover `America/Los_Angeles` spring-forward and fall-back with fixed UTC inputs, UTC/local round-trip, exact calendar-versus-business elapsed results, and configured nonexistent/ambiguous local boundaries failing explicitly.
+- [x] Cover business date/end and next-working behavior at boundaries, weekends, holidays, and year change.
+- [x] Cover cadence ordinal `0`, positive ordinals, invalid bool/negative ordinal, 14-local-day boundaries across both DST changes, and proof that weekend/holiday boundaries retain the anchored local clock without adjustment.
+- [x] Cover every exact `US_FEDERAL_V1` rule, Saturday/Sunday observation, cross-year New Year observation, Inauguration exclusion, initial starter horizon, no-op threshold, ten-year extension, uniqueness/order, and idempotent repeated extension.
+- [x] AST/import tests reject v1 calendar/engine/scheduler, database/ORM, Jira/OpenAI, host-local timezone state, and external network dependencies.
 
 **Implementation steps:**
 
-- [ ] Implement frozen aware interval, duration request, dual elapsed, cadence, and holiday-horizon value contracts with strict validation and at most three public arguments.
-- [ ] Implement one resolved immutable `BusinessCalendar` factory from the team timezone plus `CalendarBlueprint`; cache no mutable global calendar state.
-- [ ] Implement short local-boundary resolution, working-date/interval enumeration, dual elapsed, next-working, and forward-addition helpers using `ZoneInfo` plus UTC round-trip validation.
-- [ ] Implement fixed cadence arithmetic separately from workday selection so no working-calendar adjustment can alter sprint instants.
-- [ ] Implement the exact federal rules and pure horizon extension with named constants instead of magic dates/thresholds.
-- [ ] Add only approved exports/boundary checks. Do not implement member capacity, availability overlays, status visits, sprint state, persistence revisions, or scheduler behavior.
-- [ ] Run the identical test selection after implementation, retaining GREEN with:
+- [x] Implement frozen aware interval, duration request, dual elapsed, cadence, and holiday-horizon value contracts with strict validation and at most three public arguments.
+- [x] Implement one resolved immutable `BusinessCalendar` factory from the team timezone plus `CalendarBlueprint`; cache no mutable global calendar state.
+- [x] Implement short local-boundary resolution, working-date/interval enumeration, dual elapsed, next-working, and forward-addition helpers using `ZoneInfo` plus UTC round-trip validation.
+- [x] Implement fixed cadence arithmetic separately from workday selection so no working-calendar adjustment can alter sprint instants.
+- [x] Implement the exact federal rules and pure horizon extension with named constants instead of magic dates/thresholds.
+- [x] Add only approved exports/boundary checks. Do not implement member capacity, availability overlays, status visits, sprint state, persistence revisions, or scheduler behavior.
+- [x] Run the identical test selection after implementation, retaining GREEN with:
 
   ```bash
   set -o pipefail
   PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_business_calendar.py tests/v2/unit/test_us_federal_calendar.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T04/green.txt
   ```
 
-- [ ] Refactor only while the same focused selection stays green and every touched/new function remains within project limits.
+- [x] Refactor only while the same focused selection stays green and every touched/new function remains within project limits.
 
 **Verification, documentation, and evidence:**
 
-- [ ] Run the focused GREEN selection, Task 3 focused selection, `tests/v2 -q`, full safe backend `tests -q`, Ruff `../.venv/bin/python -B -m ruff check --no-cache .`, Alembic `heads --verbose`, `branches --verbose`, and `history`, an AST touched-function scan, and `git diff --check`; retain exact commands/output under `evidence/v2/M1-T04/`.
-- [ ] Record Python/tzdata environment, RED reason, DST vectors, holiday/cadence cases, Task 3 regression, full counts/warnings, sole `014` head, no migration, and no external call in `evidence/v2/M1-T04/README.md` without secrets.
-- [ ] Update mandatory current-state documents and this plan's checklist. Keep M1 in progress; work/sprint/status-visit persistence is the next plan decision, not part of Task 4.
-- [ ] Inspect/stage only Task 4 files and commit exactly `feat(v2): add dual-clock business calendar`.
+- [x] Run the focused GREEN selection, Task 3 focused selection, `tests/v2 -q`, full safe backend `tests -q`, Ruff `../.venv/bin/python -B -m ruff check --no-cache .`, Alembic `heads --verbose`, `branches --verbose`, and `history`, an AST touched-function scan, and `git diff --check`; retain exact commands/output under `evidence/v2/M1-T04/`.
+- [x] Record Python/tzdata environment, RED reason, DST vectors, holiday/cadence cases, Task 3 regression, full counts/warnings, sole `014` head, no migration, and no external call in `evidence/v2/M1-T04/README.md` without secrets.
+- [x] Update mandatory current-state documents and this plan's checklist. Keep M1 in progress; work/sprint/status-visit persistence is the next plan decision, not part of Task 4.
+- [x] Inspect/stage only Task 4 files and commit exactly `feat(v2): add dual-clock business calendar`.
 
 **Done condition:** Pure tests prove exact calendar/business elapsed time, deterministic forward business-time addition, DST-safe local/UTC resolution, fixed unadjusted local cadence, and exact/idempotent `US_FEDERAL_V1` materialization; no persistence/schema/external boundary changed; Alembic remains sole head `014`; Task 3 plus focused/v2/full tests and Ruff pass with truthful evidence and the exact Task 4 commit; M1 remains in progress.

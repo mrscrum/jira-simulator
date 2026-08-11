@@ -1,0 +1,4 @@
+Python 3.12.13
+tzdata system-zoneinfo
+zoneinfo paths ('/usr/share/zoneinfo', '/usr/lib/zoneinfo', '/usr/share/lib/zoneinfo', '/etc/zoneinfo')
+America/Los_Angeles key America/Los_Angeles

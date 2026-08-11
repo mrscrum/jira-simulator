@@ -278,3 +278,17 @@
 ### Fixed
 - Instance-dictionary mutation and unvalidated pickle state can no longer alter root seeds,
   decisions, digests, unit values, duration parameters, or sampled results.
+
+## [2026-08-11] M1 — Add dual-clock business calendar
+### Changed
+- Added pure immutable UTC/business-time intervals, elapsed clocks, forward business-duration
+  addition, working-date helpers, and fixed local cadence derived from resolved team calendars.
+- Added explicit UTC-round-trip validation for nonexistent and ambiguous IANA local boundaries,
+  including spring-forward and fall-back coverage without reading host-local timezone state.
+- Added exact `US_FEDERAL_V1` observed-holiday materialization and idempotent bounded-horizon
+  extension, plus focused/regression/full/Ruff/Alembic/shape evidence.
+### Fixed
+- Fixed sprint cadence is now represented separately from working-calendar adjustment, so weekends,
+  holidays, and DST changes cannot shift the original local boundary clock.
+- No persistence, schema, scheduler, engine, v1, Jira/OpenAI, frontend, or deployment behavior was
+  changed.
