@@ -68,13 +68,30 @@ or visit UUID, and a retained sticky owner with exhausted effective labor yields
 when another eligible member is idle. Task 7's tests and Task 8's selection ground truth must retain
 those exact rules.
 The follow-up independent plan verdict also binds composed availability rounding to independently
-rounded hours caps before one fraction multiplication; its mandatory golden is
-`1.000000001 hours -> 3_600_000_004`, then `0.95 -> 3_420_000_004`, never `3_420_000_003`. Each
-extracted task brief now repeats its applicable authority/shared contract. Task 8 evidence uses
-`DraftEnvelope.schema_version="1.0"`, fully specified resolution/selection/progress metadata and
-semantic keys/order, and catalogue activity types `WORK_ITEM_ASSIGNED_INTERNAL`/
-`WORK_ITEM_RELEASED_INTERNAL` with distinct deterministic keys. Named TDD cases freeze rounding,
-overlay permutation, evidence replay/order, and two-event assign-then-complete behavior.
+rounded blueprint hours caps before one fraction multiplication; runtime overlay integer ceilings
+remain exact and are never interpreted as hours. Its blueprint mandatory golden is
+`1.000000001 hours -> 3_600_000_004`, then `0.95 -> 3_420_000_004`; the reassociated blueprint result
+`3_420_000_003` is forbidden. By contrast, exact runtime ceiling `3_600_000_003` followed by the one
+fraction step intentionally yields `3_420_000_003`. Capacity segments must advance strictly beyond a
+working start: candidates at/before start are ignored, a non-working start rejects, and exhaustion at
+start advances a positive zero-labor denial segment. A member serving its highest-ordered owned visit
+gives lower owned visits exact `CONTENTION` queue time. Typed contributor, processed-boundary, and
+release-cause traces carry all evidence facts without Task 8 reconstruction.
+
+Each extracted task brief repeats its applicable authority/shared contract. Task 8 uses exact
+`DraftEnvelope.schema_version="1.0"`, frozen canonical resolution/selection/visit-progress and owner-
+activity payload schemas, five payload families with seven independent canonical JSON/SHA-256
+goldens, and exactly one
+`capacity-progress/<team>/<run>/<expected-version>/<visit>` ground-truth record per changed visit,
+including queue-only zero-labor visits. Owner activity remains only catalogue
+`WORK_ITEM_ASSIGNED_INTERNAL`/`WORK_ITEM_RELEASED_INTERNAL`; required `WORK_CREDITED` activity is
+deferred to the full event-time/per-visit-version slice while every credit remains durable ground
+truth. Task 8 has an internal reader/view review checkpoint before commit orchestration. Its retry
+contract treats `CommitCapacityCreditCommand.through` as a desired horizon, never an idempotency key.
+After response loss, the same target commits only the next segment when runtime is below it; at
+equality, exact `CapacityCreditTargetReached(ValueError)` with message
+`capacity credit target is already reached` guarantees zero writes. Prior-response reconstruction or
+durable request replay requires a separately planned receipt/idempotency seam.
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
 fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
