@@ -2,7 +2,15 @@
 
 A multi-team Jira activity simulator that emulates how real engineering teams work, including realistic dysfunctions, handoffs, and cross-team dependencies. Generates authentic Jira data patterns for stress-testing a Sprint Risk Analyzer tool.
 
-**Current stage:** Stage 3 — Jira Integration Layer (complete, pending UAT)
+**Current baseline:** Distribution-based simulation, precomputed sprint schedules, Jira write
+queue, and configuration UI are implemented, but end-to-end real-time Jira synchronization is
+still partial. See [Requirements and Functionality Map](docs/requirements-functionality-map.md)
+for the assessed boundaries and gaps.
+
+**Approved future plan:** The concise requirements, architecture, and milestone roadmap for the
+additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
+milestone status under [backlog/v2/](backlog/v2/README.md). These are planning artifacts only; none of the v2 behavior,
+including Codex control or Jira-side manual-intervention ingestion, is implemented yet.
 
 ## Prerequisites
 
@@ -93,6 +101,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 ## API Endpoints
 
+The generated OpenAPI schema currently exposes 76 operations. The main groups are team/member/
+workflow configuration, timing templates, Jira bootstrap and queue health, simulation controls,
+sprint scheduling, scheduled-event inspection, and diagnostics. Use `/docs` for the complete live
+contract.
+
 ### Jira Integration (Stage 3)
 
 | Method | Path | Description |
@@ -112,13 +125,14 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 ## Data Model
 
-The SQLAlchemy data model spans 13 tables across two layers:
+SQLAlchemy metadata currently defines 25 tables covering core team/workflow state, Jira queue and
+mapping state, distribution/move-left configuration, timing templates, precomputation runs,
+scheduled events, and audit records. Alembic has 12 migrations (`001`–`012`).
 
-**Simulation (Stage 1):** Organization, Team, Member, Workflow, WorkflowStep, TouchTimeConfig, DysfunctionConfig, Sprint, Issue
-
-**Jira Integration (Stage 3):** JiraConfig (key-value store), JiraWriteQueueEntry (persistent queue), JiraIssueMap (issue→Jira key mapping), JiraIssueLink (cross-team link tracking)
-
-Database uses SQLite with WAL mode and foreign keys enabled. Alembic manages migrations (7 migrations: 001-007).
+SQLite support enables WAL mode and foreign keys. However, the current production Compose file
+forces PostgreSQL and stores it in a Docker named volume; this conflicts with the project rule that
+production SQLite must live at `/data/simulator.db` on EBS. Treat persistence as unresolved until
+that deployment decision is explicitly reconciled.
 
 ## Running Tests
 
@@ -136,10 +150,15 @@ INTEGRATION_TESTS=true docker compose exec backend python -m pytest tests/integr
 
 See `AGENTS.md` for the complete directory layout and domain model.
 
-## Current Limitations (Stage 3)
+## Current Limitations
 
-- No simulation engine yet (Stage 4)
-- Frontend is a placeholder ("coming soon")
-- No CRUD API endpoints for domain entities (organizations, teams, etc.)
-- HTTPS not configured (HTTP only)
-- Alerting requires AWS SES setup (no-op when unconfigured)
+- Precomputed issue outcomes are not reduced back into persistent internal issue state.
+- Newly created Jira sprint IDs are not available when add/start/complete events are generated.
+- Event dispatch does not enforce sprint activation or per-team pause/deactivation.
+- The advertised simulation acceleration controls do not scale the active scheduled-event path.
+- Dysfunction and cross-team dependency effects are configuration/data only.
+- Real-Jira integration tests are skipped in normal local and CI runs.
+- The frontend has broad functionality but only two automated tests.
+- The API has no authentication and Nginx has no working TLS configuration.
+- Manual changes made directly in Jira are not reliably ingested into internal simulation state.
+- Alerting requires AWS SES setup and is a no-op when unconfigured.

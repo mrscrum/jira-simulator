@@ -1,5 +1,9 @@
 # Simulation Engine Rewrite — Requirements
 
+> **SUPERSEDED V1 REQUIREMENTS — DO NOT EXECUTE FOR V2.** The approved plan is
+> [`docs/v2/README.md`](v2/README.md). In particular, v2 replaces this document's approximate
+> log-normal fit, automatic 25% carryover penalty, precomputed runtime, and Jira-comment behavior.
+
 ## 1. Overview
 
 Rewrite the simulation engine to replace the current event-probability-driven model with a

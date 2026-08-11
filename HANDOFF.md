@@ -1,5 +1,10 @@
 # Jira Team Simulator — Complete Handoff Document
 
+> **ARCHIVED V1 HANDOFF — DO NOT EXECUTE.** This file describes a historical repository state and
+> points to an obsolete Stage 5 plan. The approved v2 plan begins at
+> [`docs/v2/README.md`](docs/v2/README.md); current code evidence is in
+> [`docs/requirements-functionality-map.md`](docs/requirements-functionality-map.md).
+
 ## Project Overview
 
 A **multi-team Jira activity simulator** that emulates how real engineering teams work — including realistic dysfunctions, handoffs, and cross-team dependencies. Its primary purpose is to generate **authentic Jira data patterns** for stress-testing a Sprint Risk Analyzer tool.

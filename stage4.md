@@ -1,5 +1,9 @@
 # Stage 4 — Simulation Engine Spec
 
+> **HISTORICAL V1 SPECIFICATION — DO NOT EXECUTE FOR V2.** Use
+> [`docs/v2/README.md`](docs/v2/README.md). Its approved rules supersede this document's catch-up,
+> comment, precompute, and sprint behavior.
+
 ## Overview
 
 The core simulation engine. Manages sprint lifecycle, issue state machines, agent capacity, backlog generation, and all 14 simulation events. Jira writes are handed off to the Stage 3 write queue — the engine never calls Jira directly. Internal state is the single source of truth.

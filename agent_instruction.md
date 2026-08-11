@@ -1,128 +1,130 @@
 # Agent Instruction — Jira Team Simulator
 
-## Current Stage
-Stage 0 — COMPLETE
-Stage 1 — Data Model — COMPLETE
-Stage 2 — Config UI — COMPLETE
-Stage 3 — Jira Integration Layer — COMPLETE (pending UAT sign-off)
-Stage 4 — Simulation Engine — COMPLETE
+## Current Stage and Baseline
 
-## What Has Been Implemented
-- LLM provider: OpenAI (NOT Anthropic — this was swapped before project start)
-- GitHub repo: https://github.com/mrscrum/jira-simulator
-- Full directory skeleton per AGENTS.md
-- AWS infrastructure live via Terraform: EC2 t3.small, EBS 20GB gp3, DLM snapshots, Elastic IP, Security Group, IAM roles
-- Backend scaffold: FastAPI with /health endpoint (stage "4")
-- Frontend scaffold: Vite + React + TypeScript + one test
-- Docker Compose: backend + nginx, production and dev configs
-- CI/CD pipeline: GitHub Actions (pytest → ruff → vitest → SSH deploy to EC2)
-- Both required skills installed (obra/superpowers TDD + clean-code-skills)
-- **Stage 1 complete:**
-  - Pydantic Settings config module loading all env vars
-  - SQLAlchemy database module with engine, session factory, get_db
-  - SQLite WAL mode and foreign keys enabled via event listener
-  - 10 SQLAlchemy models: Organization, Team, Member, Workflow, WorkflowStep, TouchTimeConfig, DysfunctionConfig, Sprint, Issue
-  - TimestampMixin base class for DRY (id, created_at, updated_at)
-  - All relationships, unique constraints, and defaults per spec
-  - Alembic setup with env.py and initial migration (001_initial_schema)
-  - Pydantic v2 schemas for all 9 entities (Base, Create, Read, Update)
-  - FastAPI lifespan event for table creation fallback
-  - 95 tests passing, ruff clean
-- **Stage 3 complete:**
-  - JiraClient async httpx wrapper (all Jira REST API v3 methods)
-  - JiraHealthMonitor with ONLINE/OFFLINE/RECOVERING state machine
-  - JiraWriteQueue persistent queue with pacing, recovery, and priority ordering
-  - JiraBootstrapper idempotent project/board/field/status provisioner
-  - AlertingService with AWS SES email alerts and daily digest
-  - APScheduler integration (health check every 60s, daily digest at 08:00 UTC)
-  - 4 new DB models: JiraConfig, JiraWriteQueueEntry, JiraIssueMap, JiraIssueLink
-  - 3 bootstrap columns on Team model (jira_bootstrapped, jira_bootstrap_warnings, jira_bootstrapped_at)
-  - 5 Alembic migrations (003-007)
-  - 6 new API endpoints: bootstrap, bootstrap status, health, queue status, retry-failed, project statuses
-  - Replaced hardcoded jira_proxy.py with real Jira integration router
-  - Pydantic schemas for all Jira API responses
-  - boto3 dependency for AWS SES
-  - alert_email_from, alert_email_to, aws_ses_region in Settings
-  - All integration services wired into FastAPI lifespan
-  - 289 tests passing, ruff clean
-- **Stage 4 complete:**
-  - `engine/calendar.py` — pure functions for timezone-aware business days, working hours, cross-TZ handoff lag (ZoneInfo)
-  - `engine/capacity.py` — DailyCapacityState frozen dataclass, WIP tracking, touch-time advancement, available worker selection
-  - `engine/issue_state_machine.py` — IssueState StrEnum (9 states), JiraWriteAction dataclass, transition_issue() with valid transition map
-  - `engine/sprint_lifecycle.py` — SprintPhase StrEnum, phase advancement logic, capacity-fitted/priority-ordered issue selection, carry-over detection, velocity calc
-  - `engine/events/` — BaseEvent ABC, TickContext/EventOutcome dataclasses, registry with 16 event handlers
-  - 16 events: carry_over, velocity_drift, sprint_goal_risk, stale_issue, move_left, descope, unplanned_absence, priority_change, split_story, external_block, uneven_load, review_bottleneck, onboarding_tax, late_planning, skipped_retro, scope_commitment_miss
-  - `engine/backlog.py` — depth check, story point distribution, TemplateContentGenerator + OpenAIContentGenerator (w/ fallback)
-  - `engine/simulation.py` — SimulationEngine tick orchestrator (STOPPED/RUNNING/PAUSED), per-team pause, write queue integration
-  - 6 new DB models: SimulationEventConfig, SimulationEventLog, MoveLeftConfig, MoveLeftTarget, MoveLeftSameStepStatus, DailyCapacityLog
-  - Extended Team (8 cols), Member (1 col), Sprint (7 cols), Issue (4 cols)
-  - Alembic migration 008_stage4_schema
-  - Updated Pydantic schemas for all modified entities
-  - 20+ simulation API endpoints: engine control, per-team control, sprint management, event config/log, backlog, capacity, health
-  - SimulationEngine created in FastAPI lifespan, stored on app.state
-  - 518 tests passing, ruff clean
+Stage labels in `backlog/` are not a reliable description of the code. The repository contains
+configuration UI, Jira integration, a distribution-based simulation rewrite, precomputed sprint
+schedules, and scheduled-event dispatch. The north-star end-to-end workflow is still partial and
+has not been verified against the live `mrscrum` Jira instance in the latest assessment.
 
-## Live Infrastructure
-- **EC2 public IP**: 98.89.183.224
-- **Health check**: http://98.89.183.224/health → `{"status":"ok","stage":"4"}`
-- **Frontend**: http://98.89.183.224/
-- **SSH**: `ssh -i ~/.ssh/jira_simulator.pem ec2-user@98.89.183.224`
-- **Data volume**: /data (20GB EBS gp3, encrypted, daily DLM snapshots)
-- **App directory**: /app/jira-simulator
-- **SQLite**: /data/simulator.db (created by Alembic migration on deploy)
+Read `docs/requirements-functionality-map.md` before planning implementation. It is the
+evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
-## Key Files and What They Do
-- `AGENTS.md` — master project spec (development flow, domain model, tech stack, rules)
-- `backend/app/config.py` — Pydantic Settings loading env vars (.env), including alert/SES config
-- `backend/app/database.py` — SQLAlchemy engine, session factory, get_db dependency
-- `backend/app/models/base.py` — DeclarativeBase + TimestampMixin
-- `backend/app/models/*.py` — 19 SQLAlchemy model files (9 original + 4 Jira + 6 Stage 4)
-- `backend/app/models/__init__.py` — re-exports all models
-- `backend/app/schemas/*.py` — 10 Pydantic schema files (9 original + jira.py)
-- `backend/app/schemas/__init__.py` — re-exports all schemas
-- `backend/app/main.py` — FastAPI app with lifespan, /health, integration + engine wiring
-- `backend/app/engine/calendar.py` — pure business day/timezone/holiday calculations
-- `backend/app/engine/capacity.py` — DailyCapacityState, WIP, touch-time advancement
-- `backend/app/engine/issue_state_machine.py` — IssueState enum, transition logic, JiraWriteAction
-- `backend/app/engine/sprint_lifecycle.py` — SprintPhase, phase advancement, issue selection
-- `backend/app/engine/backlog.py` — depth check, content generation (template + OpenAI)
-- `backend/app/engine/simulation.py` — tick orchestrator, engine state machine
-- `backend/app/engine/events/base.py` — TickContext, EventOutcome, BaseEvent ABC
-- `backend/app/engine/events/registry.py` — 16-event handler registry
-- `backend/app/engine/events/*.py` — 16 individual event handler modules
-- `backend/app/integrations/jira_client.py` — async httpx Jira REST API wrapper
-- `backend/app/integrations/jira_health.py` — health monitor state machine
-- `backend/app/integrations/jira_write_queue.py` — persistent write queue with pacing
-- `backend/app/integrations/jira_bootstrapper.py` — idempotent Jira project provisioner
-- `backend/app/integrations/alerting.py` — AWS SES alerting service
-- `backend/app/integrations/scheduler.py` — APScheduler job definitions
-- `backend/app/integrations/exceptions.py` — typed Jira API exceptions
-- `backend/app/api/routers/simulation.py` — 20+ simulation API endpoints
-- `backend/app/api/routers/jira_integration.py` — 6 Jira API endpoints
-- `backend/alembic/env.py` — Alembic migration environment
-- `backend/alembic/versions/001-008` — 8 migrations (001 initial + 002 stage2 + 003-007 Jira + 008 stage4)
-- `backend/tests/` — 518 tests across 24+ test files
+The approved additive v2 specification and execution plan now begin at `docs/v2/README.md` and are
+tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v2.
 
-## Next Task — Stage 5: Dysfunction Events
-Per AGENTS.md, Stage 5 covers advanced dysfunction events. Awaiting spec from Pavel.
+## Product Boundary
 
-## Active Decisions / Unresolved Questions
-- SprintPhase field exists on Sprint model but is treated as a backup field (user decision: use status primarily)
-- OpenAI SDK vs httpx for LLM calls — OpenAI SDK used in backlog.py OpenAIContentGenerator
-- Branch protection on main not yet configured
-- Pre-existing test_config.py failure: test_loads_default_database_url fails in Docker because container env overrides DATABASE_URL (not a real bug)
-- Tick orchestrator _tick_team has placeholder body — full wiring needed when integration-tested with real data
+- Connect exactly one Jira instance: `mrscrum`.
+- Use one global Jira credential set and Jira client.
+- Support multiple teams; each team maps to a distinct Jira project and is configured separately.
+- Keep all Jira writes behind the persistent write queue.
+- Never use a simulator-originated update to change Jira's actual assignee or reporter after issue
+  creation. Preserve direct human changes; use virtual ownership fields and internal state.
+- Simulation timing is statistical and Jira statuses map 1:1 to configured workflow statuses.
 
-## Gotchas
-- **OpenAI is the LLM provider, NOT Anthropic** — check AGENTS.md env vars section
-- `.env` and `infra/terraform.tfvars` are gitignored — if you don't see them, they're correctly hidden
-- Deploy workflow uses `sudo docker compose` (ec2-user needs sudo for docker)
-- Deploy workflow sets `git config --global --add safe.directory /app/jira-simulator`
-- **Local venv at backend/.venv/** — run tests: `.venv/bin/python -m pytest tests/ --tb=short -q`
-- **Test deps need install after container rebuild**: `docker compose exec backend pip install pytest pytest-asyncio ruff boto3`
-- In-memory SQLite doesn't support WAL mode — WAL test uses file-based SQLite
-- SQLite doesn't support ALTER ADD CONSTRAINT — split_from_id FK enforced at ORM level only
-- Alembic migrations are hand-written, not autogenerated
-- `backend/app/api/routers/jira_proxy.py` still exists on disk but is no longer imported (replaced by jira_integration.py)
-- All event handlers use dependency-injected `rng` parameter for deterministic testing
-- Follow AGENTS.md mandatory development flow: plan → task split → TDD → docs → backlog update
+## What Is Implemented
+
+- FastAPI backend with 76 OpenAPI operations and 25 SQLAlchemy tables.
+- React UI for teams, members, workflows, timing templates, move-left configuration,
+  dependencies, simulation controls, and sprint/event schedules.
+- Per-team project key/board, members, workflow, timing, sprint, calendar, and backlog settings.
+- Log-normal full-time and uniform work-time distributions.
+- Sprint planning, move-left rolls, working-calendar calculations, and deterministic precompute.
+- Persistent scheduled events, Jira write queue, rate-limit handling, Jira client, bootstrapper,
+  health monitor, and queue-status auditor.
+- Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
+
+## Most Recent Change
+
+On 2026-08-10, Pavel approved the v2 product direction and then asked to keep the plan high level,
+leaving implementation detail to the capable model that builds it. The active requirements,
+architecture, roadmap, and MVP outcome now live in `docs/v2/high-level-plan.md`; milestone status is
+in `backlog/v2/README.md`. Earlier detailed v2 contracts and the 96-task decomposition are retained
+only as optional design exploration. Pavel additionally required managed projects to survive direct
+Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
+runtime changes were made.
+
+Local evidence:
+
+- Backend: 518 passed, 43 skipped, 15 warnings.
+- Ruff: passed.
+- Frontend: 2 tests passed.
+- Frontend production build: passed with a bundle-size warning.
+- Real Jira integration tests were not run and remain skipped in normal CI.
+
+## Key Files
+
+- `AGENTS.md` — mandatory development flow and highest-priority repository rules.
+- `docs/requirements-functionality-map.md` — current requirements/functionality baseline.
+- `docs/v2/high-level-plan.md` — active v2 requirements, architecture, roadmap, and MVP acceptance.
+- `docs/v2/implementation-prompt.md` — ready-to-paste mandate for a long independent implementation
+  run, including autonomy, safety, priorities, verification, and morning handoff.
+- `docs/v2/README.md` — authority and resumption instructions.
+- `backlog/v2/README.md` — active milestone status.
+- Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
+  not the active contract or mandatory task sequence.
+- `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
+- `backend/app/main.py` — application/service/scheduler wiring.
+- `backend/app/engine/simulation.py` — lifecycle tick and sprint precompute persistence.
+- `backend/app/engine/precompute.py` — in-memory sprint simulation and event generation.
+- `backend/app/engine/workflow_engine.py` — per-item distribution/capacity/status logic.
+- `backend/app/engine/event_dispatcher.py` — moves due scheduled events to the Jira queue.
+- `backend/app/integrations/jira_write_queue.py` — external-write boundary and operation routing.
+- `backend/app/integrations/jira_client.py` — Jira REST/Agile API client.
+- `backend/app/integrations/scheduler.py` — background jobs and paused startup behavior.
+- `backend/app/api/routers/scheduled_events.py` — sprint/schedule management and diagnostics.
+- `frontend/src/App.tsx` — top-level UI section routing.
+- `docker-compose.yml` — current PostgreSQL deployment, conflicting with SQLite-on-EBS rules.
+
+## Next Task
+
+Milestone M1 is next: deliver the persisted Scrum simulation core. Before code, safely checkpoint
+the current assessment/planning changes, choose a reviewable first slice, and verify the mandatory
+Superpowers TDD skill from `AGENTS.md`. Any live Jira provisioning test requires a Pavel-authorized
+disposable project/tenant.
+
+## Active Decisions and External Gates
+
+1. Build an additive persisted-live v2 modular monolith, initially using SQLite/WAL on EBS and one
+   scheduler owner.
+2. Deliver Scrum and Codex first, accept five teams, then add Kanban and validate 11–14-team load.
+3. Use fixed sprint boundaries, unchanged carryover, team business-time mechanics, and both
+   business/calendar analytics.
+4. Use one company-managed project/board per team, virtual identity fields, internal transcripts,
+   and no v2 Jira comments.
+5. Treat supported manual Jira sprint/card edits as attributed inputs and reconcile Jira before
+   advancing after restart; incompatible/protected changes surface a scoped conflict.
+6. Keep Codex conversation/control separate from server-key OpenAI content generation and expose
+   complete calibration ground truth.
+7. Live Jira work requires a designated disposable target and authorization. Code work requires the
+   mandatory TDD skill from `AGENTS.md`.
+
+## Critical Gotchas
+
+- Precomputed final issue states are not applied to persistent `Issue` rows.
+- A newly generated schedule usually lacks the Jira sprint ID needed for add/start/complete events.
+- Event dispatch ignores sprint activation and per-team pause/deactivation.
+- Per-team start/resume does not start the global scheduler.
+- SimClock speed and tick-interval API changes do not accelerate/reconfigure scheduled dispatch.
+- Health recovery can remain stuck in `RECOVERING` because queue recovery is not wired.
+- Jira-synchronized sprint edit/delete paths use `app.state.jira_write_queue`, but startup stores
+  `app.state.write_queue`.
+- Dysfunction and cross-team dependency models do not affect the active simulation.
+- Historical documentation claims event-handler modules that no longer exist.
+- The API is unauthenticated, and the public deployment has no configured TLS listener.
+- V1 has no durable webhook/poll inbox for Jira-side manual sprint/card changes; v2 must not build
+  reconciliation on the current one-way dispatcher alone.
+- Restart must reconcile supported Jira interventions before boundary handling or new outbound
+  delivery, and must not manufacture missed daily work.
+- Jira provisioning and sprint creation need explicit idempotency/read-back tests before relying on
+  them in autonomous operation.
+- Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
+- Existing dirty documentation and untracked assessment/skill files belong to the current owner;
+  do not stash, reset, clean, or overwrite them during worktree setup.
+
+## Mandatory Development Flow
+
+For every future change: plan and obtain approval, split and record tasks in `backlog/`, use strict
+RED → GREEN → REFACTOR TDD, apply Python clean-code skills, update all mandatory documents, verify
+all tests, deploy, and wait for Pavel's UAT/sign-off.

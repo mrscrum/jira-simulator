@@ -1,5 +1,8 @@
 # Project Initiation — Jira Team Simulator
 
+> **Historical v1 initiation prompt — do not execute for v2.** Start with
+> [`docs/v2/README.md`](docs/v2/README.md).
+
 You are starting a new project called **Jira Team Simulator**. Before doing anything
 else, read this entire instruction, then follow the steps below in order.
 

@@ -1,5 +1,8 @@
 # Stage 0 — Infrastructure Kickoff Prompt
 
+> **Historical v1 stage prompt — do not execute for v2.** Start with
+> [`docs/v2/README.md`](docs/v2/README.md).
+
 Paste this entire message into Claude Code, replacing the placeholder values with your real credentials.
 
 ---

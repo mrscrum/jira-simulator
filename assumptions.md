@@ -49,3 +49,98 @@
 ## [2026-03-15] Stage 0 — Swap LLM provider from Anthropic to OpenAI
 - Assumed the `ai_content.py` integration module (listed in AGENTS.md repo structure) will use OpenAI SDK instead of Anthropic SDK — user confirmed OpenAI as the provider
 - Assumed `httpx` remains in the stack for Jira API calls; OpenAI calls may use the `openai` Python SDK directly — to be confirmed during Stage 1 implementation
+
+## [2026-08-10] Stage 7 — Current implementation assessment
+- No product assumptions made. The latest user instruction was treated as authoritative: one
+  `mrscrum` Jira instance with multiple independently configured team/projects.
+- The assessment is limited to local repository evidence at `main` commit `b65b133`; the live Jira
+  instance and EC2 deployment were not accessed.
+
+## [2026-08-10] V2 Stage 0 — Approved durable implementation plan
+- Chose an additive v2 runtime beside frozen v1 until the five-team soak passes, because the user
+  approved the recommended selective fork/branch approach and the current runtime has unsafe
+  precompute/state-synchronization behavior.
+- Chose monotone `log1p(hours)` inverse-CDF interpolation through minimum, p25, p50, p99, and maximum
+  anchors as the exact bounded sampler because the interpolation rule was delegated.
+- Chose Monday–Friday 09:00–17:00 local time and the initial deployment's US federal holiday calendar
+  only when a prompt/locale supplies no calendar; all calendar values remain explicit per team.
+- Chose Task and 3 story points as explicit defaults for an otherwise importable unknown Jira card;
+  unmapped status or unsupported points quarantine only that item.
+- Pavel explicitly required simulator-managed projects to survive manual Jira sprint/card changes.
+  Chose human-wins after idempotent ingestion for supported lifecycle/membership/status/points/rank/
+  content changes; simulator identity/provenance fields remain protected.
+- Chose to preserve completed work and scale only remaining current-status touch demand by the story
+  point ratio after manual re-estimation; future visits use the new size.
+- Chose webhook-first observation with periodic changelog/read-back polling, echo suppression, and
+  per-item/per-lifecycle quarantine rather than globally stopping or blindly overwriting Jira.
+- Chose a dedicated private scoped client secret for the first MCP integration; a public OAuth
+  provider remains deferred.
+- Chose one OpenAI retry, a 45-second timeout, 1,200 output tokens per content job, and five jobs per
+  worker cycle as configurable safe initial limits.
+- Chose indefinite MVP ground-truth retention and explicit five-team/14-team soak thresholds so an
+  implementation agent has measurable gates without inventing completion criteria.
+- Chose the numeric `SCRUM_BALANCED_V1` timing/risk/role/backlog defaults because Pavel delegated
+  unanswered choices to the recommended option; the catalog labels them as starter assumptions, not
+  learned calibration.
+- Chose `HMAC_SHA256_U53_V1` with RFC 8785 canonical JSON and fixed 53-bit conversion so replay does
+  not depend on Python process state, ordering, or database-generated IDs.
+- Chose labor-hour capacity consumption with proficiency multiplying only effective touch credit;
+  dwell readiness remains independent.
+- Chose one current-window successor after a long restart and no materialized empty missed sprints,
+  because ordinary downtime catch-up was explicitly excluded.
+- Chose accelerated semantic-time live-Jira boundary acceptance with normal wall-clock Jira pacing,
+  followed by a 60-minute/five-team real-time smoke, so two fixed sprint boundaries do not delay the
+  MVP by roughly four calendar weeks.
+- Chose initial operational defaults of five-minute ticks/polls, one Jira request per second, 2,000
+  pending commands per team, 7,500 globally, and a 50% recovery low-water mark; all remain
+  configurable and must be revisited from soak evidence.
+- Chose an initial-create Jira issue property `jira-simulator.item-id` for timeout-safe issue
+  idempotency, avoiding a third user-visible custom field beyond `sim_assignee`/`sim_reporter`.
+- Chose `America/Los_Angeles`, `en-US`, a 32-byte CSPRNG seed encoded as lower-case hex, a first
+  sprint boundary at least 48 hours after draft generation, and the frozen ten-year
+  `US_FEDERAL_V1` horizon/extension rules when a request omits those values.
+- Chose Unicode-scalar truncation for 80-character Jira names and deterministic base-36 project-key
+  collision probing so a fresh agent does not invent tenant-dependent naming behavior.
+- Chose the exact eight-person `Platform product team` starter profiles, empty configured
+  availability meaning full baseline availability, and all four causal risks enabled because Pavel
+  delegated unanswered team defaults to the recommended option.
+- Chose restrictive availability overlays: runtime sources may overlap and compose using minimum
+  active fraction/cap, while confirmed schedule intervals remain non-overlapping. Natural absence
+  duration is persisted scheduled business time and consumes no pause/restart downtime.
+- Chose `KANBAN_BALANCED_V1` shifted-exponential arrivals, explicit class priority/weights,
+  `STANDARD` manual-import class, status WIP limits, blocked-against-suspended-WIP, and exact
+  business-hour SLE targets because Kanban policy details were delegated.
+- Chose `OFFICIAL_PROJECT_SCOPED_V1`: public Jira APIs create the project, dedicated issue-type and
+  workflow schemes, then the board. Because the public board API has configuration read-back but no
+  supported column-write operation, added a target-tenant Gate G0 proof and prohibited private API/
+  UI-automation fallback.
+- Chose a two-minute/three-complete-scan settlement window and explicit operator decision for an
+  ambiguously created sprint because Jira does not provide a unique idempotency key for sprint
+  creation; one empty read is not safe evidence for an automatic retry.
+- Chose lease-token/delivery-epoch compare-and-swap for outbox results and `FREEZING → FROZEN`
+  behavior for an in-flight sync freeze so a late Jira result cannot overwrite reconciler state.
+- Chose held command semantics during team pause: accept/audit explicit commands immediately, apply
+  mechanics once after resume/reconciliation, and continue to ingest supported Jira external truth
+  with zero time credit.
+- Chose `simv2_` 256-bit opaque private credentials, a 24-hour rotation overlap, separate API/MCP/
+  dashboard client kinds, and an 8-hour-idle/24-hour-absolute same-origin dashboard session with
+  strict Origin and session-bound CSRF protection.
+- Chose a deterministic two-entry ZIP ground-truth export, private authenticated HTTP/MCP-resource
+  retrieval, and 24-hour derived-artifact expiry while retaining source rows and export metadata.
+- Chose exact semantic UUID/hash/decision enums, linear bounded touch sampling, p50/p99 event-time
+  boundaries, and boundary-slice transaction semantics so cross-process replay and crash behavior do
+  not depend on implementation guesses.
+
+## [2026-08-10] V2 Stage 0 — Simplify to high-level plan
+- Pavel explicitly said the prior plan was too detailed and that a capable model will implement it.
+- Made `docs/v2/high-level-plan.md` the active authority and retained the detailed schemas,
+  algorithms, and 96-task decomposition only as optional reference rather than binding choices.
+- Left detailed implementation choices to the model working on each milestone, provided it preserves
+  the confirmed product requirements and records any new assumptions under this project process.
+
+## [2026-08-10] V2 Stage 0 — Independent implementation prompt
+- Interpreted Pavel's request for a long minimally supervised run as authorization for routine local
+  dependency setup, safe local commits, and continued local development across intermediate
+  milestones without repeated confirmation.
+- Did not interpret it as authorization to push, deploy, approve Pavel's UAT, expose secrets, or
+  mutate a live Jira tenant; the prompt directs the agent to use fakes when those gates are absent.

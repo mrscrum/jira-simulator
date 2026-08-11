@@ -1,0 +1,358 @@
+{
+  "schema_version": "2.0",
+  "team": {
+    "name": "Payments Platform",
+    "summary": "A representative payments platform Scrum team",
+    "description": "Builds and operates payment authorization, settlement, and merchant integration capabilities.",
+    "methodology": "SCRUM",
+    "archetype": "Platform product team",
+    "timezone": "America/Los_Angeles",
+    "locale": "en-US"
+  },
+  "jira": {
+    "project_name": "SIM - Payments Platform",
+    "project_key": "SIMPAYMEN",
+    "board_name": "SIM - Payments Platform Board",
+    "project_type": "COMPANY_MANAGED",
+    "topology_strategy": "OFFICIAL_PROJECT_SCOPED_V1"
+  },
+  "calendar": {
+    "working_weekdays": ["MON", "TUE", "WED", "THU", "FRI"],
+    "workday_start": "09:00",
+    "workday_end": "17:00",
+    "holiday_calendar_profile": "US_FEDERAL_V1",
+    "holiday_horizon_end": "2036-12-31",
+    "holidays": [
+      "2025-01-01",
+      "2025-01-20",
+      "2025-02-17",
+      "2025-05-26",
+      "2025-06-19",
+      "2025-07-04",
+      "2025-09-01",
+      "2025-10-13",
+      "2025-11-11",
+      "2025-11-27",
+      "2025-12-25",
+      "2026-01-01",
+      "2026-01-19",
+      "2026-02-16",
+      "2026-05-25",
+      "2026-06-19",
+      "2026-07-03",
+      "2026-09-07",
+      "2026-10-12",
+      "2026-11-11",
+      "2026-11-26",
+      "2026-12-25",
+      "2027-01-01",
+      "2027-01-18",
+      "2027-02-15",
+      "2027-05-31",
+      "2027-06-18",
+      "2027-07-05",
+      "2027-09-06",
+      "2027-10-11",
+      "2027-11-11",
+      "2027-11-25",
+      "2027-12-24",
+      "2027-12-31",
+      "2028-01-17",
+      "2028-02-21",
+      "2028-05-29",
+      "2028-06-19",
+      "2028-07-04",
+      "2028-09-04",
+      "2028-10-09",
+      "2028-11-10",
+      "2028-11-23",
+      "2028-12-25",
+      "2029-01-01",
+      "2029-01-15",
+      "2029-02-19",
+      "2029-05-28",
+      "2029-06-19",
+      "2029-07-04",
+      "2029-09-03",
+      "2029-10-08",
+      "2029-11-12",
+      "2029-11-22",
+      "2029-12-25",
+      "2030-01-01",
+      "2030-01-21",
+      "2030-02-18",
+      "2030-05-27",
+      "2030-06-19",
+      "2030-07-04",
+      "2030-09-02",
+      "2030-10-14",
+      "2030-11-11",
+      "2030-11-28",
+      "2030-12-25",
+      "2031-01-01",
+      "2031-01-20",
+      "2031-02-17",
+      "2031-05-26",
+      "2031-06-19",
+      "2031-07-04",
+      "2031-09-01",
+      "2031-10-13",
+      "2031-11-11",
+      "2031-11-27",
+      "2031-12-25",
+      "2032-01-01",
+      "2032-01-19",
+      "2032-02-16",
+      "2032-05-31",
+      "2032-06-18",
+      "2032-07-05",
+      "2032-09-06",
+      "2032-10-11",
+      "2032-11-11",
+      "2032-11-25",
+      "2032-12-24",
+      "2032-12-31",
+      "2033-01-17",
+      "2033-02-21",
+      "2033-05-30",
+      "2033-06-20",
+      "2033-07-04",
+      "2033-09-05",
+      "2033-10-10",
+      "2033-11-11",
+      "2033-11-24",
+      "2033-12-26",
+      "2034-01-02",
+      "2034-01-16",
+      "2034-02-20",
+      "2034-05-29",
+      "2034-06-19",
+      "2034-07-04",
+      "2034-09-04",
+      "2034-10-09",
+      "2034-11-10",
+      "2034-11-23",
+      "2034-12-25",
+      "2035-01-01",
+      "2035-01-15",
+      "2035-02-19",
+      "2035-05-28",
+      "2035-06-19",
+      "2035-07-04",
+      "2035-09-03",
+      "2035-10-08",
+      "2035-11-12",
+      "2035-11-22",
+      "2035-12-25",
+      "2036-01-01",
+      "2036-01-21",
+      "2036-02-18",
+      "2036-05-26",
+      "2036-06-19",
+      "2036-07-04",
+      "2036-09-01",
+      "2036-10-13",
+      "2036-11-11",
+      "2036-11-27",
+      "2036-12-25"
+    ]
+  },
+  "members": [
+    {
+      "name": "Olivia Chen",
+      "roles": ["Product Owner"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "product_acceptance", "proficiency": 1.1},
+        {"activity": "analysis", "proficiency": 0.8}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Ava Patel",
+      "roles": ["Business Analyst"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "analysis", "proficiency": 1.15}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Maya Johnson",
+      "roles": ["Software Engineer"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "development", "proficiency": 1.1},
+        {"activity": "code_review", "proficiency": 1.0}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Leo Garcia",
+      "roles": ["Software Engineer"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "development", "proficiency": 1.0},
+        {"activity": "code_review", "proficiency": 1.1}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Noah Williams",
+      "roles": ["Software Engineer"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "development", "proficiency": 0.95},
+        {"activity": "code_review", "proficiency": 0.9}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Emma Kim",
+      "roles": ["Quality Engineer"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "quality_assurance", "proficiency": 1.1}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Sofia Martinez",
+      "roles": ["Quality Engineer"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "quality_assurance", "proficiency": 0.95}
+      ],
+      "availability": []
+    },
+    {
+      "name": "Liam Brown",
+      "roles": ["Scrum Facilitator"],
+      "daily_capacity_hours": 6,
+      "max_concurrent_wip": 2,
+      "responsibilities": [
+        {"activity": "analysis", "proficiency": 0.75}
+      ],
+      "availability": []
+    }
+  ],
+  "workflow": {
+    "statuses": [
+      {"key": "TO_DO", "jira_name": "To Do", "category": "TODO", "activities": [], "consumes_capacity": false, "pauses_service_clock": false},
+      {"key": "ANALYSIS", "jira_name": "Analysis", "category": "IN_PROGRESS", "activities": ["analysis"], "consumes_capacity": true, "pauses_service_clock": false},
+      {"key": "DEVELOPMENT", "jira_name": "Development", "category": "IN_PROGRESS", "activities": ["development"], "consumes_capacity": true, "pauses_service_clock": false},
+      {"key": "CODE_REVIEW", "jira_name": "Code Review", "category": "IN_PROGRESS", "activities": ["code_review"], "consumes_capacity": true, "pauses_service_clock": false},
+      {"key": "QA", "jira_name": "QA", "category": "IN_PROGRESS", "activities": ["quality_assurance"], "consumes_capacity": true, "pauses_service_clock": false},
+      {"key": "PO_REVIEW", "jira_name": "PO Review", "category": "IN_PROGRESS", "activities": ["product_acceptance"], "consumes_capacity": true, "pauses_service_clock": false},
+      {"key": "BLOCKED_EXTERNAL", "jira_name": "Blocked External", "category": "IN_PROGRESS", "activities": [], "consumes_capacity": false, "pauses_service_clock": true},
+      {"key": "DONE", "jira_name": "Done", "category": "DONE", "activities": [], "consumes_capacity": false, "pauses_service_clock": false},
+      {"key": "CANCELLED", "jira_name": "Cancelled", "category": "DONE", "activities": [], "consumes_capacity": false, "pauses_service_clock": false}
+    ],
+    "routes": [
+      {
+        "issue_type": "STORY",
+        "steps": [
+          {"status_key": "TO_DO", "required_activity": null},
+          {"status_key": "ANALYSIS", "required_activity": "analysis"},
+          {"status_key": "DEVELOPMENT", "required_activity": "development"},
+          {"status_key": "CODE_REVIEW", "required_activity": "code_review"},
+          {"status_key": "QA", "required_activity": "quality_assurance"},
+          {"status_key": "PO_REVIEW", "required_activity": "product_acceptance"},
+          {"status_key": "DONE", "required_activity": null}
+        ]
+      },
+      {
+        "issue_type": "BUG",
+        "steps": [
+          {"status_key": "TO_DO", "required_activity": null},
+          {"status_key": "DEVELOPMENT", "required_activity": "development"},
+          {"status_key": "CODE_REVIEW", "required_activity": "code_review"},
+          {"status_key": "QA", "required_activity": "quality_assurance"},
+          {"status_key": "DONE", "required_activity": null}
+        ]
+      },
+      {
+        "issue_type": "TASK",
+        "steps": [
+          {"status_key": "TO_DO", "required_activity": null},
+          {"status_key": "DEVELOPMENT", "required_activity": "development"},
+          {"status_key": "CODE_REVIEW", "required_activity": "code_review"},
+          {"status_key": "QA", "required_activity": "quality_assurance"},
+          {"status_key": "DONE", "required_activity": null}
+        ]
+      },
+      {
+        "issue_type": "SPIKE",
+        "steps": [
+          {"status_key": "TO_DO", "required_activity": null},
+          {"status_key": "ANALYSIS", "required_activity": "analysis"},
+          {"status_key": "DEVELOPMENT", "required_activity": "development"},
+          {"status_key": "PO_REVIEW", "required_activity": "product_acceptance"},
+          {"status_key": "DONE", "required_activity": null}
+        ]
+      },
+      {
+        "issue_type": "ENABLER",
+        "steps": [
+          {"status_key": "TO_DO", "required_activity": null},
+          {"status_key": "ANALYSIS", "required_activity": "analysis"},
+          {"status_key": "DEVELOPMENT", "required_activity": "development"},
+          {"status_key": "CODE_REVIEW", "required_activity": "code_review"},
+          {"status_key": "QA", "required_activity": "quality_assurance"},
+          {"status_key": "DONE", "required_activity": null}
+        ]
+      }
+    ]
+  },
+  "backlog": {
+    "target_depth": 40,
+    "issue_type_weights": {"STORY": 0.65, "BUG": 0.15, "TASK": 0.12, "SPIKE": 0.04, "ENABLER": 0.04},
+    "story_point_weights": {"1": 0.10, "2": 0.15, "3": 0.30, "5": 0.25, "8": 0.15, "13": 0.05},
+    "priority_weights": {"HIGHEST": 0.05, "HIGH": 0.20, "MEDIUM": 0.50, "LOW": 0.20, "LOWEST": 0.05},
+    "manual_import_default_issue_type": "TASK",
+    "manual_import_default_story_points": 3,
+    "arrival_pattern": "ON_DEMAND"
+  },
+  "timing": {
+    "baseline_name": "BALANCED_DWELL_TOUCH_V1",
+    "baseline_version": 1,
+    "overrides": []
+  },
+  "risks": {
+    "profile_name": "BALANCED_CAUSAL_RISK_V1",
+    "profile_version": 1,
+    "enabled_risks": ["EXTERNAL_DEPENDENCY", "CANCELLATION", "REVIEW_REJECTION", "MEMBER_UNAVAILABLE"],
+    "review_rejection_targets": {"CODE_REVIEW": "DEVELOPMENT", "QA": "DEVELOPMENT", "PO_REVIEW": "ANALYSIS"},
+    "max_rework_returns_per_item": 3,
+    "aging_warning_quantile": 0.5,
+    "long_stay_quantile": 0.99
+  },
+  "content": {
+    "domain": "Payment authorization, settlement, and merchant integrations",
+    "generation_enabled": true,
+    "generated_fields": ["BACKLOG_SUMMARY", "ACCEPTANCE_CRITERIA", "SPRINT_GOAL", "EVENT_NARRATION"],
+    "model_profile": "INTERNAL_CONTENT_DEFAULT_V1",
+    "worker_limits": {
+      "max_jobs_per_cycle": 5,
+      "request_timeout_seconds": 45,
+      "max_retries": 1,
+      "max_output_tokens": 1200
+    },
+    "daily_transcript": true,
+    "jira_comments": false
+  },
+  "scrum": {
+    "cadence_days": 14,
+    "first_start": "2026-08-13T09:00:00-07:00",
+    "capacity_min_points": 35,
+    "capacity_max_points": 45
+  },
+  "seed": "7f3a9d31b6f4c8e2504ad19c335a8d5e93b4e16fc9e44a0ed64f5e2d1c38a701"
+}

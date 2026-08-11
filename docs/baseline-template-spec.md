@@ -1,5 +1,9 @@
 # Baseline Population Template — Requirements & Plan
 
+> **Historical v1 baseline proposal — do not execute for v2.** Use
+> [`docs/v2/contracts/starter-catalog.md`](v2/contracts/starter-catalog.md) and the authority order in
+> [`docs/v2/README.md`](v2/README.md).
+
 ## Overview
 
 A **named template** system for auto-populating timing configurations when creating or updating projects (teams). The template captures cycle time distributions per issue type per size, and derives per-status work durations automatically.

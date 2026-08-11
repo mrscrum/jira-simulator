@@ -104,3 +104,69 @@
 - Environment variable `ANTHROPIC_API_KEY` renamed to `OPENAI_API_KEY` in all spec files
 - httpx description updated from "Claude API calls" to "OpenAI API calls" in AGENTS.md
 - README prerequisites updated from "Anthropic API key" to "OpenAI API key" in stage-0-prompt.md
+
+## [2026-08-10] Stage 7 — Current implementation assessment
+### Changed
+- Added `docs/requirements-functionality-map.md` with the current product boundary, architecture,
+  implemented/partial/missing functionality, verification evidence, and prioritized risks.
+- Updated `README.md`, `agent_instruction.md`, and Stage 7 backlog tracking to reflect the assessed
+  code rather than historical stage claims.
+### Fixed
+- No fixes made; this task was strictly assessment and documentation.
+
+## [2026-08-10] V2 Stage 0 — Approved durable implementation plan
+### Changed
+- Added the authoritative `docs/v2/` requirements, decisions, architecture, contracts, operations,
+  implementation runbook, context-sized task plan, and verification matrix.
+- Added the active `backlog/v2/` namespace with stable task IDs, dependencies, gates, UAT states,
+  and the next execution pointer.
+- Added Jira-side human intervention as a first-class bidirectional integration requirement covering
+  sprint lifecycle, scope, unknown cards, re-estimation, status/field changes, echo suppression, and
+  isolated conflict handling.
+- Added executable starter timing/risk catalogs, an exact cross-process RNG contract, proficiency
+  mechanics, restart re-anchoring, protected Jira webhook/poll reconciliation, and staged Codex/MCP
+  delivery contracts so implementation does not require silent product choices.
+- Split oversized Jira-intervention, Codex-control, persistence, ground-truth, and release tasks; the
+  five-Scrum-team production gate now precedes Kanban, with a later mixed-team regression.
+- Added authority/quarantine pointers so fresh agents do not execute obsolete v1 handoff, Stage 4,
+  distribution, carryover-penalty, precompute, or comment plans.
+- Updated the current-state README and agent handoff without claiming v2 implementation.
+- Incorporated Pavel's explicit requirement that managed projects survive manual Jira sprint and
+  card intervention, including webhook/poll ingestion, human-wins fields, protected topology,
+  restart ordering, and stale-outbox supersession.
+- Completed the recommended Scrum/Kanban starter contracts, exact replay/event-time/availability
+  algorithms, public-API Jira topology strategy and early tenant gate, safe ambiguous-create/outbox
+  lease semantics, private API/dashboard authentication, and retrievable deterministic calibration
+  exports.
+- Added `V2-S0-T09`, bringing the executable plan/backlog to 96 matching context-sized tasks, and
+  added the required documentation-task evidence record.
+### Fixed
+- Resolved the planning conflicts around database, workflow ownership, runtime mode, sprint
+  boundaries/carryover, Jira identity/comments, Codex/OpenAI separation, and ground-truth exposure.
+- Resolved remaining contradictions in route topology, successor full-scope projection, paused
+  commands, in-flight sync freeze, Stage 3 auth ordering, and ground-truth download parity.
+- No implementation code or runtime behavior was changed.
+
+## [2026-08-10] V2 Stage 0 — Simplify active plan
+### Changed
+- Added `docs/v2/high-level-plan.md` as the concise active requirements, architecture, roadmap, and
+  MVP acceptance document.
+- Replaced the active 96-task pointer with seven outcome milestones and marked the detailed planning
+  artifacts as optional reference.
+- Kept direct Jira sprint/card intervention and restart reconciliation explicit in the active scope.
+### Fixed
+- Removed implementation-level algorithms, schemas, and task sequencing from the mandatory plan so
+  the implementing model can make appropriate local design choices.
+- No application code or runtime behavior was changed.
+
+## [2026-08-10] V2 Stage 0 — Add independent implementation prompt
+### Changed
+- Added a ready-to-paste v2 implementation prompt with direct links to the active requirements,
+  current assessment, milestone backlog, repository rules, and handoff.
+- Authorized routine local decisions and continued work across intermediate milestones while
+  preserving UAT, deployment, remote push, and live Jira mutation as explicit external gates.
+- Defined implementation priorities, TDD expectations, verification, and the required morning
+  handoff without reintroducing a low-level task plan.
+### Fixed
+- Prevented missing credentials or one blocked integration path from stopping unrelated local work.
+- No application code or runtime behavior was changed.
