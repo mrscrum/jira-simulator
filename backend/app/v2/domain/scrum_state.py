@@ -164,6 +164,19 @@ def _require_text(value: object, label: str) -> str:
     return value
 
 
+def _require_optional_text(value: object, label: str) -> str | None:
+    if value is None:
+        return None
+    return _require_text(value, label)
+
+
+def _require_lower_hex_digest(value: object, label: str) -> str:
+    digest = _require_text(value, label)
+    if LOWER_HEX_64_PATTERN.fullmatch(digest) is None:
+        raise ValueError(f"{label} must be a lower-case SHA-256 digest")
+    return digest
+
+
 def _require_utc(value: object, label: str) -> datetime:
     if type(value) is not datetime:
         raise TypeError(f"{label} must be a datetime")
@@ -192,7 +205,7 @@ def _require_enum(value: object, enum_type: type[StrEnum], label: str) -> None:
 
 def _canonical_document(text: object, digest: object, label: str) -> dict[str, object]:
     _require_text(text, f"{label}_json")
-    _require_text(digest, f"{label}_sha256")
+    _require_lower_hex_digest(digest, f"{label}_sha256")
     try:
         document = json.loads(text)
     except json.JSONDecodeError as error:
@@ -512,7 +525,7 @@ class StatusVisitState(ImmutableValue):
     ordinal: int
     lifecycle: StatusVisitLifecycle
     status_key: str
-    activity_key: str
+    activity_key: str | None
     member_id: UUID | None
     entered_at: datetime
     closed_at: datetime | None
@@ -535,11 +548,26 @@ class StatusVisitState(ImmutableValue):
         _require_semantic_id(self.id, visit_rng_id(self.work_item_id, ordinal), "semantic visit id")
         _require_enum(self.lifecycle, StatusVisitLifecycle, "lifecycle")
         _require_text(self.status_key, "status_key")
-        _require_text(self.activity_key, "activity_key")
+        _require_optional_text(self.activity_key, "activity_key")
         if self.member_id is not None:
             _require_uuid(self.member_id, "member_id")
+        self._validate_zero_touch()
         self._validate_times()
         self._validate_microseconds()
+
+    def _validate_zero_touch(self) -> None:
+        if self.activity_key is not None:
+            return
+        if self.member_id is not None:
+            raise ValueError("zero-touch visit must not have a member owner")
+        touch_values = (
+            self.required_work_microseconds,
+            self.elapsed_work_microseconds,
+            self.remaining_work_microseconds,
+            self.credited_labor_microseconds,
+        )
+        if any(touch_values):
+            raise ValueError("zero-touch visit must have zero touch and labor clocks")
 
     def _validate_times(self) -> None:
         entered = _require_utc(self.entered_at, "entered_at")
@@ -918,7 +946,10 @@ class StatusVisitSample(ImmutableValue):
         if required != _hours_to_microseconds(self.touch_sampled_hours):
             raise ValueError("required work must equal retained touch sampled hours")
         expected = canonical_sha256({"required_work_microseconds": required})
-        if self.required_work_sha256 != expected:
+        digest = _require_lower_hex_digest(
+            self.required_work_sha256, "required_work_sha256"
+        )
+        if digest != expected:
             raise ValueError("required work digest does not match exact microseconds")
 
 
@@ -1166,7 +1197,9 @@ def _validate_natural_owner(
 def _validate_open_visit_status(state: "_ScrumCollections") -> None:
     work_items = {item.id: item for item in state.work_items}
     for visit in state.status_visits:
-        work = work_items[visit.work_item_id]
+        work = work_items.get(visit.work_item_id)
+        if work is None:
+            continue
         is_open_status_mismatch = (
             visit.lifecycle is StatusVisitLifecycle.OPEN
             and visit.status_key != work.current_status_key
@@ -1200,9 +1233,6 @@ class _ScrumCollections:
         _validate_collection_uniqueness(collections)
         _validate_partial_uniqueness(self)
         _validate_one_team_run(collections)
-        _validate_member_references(self)
-        _validate_work_references(self)
-        _validate_counter_references(self)
         _validate_open_visit_status(self)
         _validate_sample_links(self.status_visits, self.status_visit_samples)
 
@@ -1271,6 +1301,10 @@ def _validate_blueprint_visits(
         status = _status_for(blueprint, visit.status_key)
         if not matches_step:
             raise ValueError("visit activity must match the blueprint route step")
+        if visit.activity_key is None:
+            if visit.member_id is not None:
+                raise ValueError("zero-touch visit must not have a member owner")
+            continue
         if visit.activity_key not in status.activities:
             raise ValueError("visit activity must belong to the blueprint status")
         _validate_member_activity(visit, identities, blueprint)
@@ -1323,6 +1357,13 @@ def _validate_sample_links(
             raise ValueError("status sample must match visit required work")
 
 
+def _validate_sample_cardinality(state: "_ScrumCollections") -> None:
+    visit_ids = {visit.id for visit in state.status_visits}
+    sample_visit_ids = {sample.visit_id for sample in state.status_visit_samples}
+    if visit_ids != sample_visit_ids:
+        raise ValueError("complete Scrum state requires exactly one sample per visit")
+
+
 @immutable_dataclass
 class ScrumStateWriteSet(_ScrumCollections, ImmutableValue):
     member_identities: tuple[MemberIdentity, ...] = ()
@@ -1357,6 +1398,14 @@ class ScrumStateSnapshot(_ScrumCollections, ImmutableValue):
 
     def __post_init__(self) -> None:
         self.validate()
+
+    def validate(self) -> None:
+        _ScrumCollections.validate(self)
+        _validate_member_references(self)
+        _validate_work_references(self)
+        _validate_counter_references(self)
+        _validate_open_visit_status(self)
+        _validate_sample_cardinality(self)
 
     @classmethod
     def from_write_set(cls, state: ScrumStateWriteSet) -> Self:

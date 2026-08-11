@@ -9,8 +9,8 @@ not a fixed microtask sequence.
 - [x] M0 — Agree requirements, architecture, and delivery order — completed 2026-08-10
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
-  state at revision 015 and passed its first review-fix gate, and Task 6 remains open in
-  [`m1-scrum-state.md`](m1-scrum-state.md)
+  state at revision 015 with its second review-fix implementation verified, and Task 6 remains
+  open in [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -33,9 +33,10 @@ authenticated before use, stale extensions catch up idempotently in ten-year blo
 timezone/local-boundary conversions expose a stable domain range error. M1 remains in progress. The
 active [`m1-scrum-state.md`](m1-scrum-state.md) plan freezes exactly two context-sized slices:
 Task 5 is complete with review-hardened revision-015 authoritative state persistence, sealed and
-blueprint-authenticated timing provenance, and typed semantic-owner constraints; Task 6 remains
-open to integrate that state with the existing atomic runtime-CAS/live-ledger unit of work without
-a revision 016. Capacity allocation,
+blueprint-authenticated timing provenance, typed semantic-owner constraints, exact zero-touch
+null-activity visits, sample-complete snapshots, and sparse touched-row after-images resolved
+against persisted owners before DML; Task 6 remains open to integrate that state with the existing
+atomic runtime-CAS/live-ledger unit of work without a revision 016. Capacity allocation,
 live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external wiring, and UAT
 remain deferred.
 

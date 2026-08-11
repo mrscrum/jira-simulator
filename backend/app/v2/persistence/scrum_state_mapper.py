@@ -94,14 +94,11 @@ class SqlAlchemyScrumStateMapper:
             raise TypeError("state must be a ScrumStateWriteSet")
         state.validate()
         coordinates = _state_coordinates(state)
-        if coordinates is not None:
-            with session.no_autoflush:
-                blueprint = _load_authority(session, *coordinates)
-            state.validate_against(blueprint)
+        candidate = _candidate_snapshot(session, state, coordinates)
         for spec, items in zip(LOAD_SPECS, state._collection_values(), strict=True):
-            _add_collection(session, items, spec[0])
+            _apply_collection(session, items, spec[0])
             session.flush()
-        return _ordered_snapshot(state)
+        return candidate
 
     def load(self, session: Session, query: ScrumStateQuery) -> ScrumStateSnapshot:
         if not isinstance(session, Session):
@@ -110,10 +107,7 @@ class SqlAlchemyScrumStateMapper:
             raise TypeError("query must be a ScrumStateQuery")
         with session.no_autoflush:
             blueprint = _load_authority(session, query.team_id, query.run_id)
-            collections = tuple(_load_collection(session, query, spec) for spec in LOAD_SPECS)
-        snapshot = ScrumStateSnapshot(*collections)
-        snapshot.validate_against(blueprint)
-        return snapshot
+            return _load_validated_snapshot(session, query, blueprint)
 
 
 def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None] | None:
@@ -123,6 +117,56 @@ def _state_coordinates(state: ScrumStateWriteSet) -> tuple[UUID, UUID | None] | 
     team_id = records[0].team_id
     run_id = next((item.run_id for item in records if hasattr(item, "run_id")), None)
     return team_id, run_id
+
+
+def _candidate_snapshot(
+    session: Session,
+    state: ScrumStateWriteSet,
+    coordinates: tuple[UUID, UUID | None] | None,
+) -> ScrumStateSnapshot:
+    if coordinates is None:
+        return ScrumStateSnapshot.from_write_set(state)
+    team_id, run_id = coordinates
+    with session.no_autoflush:
+        blueprint = _load_authority(session, team_id, run_id)
+        current = _load_current_snapshot(session, coordinates, blueprint)
+        candidate = _merged_snapshot(current, state)
+        candidate.validate_against(blueprint)
+    return candidate
+
+
+def _load_current_snapshot(
+    session: Session,
+    coordinates: tuple[UUID, UUID | None],
+    blueprint: ResolvedTeamBlueprint,
+) -> ScrumStateSnapshot:
+    team_id, run_id = coordinates
+    if run_id is None:
+        members = _load_team_members(session, team_id)
+        snapshot = ScrumStateSnapshot(member_identities=members)
+        snapshot.validate_against(blueprint)
+        return snapshot
+    query = ScrumStateQuery(team_id, run_id)
+    return _load_validated_snapshot(session, query, blueprint)
+
+
+def _load_validated_snapshot(
+    session: Session,
+    query: ScrumStateQuery,
+    blueprint: ResolvedTeamBlueprint,
+) -> ScrumStateSnapshot:
+    collections = tuple(_load_collection(session, query, spec) for spec in LOAD_SPECS)
+    snapshot = ScrumStateSnapshot(*collections)
+    snapshot.validate_against(blueprint)
+    return snapshot
+
+
+def _load_team_members(session: Session, team_id: UUID) -> tuple[MemberIdentity, ...]:
+    statement = select(V2MemberIdentityModel).where(
+        V2MemberIdentityModel.team_id == str(team_id)
+    )
+    models = session.scalars(statement.order_by(V2MemberIdentityModel.blueprint_index)).all()
+    return tuple(_domain_record(model, MemberIdentity) for model in models)
 
 
 def _load_authority(
@@ -160,17 +204,54 @@ def _validate_run(session: Session, team_id: UUID, run_id: UUID) -> None:
         raise ValueError("persisted team/run semantic identity does not match")
 
 
-def _add_collection(session: Session, items: tuple[object, ...], model_type: type) -> None:
+def _apply_collection(session: Session, items: tuple[object, ...], model_type: type) -> None:
+    if model_type is V2StatusVisitModel:
+        _apply_visits(session, items)
+        return
     models = [model_type(**_record_values(item)) for item in items]
     session.add_all(models)
 
 
-def _ordered_snapshot(state: ScrumStateWriteSet) -> ScrumStateSnapshot:
+def _apply_visits(session: Session, items: tuple[object, ...]) -> None:
+    for item in items:
+        values = _record_values(item)
+        model = session.get(V2StatusVisitModel, values["id"])
+        if model is None:
+            session.add(V2StatusVisitModel(**values))
+            continue
+        for field_name, value in values.items():
+            setattr(model, field_name, value)
+
+
+def _merged_snapshot(
+    current: ScrumStateSnapshot, touched: ScrumStateWriteSet
+) -> ScrumStateSnapshot:
     collections = tuple(
-        tuple(sorted(items, key=lambda item: _semantic_order(item, spec[2])))
-        for spec, items in zip(LOAD_SPECS, state._collection_values(), strict=True)
+        _merged_collection(existing, changes, spec[2])
+        for spec, existing, changes in zip(
+            LOAD_SPECS,
+            current._collection_values(),
+            touched._collection_values(),
+            strict=True,
+        )
     )
     return ScrumStateSnapshot(*collections)
+
+
+def _merged_collection(
+    existing: tuple[object, ...], changes: tuple[object, ...], order_names: tuple[str, ...]
+) -> tuple[object, ...]:
+    records = {_persistence_identity(record): record for record in existing}
+    records.update({_persistence_identity(record): record for record in changes})
+    return tuple(sorted(records.values(), key=lambda item: _semantic_order(item, order_names)))
+
+
+def _persistence_identity(record: object) -> object:
+    if type(record) is SemanticCounter:
+        return record.team_id, record.run_id, record.scope
+    if type(record) is MemberBusinessDateConsumption:
+        return record.team_id, record.run_id, record.member_id, record.business_date
+    return getattr(record, "id", getattr(record, "visit_id", None))
 
 
 def _semantic_order(record: object, names: tuple[str, ...]) -> tuple[object, ...]:

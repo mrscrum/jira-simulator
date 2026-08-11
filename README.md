@@ -55,12 +55,21 @@ checks. SQLite represents bound booleans as integers, so strict boolean rejectio
 the public domain and mapper validation boundary; database checks separately reject non-integer
 numeric storage classes and out-of-range values.
 
-`SqlAlchemyScrumStateMapper` accepts a caller-owned SQLAlchemy `Session`, validates the complete
-tuple-only write set and persisted blueprint authority before its first insert, flushes constraints
-without commit/rollback, returns detached values in deterministic semantic order, and reloads the
-same state after engine disposal. It rejects mixed or missing parents, invalid member positions,
+`SqlAlchemyScrumStateMapper` accepts a caller-owned SQLAlchemy `Session` and sparse tuple-only
+after-images. Under `no_autoflush`, it resolves unchanged persisted owners and visit samples omitted
+from the write set, validates the complete merged snapshot against persisted blueprint authority
+before Task 5 DML, flushes constraints without commit/rollback, and returns detached values in
+deterministic semantic order. It rejects mixed or missing parents, invalid member positions,
 route/status/activity mismatches, unsupported natural owners, duplicate semantic coordinates, and
-conflicting active/open/current after-images before Task 5 DML.
+conflicting active/open/current after-images before writing.
+
+Status visits use an exact `str | None` activity key. Approved null-activity route steps persist and
+restart only as zero-touch visits with no member owner, while activity-bearing steps require their
+exact activity/member binding. Every complete snapshot and newly inserted visit has exactly one
+blueprint-authenticated sample; a sparse update to an existing visit may omit only an unchanged
+sample that the mapper has loaded and reauthenticated. Required-work hashes are exact plain
+lower-case SHA-256 strings. The mapper narrowly updates existing visit after-images; generalized
+Task 6 upsert/CAS remains deferred.
 Aware offset instants normalize to UTC while naive instants reject. The canonical resolved blueprint
 remains the only home for names, roles, configured capacity/WIP, responsibilities, proficiency,
 routes, timing grids, calendar, and policy configuration. Revision `015` independently downgrades to
@@ -272,7 +281,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - The API has no authentication and Nginx has no working TLS configuration.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
-- V2 currently provides persistence contracts plus pure deterministic decision/timing/calendar
-  primitives; it has no occurrence allocator, work/sprint/status-visit persistence, live tick
-  engine, scheduler wiring, projection worker, API routes, Jira/OpenAI adapter, or live-provider
-  validation.
+- V2 currently provides persistent work/sprint/member/status-visit contracts plus pure
+  deterministic decision/timing/calendar primitives; it has no occurrence allocator, atomic Task 6
+  state/live-ledger integration, live tick engine, scheduler wiring, projection worker, API routes,
+  Jira/OpenAI adapter, or live-provider validation.

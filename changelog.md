@@ -356,3 +356,22 @@
   at the public domain/mapper boundary rather than overclaimed as a raw-SQL guarantee.
 - Task 6, revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1
   completion remain untouched.
+
+## [2026-08-11] M1 — Support sparse Scrum after-images
+### Changed
+- Made status-visit activity exactly nullable for approved zero-touch workflow steps, with no
+  member owner, zero touch demand, one authenticated sample, and disposed-engine restart coverage.
+- Made Task 5 write sets sparse while keeping returned and loaded snapshots complete: the mapper
+  resolves omitted persisted owners and unchanged visit samples under the caller session's
+  `no_autoflush` boundary and validates the merged aggregate before Task 5 DML.
+- Kept revision 015 as the sole linear head and made ORM/migration activity nullability match; no
+  revision 016 was added.
+### Fixed
+- Sparse consumption, factor, visit/sample, and visit-counter after-images no longer require
+  unchanged member/work owners to be repeated in the same write set.
+- Complete snapshots and new visits now require exactly one authenticated sample, while an existing
+  visit update may reuse only its loaded and authenticated persisted sample.
+- Required-work hashes now reject upper-case, malformed, wrong-content, and equality-spoofing
+  string values before SQL.
+- Only existing status visits receive the narrow reviewed after-image update; generalized Task 6
+  upsert/CAS, external calls, deployment, UAT, and M1 completion remain deferred.

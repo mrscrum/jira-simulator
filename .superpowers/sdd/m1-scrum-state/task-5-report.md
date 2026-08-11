@@ -2,7 +2,9 @@
 
 ## Status and scope
 
-Status: implementation, review, and verification DONE; exact Task 5 commit pending.
+Status: original implementation committed as `a46b615`; review fix round 1 committed as
+`b44d74a`; review fix round 2 is verified and awaits the exact commit subject
+`fix(v2): support sparse scrum after-images`.
 
 Implementation base: `5e5fac547659` (`docs: define durable Scrum state slices`), a plan-only
 descendant of reviewed Task 4 head `11f3663`.
@@ -191,9 +193,8 @@ No warning was suppressed or broadened.
 - Confirmed no v1 behavior, external boundary, live system, Jira/OpenAI account, deployment, push,
   UAT state, Task 6 implementation, or revision 016 entered the work.
 
-No unresolved implementation concern. The exact commit remains intentionally pending until this
-report and the mandatory current-state documentation are included in it. M1 remains in progress;
-Task 6 stays unchecked.
+No unresolved implementation concern. The original implementation was committed as `a46b615`, and
+review fix round 1 was committed as `b44d74a`. M1 remains in progress; Task 6 stays unchecked.
 
 ## Fix round 1 — authoritative binding review
 
@@ -283,3 +284,72 @@ results are:
 The warning inventory remains the existing baseline categories. No external provider, Jira/OpenAI
 account, production database, live environment, deployment target, or remote Git branch was
 accessed.
+
+## Fix round 2 — sparse after-image and zero-touch review
+
+Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). The required fix-round
+subject is `fix(v2): support sparse scrum after-images`; its hash is intentionally not invented
+before the commit exists. This round remains inside Task 5 and revision 015. It adds no broad
+Task 6 upsert, atomic UOW integration, counter claim, lifecycle/allocation behavior, revision 016,
+frontend, external call, deployment, push, UAT, or live-system access.
+
+### Review RED
+
+The consolidated regressions were written before the corresponding production fixes. From
+`backend/`, the exact command was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-2-red.txt
+```
+
+The expected result was exit `1`: `22 failed, 247 passed in 14.99s`. The failures mapped to the
+four supplied findings: nullable zero-touch workflow steps, sparse after-images whose persisted
+owners were omitted from the write set, missing exact sample cardinality/authentication, and
+forged or non-canonical required-work SHA-256 values. A supplemental intrinsic zero-touch RED was
+separately witnessed as `4 failed in 0.23s` without changing the consolidated command above.
+
+### Corrected Task 5 contract
+
+- `StatusVisitState.activity_key` is exactly `str | None`. Approved `TO_DO`/`DONE` route steps with
+  no required activity persist and restart with no activity, no member, and zero touch work while
+  still retaining exactly one authenticated timing sample. Activity-bearing steps require their
+  exact activity/member binding, and zero-touch steps reject both.
+- `ScrumStateWriteSet` is a sparse collection of touched after-images. Before Task 5 DML, the
+  mapper resolves omitted persisted member/work/visit/sample owners in the caller's session under
+  `no_autoflush`, merges them into a complete candidate `ScrumStateSnapshot`, and validates that
+  snapshot against the persisted blueprint. Missing or alien team/run owners reject pre-DML.
+- Every complete snapshot and every newly inserted visit has exactly one authenticated sample.
+  An existing visit after-image may omit its unchanged persisted sample only after the mapper has
+  loaded and reauthenticated that sample; raw/restart loads reject missing samples.
+- `required_work_sha256` is an exact plain lower-case SHA-256 string. Wrong length, upper-case,
+  non-hex, and equality-spoofing `str` subclasses reject in the value, aggregate, and mapper paths
+  before SQL.
+- Existing visit rows alone receive the narrow Task 5 after-image update needed by this review.
+  Other Task 5 rows preserve their existing insert behavior; broad generalized upsert/CAS behavior
+  remains explicitly deferred to Task 6.
+- ORM metadata and migration 015 both make only `v2_status_visits.activity_key` nullable, and the
+  populated `014 -> 015 -> 014 -> 015` round trip plus parity checks remain green. No revision 016
+  exists.
+
+### Final verification
+
+- Task 5 focused: `273 passed in 18.70s`.
+- Task 1 focused: `56 passed, 1 warning in 2.30s`.
+- Task 2 focused: `171 passed in 13.42s`.
+- Task 3 focused: `251 passed in 0.86s`.
+- Task 4 focused: `146 passed in 0.50s`.
+- All v2: `811 passed, 1 warning in 22.68s`.
+- Full safe backend: `1329 passed, 43 skipped, 15 warnings in 50.93s`.
+- Ruff: exit `0`, `All checks passed!`.
+- Alembic: sole head `015`, parent `014`, empty branches, and linear history.
+- Migration round trip and ORM parity: `4 passed in 1.79s`.
+- Cold-import selection: `39 passed in 10.97s`; restart behavior is covered by the focused suite.
+- Architecture boundary selection: `15 passed in 0.27s`.
+- Shape scan: `8` changed Python files, with no function over 30 lines and no function accepting
+  more than three arguments.
+- Repository diff check: exit `0` with empty output.
+
+The warning inventory remains the existing baseline categories. No secret, external provider,
+Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,
+Task 6 implementation, or revision 016 entered this fix round.

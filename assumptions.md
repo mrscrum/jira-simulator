@@ -283,3 +283,11 @@
   Task 5's exact public Python type checks reject them before mapper writes.
 - Made no Task 6, lifecycle/allocation, revision 016, external-system, deployment, UAT, or M1
   completion assumption; all other choices were supplied by the review findings.
+
+## [2026-08-11] M1 — Task 5 review fix round 2
+- No assumptions made. Nullable zero-touch steps, sparse touched-row after-images, complete
+  snapshot/new-visit sample cardinality, strict plain lower-case SHA-256 values, and the narrow
+  existing-visit update boundary were supplied explicitly by the review findings.
+- Preserved revision 015 and deferred generalized upsert/CAS, atomic UOW integration, counter
+  claims, lifecycle/allocation behavior, revision 016, external calls, deployment, UAT, and M1
+  completion exactly as instructed.

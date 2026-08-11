@@ -5,9 +5,11 @@ Date: 2026-08-11
 Implementation base: `5e5fac547659` (`docs: define durable Scrum state slices`), a plan-only
 descendant of reviewed Task 4 head `11f3663`.
 
-Verification head: the Task 5 working tree based on `5e5fac547659`. This evidence file is part of
-the required commit, so its commit hash cannot truthfully be recorded before that commit is made.
-The required exact subject is `feat(v2): persist authoritative scrum state`.
+Commit history: original Task 5 implementation `a46b615` (`feat(v2): persist authoritative scrum
+state`); review fix round 1 `b44d74a` (`fix(v2): bind authoritative scrum state`). Review fix round
+2 is verified on `b44d74a` and awaits the exact subject
+`fix(v2): support sparse scrum after-images`; its hash is intentionally not invented before the
+commit exists.
 
 Scope: immutable authoritative Scrum-state values, eleven relational mappings, a detached
 caller-owned-session mapper, and reversible Alembic revision 015. This task does not implement a
@@ -84,9 +86,10 @@ Important numeric boundaries are explicit:
   non-negative;
 - aware instants normalize to UTC; naive instants reject.
 
-`ScrumStateWriteSet` contains only complete after-images. `ScrumStateSnapshot` contains only
-detached domain values in deterministic semantic order. Neither type carries SQLAlchemy state,
-callables, external intents, lifecycle decisions, allocation behavior, or counter-claim behavior.
+`ScrumStateWriteSet` contains sparse after-images for rows touched by a slice, while every
+`ScrumStateSnapshot` is a complete detached aggregate in deterministic semantic order. Neither
+type carries SQLAlchemy state, callables, external intents, lifecycle decisions, allocation
+behavior, or counter-claim behavior.
 
 ## Revision 015 schema and constraint inventory
 
@@ -132,9 +135,10 @@ including delete behavior, and normalized check SQL. They match for all eleven T
 
 `SqlAlchemyScrumStateMapper` receives a caller-owned `Session`. Static and behavioral tests prove
 it does not create a session and never calls `begin`, `commit`, `rollback`, `close`, or an external
-adapter. `add` recursively validates the complete write set before the first SQL statement, inserts
-only Task 5 state, flushes inside the caller transaction, and returns a detached snapshot. `load`
-returns the same state in deterministic semantic order.
+adapter. `add` validates the sparse write set, loads omitted persisted owners under
+`session.no_autoflush`, validates a complete merged snapshot before Task 5 DML, applies only the
+touched Task 5 rows, flushes inside the caller transaction, and returns that complete detached
+snapshot. `load` returns the same state in deterministic semantic order.
 
 The transaction tests prove:
 
@@ -215,8 +219,10 @@ Static results:
   more than three arguments.
 - Repository `git diff --check`: exit `0` with empty output.
 
-The exact outputs are retained beside this README. No staging, commit, push, deployment, live-system
-access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016 occurred during verification.
+The exact outputs are retained beside this README. The original Task 5 evidence was committed in
+`a46b615`, and review fix round 1 was committed in `b44d74a`. No push, deployment, live-system
+access, Jira/OpenAI access, UAT, Task 6 implementation, or revision 016 occurred during these
+verification rounds.
 
 ## Fix round 1 — authoritative binding evidence
 
@@ -317,3 +323,88 @@ Their retained outputs are:
 The 15 full-suite warnings remain the prior baseline categories. No secret, external provider,
 Jira/OpenAI account, production database, live system, deployment target, or remote Git branch was
 accessed during this fix or its verification.
+
+## Fix round 2 — sparse after-image and zero-touch evidence
+
+Review-fix base: `b44d74a` (`fix(v2): bind authoritative scrum state`). The verified fix awaits the
+exact subject `fix(v2): support sparse scrum after-images`; no pre-commit hash is claimed. Scope is
+limited to the reviewed Task 5 domain, mapper, ORM, tests, and existing revision 015. It adds no
+broad Task 6 upsert/CAS operation, revision 016, frontend, adapter, external call, deployment, push,
+or UAT action.
+
+### Consolidated RED
+
+The regression tests preceded production changes. The exact standard five-file Task 5 command,
+executed from `backend/`, was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_scrum_state.py tests/v2/integration/test_scrum_state_mapper.py tests/v2/integration/test_migration_015.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T05/review-fix-round-2-red.txt
+```
+
+`review-fix-round-2-red.txt` records exit `1` and `22 failed, 247 passed in 14.99s`. The expected
+failures covered four findings: null-activity zero-touch workflow steps, sparse touched-row
+after-images referencing omitted persisted owners, exact visit/sample cardinality and restart
+authentication, and strict required-work SHA-256 representation resistant to equality-spoofing
+string subclasses. A supplemental intrinsic zero-touch RED was separately witnessed as
+`4 failed in 0.23s`; the
+consolidated command and result above remain the primary TDD record.
+
+### Contract and persistence proof
+
+- `StatusVisitState.activity_key` is exactly `str | None`. An approved route step whose
+  `required_activity` is null accepts and restarts only with `activity_key=None`, no member owner,
+  and zero touch microseconds. Activity-bearing steps reject null activity, and null-activity steps
+  reject a substituted activity or member. Zero-touch visits still carry one authenticated sample.
+- A `ScrumStateWriteSet` may contain only touched consumption, factor, visit/sample, or
+  visit-counter rows while their unchanged member/work owners are omitted. Under the caller's
+  `Session` and `no_autoflush`, the mapper resolves persisted owners for the same team/run and merges
+  them with touched rows into a complete candidate snapshot before Task 5 DML. Missing and alien
+  owners reject without a new Task 5 write.
+- Every complete snapshot and every newly inserted visit has exactly one authenticated sample. An
+  updated existing visit may omit its unchanged sample only after the persisted sample is resolved
+  and reauthenticated. Direct snapshots, raw/restart loads, new visits, and sparse updates all
+  reject missing sample evidence at the appropriate pre-DML/load boundary.
+- `required_work_sha256` accepts only an exact plain lower-case 64-character hexadecimal string
+  equal to the authenticated required-work document digest. Upper-case, short, non-hex, wrong
+  content, and equality-spoofing `str` subclasses reject in value, aggregate, and mapper paths
+  before SQL.
+- The mapper narrowly updates an already persisted status visit after-image. It does not introduce
+  generalized Task 5 upsert, counter claim, runtime CAS, or Task 6 behavior; other Task 5 rows retain
+  their reviewed insert semantics.
+- ORM and revision 015 agree that `v2_status_visits.activity_key` is nullable. Migration parity,
+  populated downgrade/re-upgrade, and a disposed-engine zero-touch restart all pass. Revision 015
+  remains the sole linear head; no revision 016 exists.
+
+### Final GREEN and retained verification
+
+The final focused command was identical to the consolidated RED command except for the tee target
+`review-fix-round-2-green.txt`:
+
+```text
+273 passed in 18.70s
+```
+
+All retained pytest pipelines used `set -o pipefail`, `PYTHONDONTWRITEBYTECODE=1`,
+`INTEGRATION_TESTS=false`, the repository virtual environment, `-B`, and disabled pytest cache.
+
+- `review-fix-round-2-task1-focused.txt`: `56 passed, 1 warning in 2.30s`.
+- `review-fix-round-2-task2-focused.txt`: `171 passed in 13.42s`.
+- `review-fix-round-2-task3-focused.txt`: `251 passed in 0.86s`.
+- `review-fix-round-2-task4-focused.txt`: `146 passed in 0.50s`.
+- `review-fix-round-2-green.txt`: `273 passed in 18.70s`.
+- `review-fix-round-2-v2-suite.txt`: `811 passed, 1 warning in 22.68s`.
+- `review-fix-round-2-full-suite.txt`: `1329 passed, 43 skipped, 15 warnings in 50.93s`.
+- `review-fix-round-2-ruff.txt`: exit `0`, `All checks passed!`.
+- Alembic outputs: sole `015 (head)`, parent `014`, empty branch output, linear history.
+- `review-fix-round-2-alembic-roundtrip.txt`: `4 passed in 1.79s` for populated round trip and
+  ORM/revision-015 parity.
+- `review-fix-round-2-cold-import.txt`: `39 passed in 10.97s`.
+- `review-fix-round-2-architecture.txt`: `15 passed in 0.27s`.
+- `review-fix-round-2-code-shape.txt`: `8` changed Python files with no function over 30 lines and
+  no function accepting more than three arguments.
+- `review-fix-round-2-diff-check.txt`: exit `0` with empty output.
+
+The 15 full-suite warnings remain the existing baseline categories. No secret, external provider,
+Jira/OpenAI account, production database, live system, deployment target, remote push, UAT action,
+Task 6 implementation, or revision 016 was accessed or introduced.

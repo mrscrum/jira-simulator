@@ -412,7 +412,7 @@ def _visit_columns() -> list[sa.Column]:
         sa.Column("ordinal", sa.Integer(), nullable=False),
         sa.Column("lifecycle", sa.String(20), nullable=False),
         sa.Column("status_key", sa.String(100), nullable=False),
-        sa.Column("activity_key", sa.String(100), nullable=False),
+        sa.Column("activity_key", sa.String(100), nullable=True),
         sa.Column("member_id", sa.String(36)),
         sa.Column("entered_at", UTCDateTime(), nullable=False),
         sa.Column("closed_at", UTCDateTime()),

@@ -415,7 +415,7 @@ class V2StatusVisitModel(Base):
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
     lifecycle: Mapped[str] = mapped_column(String(20), nullable=False)
     status_key: Mapped[str] = mapped_column(String(100), nullable=False)
-    activity_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    activity_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
     member_id: Mapped[str | None] = mapped_column(String(36))
     entered_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False)
     closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())

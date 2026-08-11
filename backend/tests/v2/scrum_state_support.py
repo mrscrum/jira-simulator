@@ -33,6 +33,7 @@ from app.v2.domain.scrum_state import (
     SprintState,
     StatusVisitLifecycle,
     StatusVisitSample,
+    StatusVisitSampleInput,
     StatusVisitState,
     WorkItemFactor,
     WorkItemLifecycle,
@@ -60,6 +61,10 @@ NOW = datetime(2026, 8, 10, 18, 30, tzinfo=UTC)
 LATER = NOW + timedelta(hours=4)
 BUSINESS_DATE = date(2026, 8, 10)
 REQUIRED_WORK_MICROSECONDS = 8_647_914_917
+ZERO_TOUCH_TIMING = {
+    "TO_DO": (0.25, 1.0, 2.0, 8.0, 16.0),
+    "DONE": (0.0, 0.0, 0.0, 0.0, 0.0),
+}
 
 
 def _canonical_pair(document: dict[str, object]) -> tuple[str, str]:
@@ -191,18 +196,93 @@ def make_visit() -> StatusVisitState:
 
 
 def make_sample() -> StatusVisitSample:
-    from app.v2.domain import scrum_state as state_module
+    return make_sample_for(BLUEPRINT, make_work_item(), make_visit())
 
-    dwell_draw, touch_draw, _, _, _ = _sample_inputs()
-    sample_input_type = getattr(state_module, "StatusVisitSampleInput")
-    sample_input = sample_input_type(
-        BLUEPRINT,
-        make_work_item(),
-        make_visit(),
-        dwell_draw,
-        touch_draw,
-    )
+
+def make_sample_for(
+    blueprint: ResolvedTeamBlueprint, work_item: WorkItemState, visit: StatusVisitState
+) -> StatusVisitSample:
+    stream = DeterministicRandomStream(blueprint.seed, work_item.team_id, work_item.run_id)
+    dwell_draw = stream.draw(DecisionOccurrence(visit.id, DecisionType.STATUS_DWELL, 0), 0)
+    touch_draw = stream.draw(DecisionOccurrence(visit.id, DecisionType.STATUS_TOUCH, 0), 0)
+    sample_input = StatusVisitSampleInput(blueprint, work_item, visit, dwell_draw, touch_draw)
     return StatusVisitSample.create(sample_input)
+
+
+def zero_touch_blueprint_json(status_key: str) -> str:
+    minimum, p25, p50, p99, maximum = ZERO_TOUCH_TIMING[status_key]
+    document = json.loads(BLUEPRINT_JSON)
+    document["timing"]["entries"].append(
+        {
+            "issue_type": "STORY",
+            "max": maximum,
+            "min": minimum,
+            "p25": p25,
+            "p50": p50,
+            "p99": p99,
+            "status_key": status_key,
+            "story_points": 3,
+            "touch_max": 0.0,
+            "touch_min": 0.0,
+        }
+    )
+    return canonical_json(document)
+
+
+def make_zero_touch_write_set(status_key: str) -> ScrumStateWriteSet:
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(zero_touch_blueprint_json(status_key))
+    team_id = team_rng_id(canonical_sha256(json.loads(blueprint.canonical_json())))
+    run_id = run_rng_id(team_id, 0)
+    work_item = _zero_touch_work_item(team_id, run_id, status_key)
+    visit = _zero_touch_visit(work_item, status_key)
+    return ScrumStateWriteSet(
+        work_items=(work_item,),
+        status_visits=(visit,),
+        status_visit_samples=(make_sample_for(blueprint, work_item, visit),),
+    )
+
+
+def _zero_touch_work_item(team_id: UUID, run_id: UUID, status_key: str) -> WorkItemState:
+    lifecycle = WorkItemLifecycle.ACTIVE if status_key == "TO_DO" else WorkItemLifecycle.DONE
+    return WorkItemState(
+        item_rng_id(team_id, CreationKind.INITIAL_BACKLOG, 0),
+        team_id,
+        run_id,
+        CreationKind.INITIAL_BACKLOG,
+        0,
+        "STORY",
+        3,
+        WorkPriority.HIGH,
+        0,
+        lifecycle,
+        status_key,
+        NOW,
+        NOW,
+    )
+
+
+def _zero_touch_visit(work_item: WorkItemState, status_key: str) -> StatusVisitState:
+    lifecycle = StatusVisitLifecycle.OPEN if status_key == "TO_DO" else StatusVisitLifecycle.CLOSED
+    closed_at = None if lifecycle is StatusVisitLifecycle.OPEN else NOW
+    return StatusVisitState(
+        visit_rng_id(work_item.id, 0),
+        work_item.team_id,
+        work_item.run_id,
+        work_item.id,
+        0,
+        lifecycle,
+        status_key,
+        None,
+        None,
+        NOW,
+        closed_at,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
 
 
 def _sample_inputs() -> tuple[object, ...]:

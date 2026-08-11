@@ -56,6 +56,8 @@ def test_revision_015_matches_every_task5_orm_schema_detail(tmp_path):
     migrated_inspector = inspect(migrated_engine)
     for table_name in TASK5_TABLES:
         assert _metadata(orm_inspector, table_name) == _metadata(migrated_inspector, table_name)
+    assert _column_nullable(orm_inspector, "v2_status_visits", "activity_key")
+    assert _column_nullable(migrated_inspector, "v2_status_visits", "activity_key")
 
     orm_engine.dispose()
     migrated_engine.dispose()
@@ -398,6 +400,7 @@ def _sql(value) -> str:
 def _assert_task5_schema(engine) -> None:
     inspector = inspect(engine)
     assert TASK5_TABLES <= set(inspector.get_table_names())
+    assert _column_nullable(inspector, "v2_status_visits", "activity_key")
     assert (
         _partial_index(inspector, "v2_sprints", "ux_v2_sprints_one_active")
         == "lifecycle = 'ACTIVE'"
@@ -418,6 +421,11 @@ def _assert_task5_schema(engine) -> None:
         "ck_v2_status_visits_work_balance",
         "ck_v2_semantic_counters_next_value",
     } <= all_checks
+
+
+def _column_nullable(inspector, table_name: str, column_name: str) -> bool:
+    column = next(item for item in inspector.get_columns(table_name) if item["name"] == column_name)
+    return column["nullable"]
 
 
 def _partial_index(inspector, table_name: str, index_name: str) -> str:

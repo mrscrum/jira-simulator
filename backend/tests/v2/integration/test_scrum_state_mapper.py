@@ -1,6 +1,6 @@
 import ast
 import json
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -27,6 +27,7 @@ from app.v2.domain.scrum_state import (
     ScrumStateWriteSet,
     SemanticCounter,
     SemanticCounterKind,
+    SemanticCounterScope,
     SprintLifecycle,
 )
 from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper
@@ -52,8 +53,14 @@ from tests.v2.scrum_state_support import (
     NOW,
     RUN_ID,
     TEAM_ID,
+    make_factor,
+    make_member,
+    make_sample,
+    make_work_item,
     make_write_set,
+    make_zero_touch_write_set,
     seed_parent_team_and_run,
+    zero_touch_blueprint_json,
 )
 
 TASK5_MODELS = (
@@ -225,6 +232,226 @@ def test_integrity_failure_still_leaves_rollback_ownership_with_caller(v2_sessio
         assert _counts(session) == (0,) * len(TASK5_MODELS)
 
 
+@pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+def test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart(
+    v2_session_factory, requested_at, status_key
+):
+    blueprint_json = zero_touch_blueprint_json(status_key)
+    aggregate = create_aggregate(v2_session_factory, blueprint_json, requested_at)
+    state = make_zero_touch_write_set(status_key)
+    assert (state.work_items[0].team_id, state.work_items[0].run_id) == (
+        aggregate.team.id,
+        aggregate.run.id,
+    )
+    with v2_session_factory.begin() as session:
+        expected = SqlAlchemyScrumStateMapper().add(session, state)
+    database_url = str(v2_session_factory.kw["bind"].url)
+    v2_session_factory.kw["bind"].dispose()
+
+    restarted = _foreign_key_engine(database_url)
+    with Session(restarted) as session:
+        actual = SqlAlchemyScrumStateMapper().load(
+            session, ScrumStateQuery(aggregate.team.id, aggregate.run.id)
+        )
+    restarted.dispose()
+
+    assert actual == expected
+    assert actual.status_visits[0].activity_key is None
+    assert actual.status_visits[0].member_id is None
+    assert actual.status_visit_samples[0].required_work_microseconds == 0
+
+
+@pytest.mark.parametrize("case", ["consumption", "factor", "visit", "visit_counter"])
+def test_sparse_after_images_resolve_unchanged_persisted_owners(v2_session_factory, case):
+    seed_parent_team_and_run(v2_session_factory)
+    owners = ScrumStateWriteSet(
+        member_identities=(make_member(),),
+        work_items=(make_work_item(),),
+    )
+    mapper = SqlAlchemyScrumStateMapper()
+    with v2_session_factory.begin() as session:
+        mapper.add(session, owners)
+    sparse = _sparse_after_image(case)
+
+    with v2_session_factory.begin() as session:
+        persisted = mapper.add(session, sparse)
+
+    assert persisted.member_identities == owners.member_identities
+    assert persisted.work_items == owners.work_items
+    assert getattr(persisted, _sparse_collection(case)) == getattr(sparse, _sparse_collection(case))
+
+
+def _sparse_after_image(case: str) -> ScrumStateWriteSet:
+    state = make_write_set()
+    if case == "consumption":
+        return ScrumStateWriteSet(
+            member_business_date_consumption=state.member_business_date_consumption
+        )
+    if case == "factor":
+        return ScrumStateWriteSet(work_item_factors=state.work_item_factors)
+    if case == "visit":
+        return ScrumStateWriteSet(
+            status_visits=state.status_visits,
+            status_visit_samples=state.status_visit_samples,
+        )
+    visit_scope = SemanticCounterScope(SemanticCounterKind.VISIT_ORDINAL, ITEM_ID, "VISIT")
+    return ScrumStateWriteSet(
+        semantic_counters=(SemanticCounter(TEAM_ID, RUN_ID, visit_scope, 1),)
+    )
+
+
+def _sparse_collection(case: str) -> str:
+    return {
+        "consumption": "member_business_date_consumption",
+        "factor": "work_item_factors",
+        "visit": "status_visits",
+        "visit_counter": "semantic_counters",
+    }[case]
+
+
+@pytest.mark.parametrize("case", ["consumption", "factor", "visit_counter"])
+def test_sparse_after_images_reject_nonexistent_owners_before_dml(v2_session_factory, case):
+    seed_parent_team_and_run(v2_session_factory)
+    _assert_rejected_without_new_task5_write(
+        v2_session_factory, _sparse_missing_owner_state(case)
+    )
+
+
+def _sparse_missing_owner_state(case: str) -> ScrumStateWriteSet:
+    missing = uuid4()
+    if case == "consumption":
+        consumption = replace(
+            make_write_set().member_business_date_consumption[0], member_id=missing
+        )
+        return ScrumStateWriteSet(member_business_date_consumption=(consumption,))
+    if case == "factor":
+        factor = replace(
+            make_factor(),
+            id=semantic_uuid(f"factor/{missing}/DESCRIPTION_QUALITY"),
+            work_item_id=missing,
+        )
+        return ScrumStateWriteSet(work_item_factors=(factor,))
+    scope = SemanticCounterScope(SemanticCounterKind.VISIT_ORDINAL, missing, "VISIT")
+    return ScrumStateWriteSet(semantic_counters=(SemanticCounter(TEAM_ID, RUN_ID, scope, 0),))
+
+
+def test_sparse_after_image_rejects_owner_from_another_team_run_before_dml(
+    v2_session_factory, resolved_blueprint_json, requested_at
+):
+    seed_parent_team_and_run(v2_session_factory)
+    document = json.loads(resolved_blueprint_json)
+    document["team"]["name"] = "Other sparse-owner team"
+    other = create_aggregate(v2_session_factory, canonical_json(document), requested_at)
+    template = make_work_item()
+    other_work = replace(
+        template,
+        id=item_rng_id(other.team.id, template.creation_kind, 0),
+        team_id=other.team.id,
+        run_id=other.run.id,
+    )
+    with v2_session_factory.begin() as session:
+        SqlAlchemyScrumStateMapper().add(
+            session, ScrumStateWriteSet(work_items=(other_work,))
+        )
+    factor = make_factor()
+    alien = replace(
+        factor,
+        id=semantic_uuid(f"factor/{other_work.id}/{factor.kind.value}"),
+        work_item_id=other_work.id,
+    )
+    _assert_rejected_without_new_task5_write(
+        v2_session_factory, ScrumStateWriteSet(work_item_factors=(alien,))
+    )
+
+
+def test_existing_visit_after_image_can_reuse_unchanged_persisted_sample(v2_session_factory):
+    seed_parent_team_and_run(v2_session_factory)
+    original = make_write_set()
+    mapper = SqlAlchemyScrumStateMapper()
+    with v2_session_factory.begin() as session:
+        mapper.add(session, original)
+    updated_visit = replace(
+        original.status_visits[0],
+        queue_microseconds=original.status_visits[0].queue_microseconds + 1,
+    )
+
+    with v2_session_factory.begin() as session:
+        updated = mapper.add(session, ScrumStateWriteSet(status_visits=(updated_visit,)))
+
+    assert updated.status_visits == (updated_visit,)
+    assert updated.status_visit_samples == original.status_visit_samples
+    with v2_session_factory() as session:
+        assert mapper.load(session, ScrumStateQuery(TEAM_ID, RUN_ID)) == updated
+
+
+def test_new_visit_without_sample_is_rejected_before_dml(v2_session_factory):
+    seed_parent_team_and_run(v2_session_factory)
+    state = make_write_set()
+    missing_sample = ScrumStateWriteSet(
+        member_identities=state.member_identities,
+        work_items=state.work_items,
+        status_visits=state.status_visits,
+    )
+    _assert_rejected_before_task5_write(v2_session_factory, missing_sample)
+
+
+def test_restart_load_rejects_visit_whose_sample_row_is_missing(v2_session_factory):
+    seed_parent_team_and_run(v2_session_factory)
+    with v2_session_factory.begin() as session:
+        SqlAlchemyScrumStateMapper().add(session, make_write_set())
+        session.execute(delete(V2StatusVisitSampleModel))
+    database_url = str(v2_session_factory.kw["bind"].url)
+    v2_session_factory.kw["bind"].dispose()
+
+    restarted = _foreign_key_engine(database_url)
+    with Session(restarted) as session, pytest.raises(ValueError, match="sample"):
+        SqlAlchemyScrumStateMapper().load(session, ScrumStateQuery(TEAM_ID, RUN_ID))
+    restarted.dispose()
+
+
+def test_existing_visit_without_persisted_sample_rejects_sparse_update_before_dml(
+    v2_session_factory,
+):
+    seed_parent_team_and_run(v2_session_factory)
+    original = make_write_set()
+    with v2_session_factory.begin() as session:
+        SqlAlchemyScrumStateMapper().add(session, original)
+        session.execute(delete(V2StatusVisitSampleModel))
+    updated = replace(
+        original.status_visits[0],
+        queue_microseconds=original.status_visits[0].queue_microseconds + 1,
+    )
+    _assert_rejected_without_new_task5_write(
+        v2_session_factory, ScrumStateWriteSet(status_visits=(updated,))
+    )
+
+
+def test_forged_required_work_digest_subclass_rejects_before_sql(v2_session_factory):
+    class ForgedDigest(str):
+        def __eq__(self, other):
+            return True
+
+        def __ne__(self, other):
+            return False
+
+    seed_parent_team_and_run(v2_session_factory)
+    sample = make_sample()
+    forged = object.__new__(type(sample))
+    for field in fields(sample):
+        value = getattr(sample, field.name)
+        if field.name == "required_work_sha256":
+            value = ForgedDigest("0" * 64)
+        object.__setattr__(forged, field.name, value)
+    state = make_write_set()
+    invalid = _unsafe_write_set(
+        member_identities=state.member_identities,
+        work_items=state.work_items,
+        status_visits=state.status_visits,
+        status_visit_samples=(forged,),
+    )
+    _assert_rejected_before_task5_write(v2_session_factory, invalid)
+
+
 def test_invalid_write_set_is_rejected_before_first_sql(v2_session_factory):
     seed_parent_team_and_run(v2_session_factory)
     valid = make_write_set()
@@ -305,6 +532,21 @@ def _assert_rejected_before_task5_write(v2_session_factory, state) -> None:
     assert statements == []
     with v2_session_factory() as session:
         assert _counts(session) == (0,) * len(TASK5_MODELS)
+
+
+def _assert_rejected_without_new_task5_write(v2_session_factory, state) -> None:
+    engine = v2_session_factory.kw["bind"]
+    with v2_session_factory() as session:
+        before = _counts(session)
+    statements, listener = _task5_dml(engine)
+    try:
+        with v2_session_factory() as session, pytest.raises((TypeError, ValueError)):
+            SqlAlchemyScrumStateMapper().add(session, state)
+    finally:
+        event.remove(engine, "before_cursor_execute", listener)
+    assert statements == []
+    with v2_session_factory() as session:
+        assert _counts(session) == before
 
 
 def test_mapper_requires_the_persisted_blueprint_before_any_write(v2_session_factory):

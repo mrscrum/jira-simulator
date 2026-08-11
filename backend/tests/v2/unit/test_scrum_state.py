@@ -70,6 +70,8 @@ from tests.v2.scrum_state_support import (
     make_visit,
     make_work_item,
     make_write_set,
+    make_zero_touch_write_set,
+    zero_touch_blueprint_json,
 )
 
 TASK5_VALUE_TYPES = (
@@ -304,6 +306,75 @@ def test_status_visit_requires_balanced_microseconds_and_coherent_close_time():
     assert closed.closed_at == LATER
 
 
+@pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+def test_zero_touch_route_visits_use_exact_none_activity_and_no_member(status_key: str):
+    state = make_zero_touch_write_set(status_key)
+    visit = state.status_visits[0]
+    blueprint = ResolvedTeamBlueprint.from_canonical_json(zero_touch_blueprint_json(status_key))
+
+    state.validate_against(blueprint)
+
+    assert visit.activity_key is None
+    assert visit.member_id is None
+    assert visit.required_work_microseconds == 0
+    assert state.status_visit_samples[0].touch_sampled_hours == 0.0
+
+
+def test_activity_key_accepts_only_exact_text_or_none():
+    class ForgedActivity(str):
+        pass
+
+    with pytest.raises(TypeError, match="activity_key"):
+        replace(make_visit(), activity_key=ForgedActivity("development"))
+    with pytest.raises(TypeError, match="activity_key"):
+        replace(make_visit(), activity_key=1)
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"member_id": MEMBER_ID}, "member"),
+        ({"required_work_microseconds": 1, "remaining_work_microseconds": 1}, "zero-touch"),
+        ({"elapsed_work_microseconds": 1, "required_work_microseconds": 1}, "zero-touch"),
+        ({"credited_labor_microseconds": 1}, "zero-touch"),
+    ],
+)
+def test_none_activity_is_intrinsically_zero_touch_without_a_member(changes, message):
+    with pytest.raises(ValueError, match=message):
+        replace(make_visit(), activity_key=None, **changes)
+
+
+def test_blueprint_rejects_activity_or_member_on_the_wrong_route_step():
+    activity_visit = replace(
+        make_visit(),
+        activity_key=None,
+        member_id=None,
+        required_work_microseconds=0,
+        elapsed_work_microseconds=0,
+        remaining_work_microseconds=0,
+        credited_labor_microseconds=0,
+    )
+    activity_state = ScrumStateWriteSet(
+        member_identities=(make_member(),),
+        work_items=(make_work_item(),),
+        status_visits=(activity_visit,),
+    )
+    with pytest.raises(ValueError, match="route step"):
+        activity_state.validate_against(BLUEPRINT)
+
+    zero_state = make_zero_touch_write_set("TO_DO")
+    zero_blueprint = ResolvedTeamBlueprint.from_canonical_json(
+        zero_touch_blueprint_json("TO_DO")
+    )
+    wrong_activity = replace(zero_state.status_visits[0], activity_key="development")
+    with pytest.raises(ValueError, match="route step"):
+        replace(zero_state, status_visits=(wrong_activity,)).validate_against(zero_blueprint)
+
+    member_id = member_rng_id(zero_state.status_visits[0].team_id, 1)
+    with pytest.raises(ValueError, match="zero-touch"):
+        replace(zero_state.status_visits[0], member_id=member_id)
+
+
 def test_sprint_scope_removed_time_follows_added_time():
     with pytest.raises(ValueError, match="removed_at"):
         replace(make_scope(), removed_at=NOW.replace(year=2025))
@@ -339,6 +410,36 @@ def test_sample_links_explicit_draws_formulas_and_required_work_hash():
         replace(sample, required_work_sha256="0" * 64)
     with pytest.raises((TypeError, ValueError)):
         replace(sample, required_work_microseconds=1)
+
+
+@pytest.mark.parametrize("digest", ["A" * 64, "a" * 63, "g" * 64])
+def test_required_work_digest_is_exact_lower_case_sha256_text(digest: str):
+    with pytest.raises((TypeError, ValueError), match="digest|sha256"):
+        _raw_status_sample(required_work_sha256=digest).validate()
+
+
+def test_required_work_digest_rejects_equal_string_subclass_in_value_and_aggregate():
+    class ForgedDigest(str):
+        def __eq__(self, other):
+            return True
+
+        def __ne__(self, other):
+            return False
+
+    forged = _raw_status_sample(required_work_sha256=ForgedDigest("0" * 64))
+    with pytest.raises(TypeError, match="string"):
+        forged.validate()
+    with pytest.raises(TypeError, match="string"):
+        replace(make_write_set(), status_visit_samples=(forged,))
+
+
+def _raw_status_sample(**changes: object) -> StatusVisitSample:
+    original = make_sample()
+    sample = object.__new__(StatusVisitSample)
+    for field in fields(original):
+        value = changes.get(field.name, getattr(original, field.name))
+        object.__setattr__(sample, field.name, value)
+    return sample
 
 
 def test_sample_draw_provenance_is_bound_to_visit_and_canonical_message():
@@ -535,6 +636,18 @@ def test_write_set_is_tuple_only_deeply_immutable_and_snapshot_is_detached():
     snapshot = ScrumStateSnapshot.from_write_set(write_set)
     assert _collections(snapshot) == _collections(write_set)
     assert snapshot is not write_set
+
+
+def test_sparse_write_set_allows_persisted_owners_but_snapshot_requires_complete_closure():
+    sparse = ScrumStateWriteSet(status_visits=(make_visit(),))
+    assert sparse.status_visits == (make_visit(),)
+
+    state = make_write_set()
+    values = {field.name: getattr(state, field.name) for field in fields(state)}
+    with pytest.raises(ValueError, match="sample"):
+        ScrumStateSnapshot(**{**values, "status_visit_samples": ()})
+    with pytest.raises(ValueError, match="visit"):
+        ScrumStateSnapshot(**{**values, "status_visits": ()})
 
 
 def test_write_set_validates_sample_required_work_against_its_visit():

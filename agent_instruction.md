@@ -47,6 +47,17 @@ plan. Historical Stage 4/5 plans are not executable for v2.
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 2 made the caller-owned mapper accept sparse touched-row
+after-images without weakening complete restart state. It resolves omitted persisted member/work
+owners and unchanged visit samples under `no_autoflush`, validates a complete merged snapshot
+before Task 5 DML, and returns that complete detached aggregate. Approved null-activity route steps
+now persist and restart as exact `activity_key=None`, no-member, zero-touch visits with one
+authenticated sample. Every complete snapshot and new visit requires exactly one authenticated
+sample, required-work hashes are strict plain lower-case SHA-256 strings, and only existing visit
+rows receive the narrow reviewed after-image update. ORM metadata and revision 015 share nullable
+activity-key parity; no generalized Task 6 upsert, revision 016, external call, deployment, UAT, or
+M1 completion was added.
+
 On 2026-08-11, Task 5 review fix round 1 bound authoritative Scrum state to its complete trusted
 authority. Task 5 values now reject runtime and scalar subclasses; status samples can be created
 only from exact authenticated Task 3 draws and are revalidated after restart against the persisted
@@ -160,15 +171,15 @@ only as optional design exploration. Pavel additionally required managed project
 Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
 runtime changes were made.
 
-Current local evidence after Task 5 review fix round 1:
+Current local evidence after Task 5 review fix round 2:
 
-- Backend: 1301 passed, 43 skipped, 15 baseline warnings.
-- V2: 783 passed, 1 baseline warning.
-- Task 5 focused: 245 passed.
+- Backend: 1329 passed, 43 skipped, 15 baseline warnings.
+- V2: 811 passed, 1 baseline warning.
+- Task 5 focused: 273 passed.
 - Task 4 focused: 146 passed.
 - Task 3 focused: 251 passed.
 - Task 1 focused: 56 passed, 1 baseline warning.
-- Task 2 focused: 186 passed.
+- Task 2 focused: 171 passed.
 - Ruff: passed.
 - Alembic: sole revision 015 head, no branches; populated round trip and ORM parity passed.
 - Real Jira integration tests were not run and remain skipped in normal CI.
@@ -220,7 +231,8 @@ Current local evidence after Task 5 review fix round 1:
 - `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
   exact composite ownership, check, unique, and partial-index constraints.
 - `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load mapping; it
-  flushes but never opens, commits, or rolls back a transaction.
+  resolves sparse omitted owners, validates a complete merged snapshot before DML, narrowly updates
+  existing visits, and flushes but never opens, commits, or rolls back a transaction.
 - `backend/alembic/versions/015_add_v2_authoritative_scrum_state.py` — reversible Task 5 schema above
   populated revision 014.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
@@ -237,9 +249,9 @@ Current local evidence after Task 5 review fix round 1:
 
 ## Next Task
 
-Review the committed Task 5 evidence and then execute Task 6 from
+After the required Task 5 review-fix round 2 commit, execute Task 6 from
 `backlog/v2/m1-scrum-state.md` through a new strict RED -> GREEN -> REFACTOR cycle. Task 6 must keep
-revision 015 unchanged while atomically combining runtime CAS, Task 5 after-images, semantic
+revision 015 unchanged while atomically combining runtime CAS, sparse Task 5 after-images, semantic
 counter/eligible occurrence claims, and the existing ledgers. Do not add revision 016,
 allocator/live-flow/lifecycle/planning, dependencies, risks, scheduler/engine wiring, Jira/OpenAI
 calls, deployment, UAT, or M1 completion.
@@ -292,6 +304,9 @@ calls, deployment, UAT, or M1 completion.
 - Task 3 validates caller-supplied occurrences only. It deliberately has no counter or allocation;
   future authoritative state transactions must allocate eligible occurrences on commit without
   deriving them from ledger counts or call order.
+- Task 5 write sets may be sparse, but every returned/reloaded snapshot and every new visit must be
+  sample-complete. Reuse of an omitted sample is valid only for an already persisted visit after
+  the mapper loads and authenticates it in the caller's session.
 
 ## Mandatory Development Flow
 

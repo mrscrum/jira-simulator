@@ -1,0 +1,836 @@
+..................................................FF.F.........F........ [ 26%]
+.........F........FFFFFFFFFFFFFFF....................................... [ 53%]
+..................................................................F.F... [ 80%]
+.....................................................                    [100%]
+=================================== FAILURES ===================================
+__ test_zero_touch_route_visits_use_exact_none_activity_and_no_member[TO_DO] ___
+
+status_key = 'TO_DO'
+
+    @pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+    def test_zero_touch_route_visits_use_exact_none_activity_and_no_member(status_key: str):
+>       state = make_zero_touch_write_set(status_key)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_scrum_state.py:311:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/scrum_state_support.py:237: in make_zero_touch_write_set
+    visit = _zero_touch_visit(work_item, status_key)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/scrum_state_support.py:267: in _zero_touch_visit
+    return StatusVisitState(
+<string>:20: in __init__
+    ???
+app/v2/domain/scrum_state.py:527: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:538: in validate
+    _require_text(self.activity_key, "activity_key")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = None, label = 'activity_key'
+
+    def _require_text(value: object, label: str) -> str:
+        if type(value) is not str:
+>           raise TypeError(f"{label} must be a string")
+E           TypeError: activity_key must be a string
+
+app/v2/domain/scrum_state.py:161: TypeError
+___ test_zero_touch_route_visits_use_exact_none_activity_and_no_member[DONE] ___
+
+status_key = 'DONE'
+
+    @pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+    def test_zero_touch_route_visits_use_exact_none_activity_and_no_member(status_key: str):
+>       state = make_zero_touch_write_set(status_key)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_scrum_state.py:311:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/scrum_state_support.py:237: in make_zero_touch_write_set
+    visit = _zero_touch_visit(work_item, status_key)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/scrum_state_support.py:267: in _zero_touch_visit
+    return StatusVisitState(
+<string>:20: in __init__
+    ???
+app/v2/domain/scrum_state.py:527: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:538: in validate
+    _require_text(self.activity_key, "activity_key")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = None, label = 'activity_key'
+
+    def _require_text(value: object, label: str) -> str:
+        if type(value) is not str:
+>           raise TypeError(f"{label} must be a string")
+E           TypeError: activity_key must be a string
+
+app/v2/domain/scrum_state.py:161: TypeError
+______ test_blueprint_rejects_activity_or_member_on_the_wrong_route_step _______
+
+    def test_blueprint_rejects_activity_or_member_on_the_wrong_route_step():
+>       activity_visit = replace(make_visit(), activity_key=None, member_id=None)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_scrum_state.py:334:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/dataclasses.py:1588: in replace
+    return obj.__class__(**changes)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:20: in __init__
+    ???
+app/v2/domain/scrum_state.py:527: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:538: in validate
+    _require_text(self.activity_key, "activity_key")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = None, label = 'activity_key'
+
+    def _require_text(value: object, label: str) -> str:
+        if type(value) is not str:
+>           raise TypeError(f"{label} must be a string")
+E           TypeError: activity_key must be a string
+
+app/v2/domain/scrum_state.py:161: TypeError
+_ test_required_work_digest_rejects_equal_string_subclass_in_value_and_aggregate _
+
+    def test_required_work_digest_rejects_equal_string_subclass_in_value_and_aggregate():
+        class ForgedDigest(str):
+            pass
+
+        sample = make_sample()
+        forged = _raw_status_sample(
+            required_work_sha256=ForgedDigest(sample.required_work_sha256)
+        )
+>       with pytest.raises(TypeError, match="string"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_scrum_state.py:409: Failed
+_ test_sparse_write_set_allows_persisted_owners_but_snapshot_requires_complete_closure _
+
+    def test_sparse_write_set_allows_persisted_owners_but_snapshot_requires_complete_closure():
+>       sparse = ScrumStateWriteSet(status_visits=(make_visit(),))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_scrum_state.py:621:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1120: in _validate_member_references
+    _require_reference(visit.member_id, members, "visit member")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), owners = {}
+label = 'visit member'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: visit member must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_ test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart[TO_DO] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_nullable_zero_touch_visit0/v2.db), autoflush=True, expire_on_commit=True)
+requested_at = datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)
+status_key = 'TO_DO'
+
+    @pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+    def test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart(
+        v2_session_factory, requested_at, status_key
+    ):
+        blueprint_json = zero_touch_blueprint_json(status_key)
+        aggregate = create_aggregate(v2_session_factory, blueprint_json, requested_at)
+>       state = make_zero_touch_write_set(status_key)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:241:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/scrum_state_support.py:237: in make_zero_touch_write_set
+    visit = _zero_touch_visit(work_item, status_key)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/scrum_state_support.py:267: in _zero_touch_visit
+    return StatusVisitState(
+<string>:20: in __init__
+    ???
+app/v2/domain/scrum_state.py:527: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:538: in validate
+    _require_text(self.activity_key, "activity_key")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = None, label = 'activity_key'
+
+    def _require_text(value: object, label: str) -> str:
+        if type(value) is not str:
+>           raise TypeError(f"{label} must be a string")
+E           TypeError: activity_key must be a string
+
+app/v2/domain/scrum_state.py:161: TypeError
+_ test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart[DONE] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_nullable_zero_touch_visit1/v2.db), autoflush=True, expire_on_commit=True)
+requested_at = datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)
+status_key = 'DONE'
+
+    @pytest.mark.parametrize("status_key", ["TO_DO", "DONE"])
+    def test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart(
+        v2_session_factory, requested_at, status_key
+    ):
+        blueprint_json = zero_touch_blueprint_json(status_key)
+        aggregate = create_aggregate(v2_session_factory, blueprint_json, requested_at)
+>       state = make_zero_touch_write_set(status_key)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:241:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/scrum_state_support.py:237: in make_zero_touch_write_set
+    visit = _zero_touch_visit(work_item, status_key)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/scrum_state_support.py:267: in _zero_touch_visit
+    return StatusVisitState(
+<string>:20: in __init__
+    ???
+app/v2/domain/scrum_state.py:527: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:538: in validate
+    _require_text(self.activity_key, "activity_key")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = None, label = 'activity_key'
+
+    def _require_text(value: object, label: str) -> str:
+        if type(value) is not str:
+>           raise TypeError(f"{label} must be a string")
+E           TypeError: activity_key must be a string
+
+app/v2/domain/scrum_state.py:161: TypeError
+___ test_sparse_after_images_resolve_unchanged_persisted_owners[consumption] ___
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_resol0/v2.db), autoflush=True, expire_on_commit=True)
+case = 'consumption'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit", "visit_counter"])
+    def test_sparse_after_images_resolve_unchanged_persisted_owners(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        owners = ScrumStateWriteSet(
+            member_identities=(make_member(),),
+            work_items=(make_work_item(),),
+        )
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            mapper.add(session, owners)
+>       sparse = _sparse_after_image(case)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:274:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:287: in _sparse_after_image
+    return ScrumStateWriteSet(
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1117: in _validate_member_references
+    _require_reference(item.member_id, members, "member child")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), owners = {}
+label = 'member child'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: member child must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_____ test_sparse_after_images_resolve_unchanged_persisted_owners[factor] ______
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_resol1/v2.db), autoflush=True, expire_on_commit=True)
+case = 'factor'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit", "visit_counter"])
+    def test_sparse_after_images_resolve_unchanged_persisted_owners(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        owners = ScrumStateWriteSet(
+            member_identities=(make_member(),),
+            work_items=(make_work_item(),),
+        )
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            mapper.add(session, owners)
+>       sparse = _sparse_after_image(case)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:274:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:291: in _sparse_after_image
+    return ScrumStateWriteSet(work_item_factors=state.work_item_factors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1204: in validate
+    _validate_work_references(self)
+app/v2/domain/scrum_state.py:1128: in _validate_work_references
+    _require_reference(factor.work_item_id, work_items, "factor work item")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), owners = {}
+label = 'factor work item'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: factor work item must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+______ test_sparse_after_images_resolve_unchanged_persisted_owners[visit] ______
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_resol2/v2.db), autoflush=True, expire_on_commit=True)
+case = 'visit'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit", "visit_counter"])
+    def test_sparse_after_images_resolve_unchanged_persisted_owners(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        owners = ScrumStateWriteSet(
+            member_identities=(make_member(),),
+            work_items=(make_work_item(),),
+        )
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            mapper.add(session, owners)
+>       sparse = _sparse_after_image(case)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:274:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:293: in _sparse_after_image
+    return ScrumStateWriteSet(
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1120: in _validate_member_references
+    _require_reference(visit.member_id, members, "visit member")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), owners = {}
+label = 'visit member'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: visit member must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+__ test_sparse_after_images_resolve_unchanged_persisted_owners[visit_counter] __
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_resol3/v2.db), autoflush=True, expire_on_commit=True)
+case = 'visit_counter'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit", "visit_counter"])
+    def test_sparse_after_images_resolve_unchanged_persisted_owners(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        owners = ScrumStateWriteSet(
+            member_identities=(make_member(),),
+            work_items=(make_work_item(),),
+        )
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            mapper.add(session, owners)
+>       sparse = _sparse_after_image(case)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:274:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:298: in _sparse_after_image
+    return ScrumStateWriteSet(
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1205: in validate
+    _validate_counter_references(self)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it..._id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), scope_key='VISIT'), next_value=1),), natural_decision_evaluations=())
+
+    def _validate_counter_references(state: "_ScrumCollections") -> None:
+        work_ids = {item.id for item in state.work_items}
+        member_ids = {item.id for item in state.member_identities}
+        owner_sets = work_ids, member_ids
+        for counter in state.semantic_counters:
+            scope = counter.scope
+            if scope.kind is SemanticCounterKind.VISIT_ORDINAL and scope.scope_id not in work_ids:
+>               raise ValueError("visit ordinal counter must reference a work item")
+E               ValueError: visit ordinal counter must reference a work item
+
+app/v2/domain/scrum_state.py:1145: ValueError
+__ test_sparse_after_images_reject_nonexistent_owners_before_dml[consumption] __
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_rejec0/v2.db), autoflush=True, expire_on_commit=True)
+case = 'consumption'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit_counter"])
+    def test_sparse_after_images_reject_nonexistent_owners_before_dml(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        _assert_rejected_without_new_task5_write(
+>           v2_session_factory, _sparse_missing_owner_state(case)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:316:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:326: in _sparse_missing_owner_state
+    return ScrumStateWriteSet(member_business_date_consumption=(consumption,))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1117: in _validate_member_references
+    _require_reference(item.member_id, members, "member child")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('bc18ad9d-ce77-429f-9e67-81988bfe4e1d'), owners = {}
+label = 'member child'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: member child must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+____ test_sparse_after_images_reject_nonexistent_owners_before_dml[factor] _____
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_rejec1/v2.db), autoflush=True, expire_on_commit=True)
+case = 'factor'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit_counter"])
+    def test_sparse_after_images_reject_nonexistent_owners_before_dml(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        _assert_rejected_without_new_task5_write(
+>           v2_session_factory, _sparse_missing_owner_state(case)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:316:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:333: in _sparse_missing_owner_state
+    return ScrumStateWriteSet(work_item_factors=(factor,))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1204: in validate
+    _validate_work_references(self)
+app/v2/domain/scrum_state.py:1128: in _validate_work_references
+    _require_reference(factor.work_item_id, work_items, "factor work item")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('a8de28ee-ca6c-4991-84aa-496620d5d478'), owners = {}
+label = 'factor work item'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: factor work item must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_ test_sparse_after_images_reject_nonexistent_owners_before_dml[visit_counter] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_images_rejec2/v2.db), autoflush=True, expire_on_commit=True)
+case = 'visit_counter'
+
+    @pytest.mark.parametrize("case", ["consumption", "factor", "visit_counter"])
+    def test_sparse_after_images_reject_nonexistent_owners_before_dml(v2_session_factory, case):
+        seed_parent_team_and_run(v2_session_factory)
+        _assert_rejected_without_new_task5_write(
+>           v2_session_factory, _sparse_missing_owner_state(case)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:316:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/integration/test_scrum_state_mapper.py:335: in _sparse_missing_owner_state
+    return ScrumStateWriteSet(semantic_counters=(SemanticCounter(TEAM_ID, RUN_ID, scope, 0),))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1205: in validate
+    _validate_counter_references(self)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it..._id=UUID('342c85ae-7f89-47a5-9191-0482ced09a7b'), scope_key='VISIT'), next_value=0),), natural_decision_evaluations=())
+
+    def _validate_counter_references(state: "_ScrumCollections") -> None:
+        work_ids = {item.id for item in state.work_items}
+        member_ids = {item.id for item in state.member_identities}
+        owner_sets = work_ids, member_ids
+        for counter in state.semantic_counters:
+            scope = counter.scope
+            if scope.kind is SemanticCounterKind.VISIT_ORDINAL and scope.scope_id not in work_ids:
+>               raise ValueError("visit ordinal counter must reference a work item")
+E               ValueError: visit ordinal counter must reference a work item
+
+app/v2/domain/scrum_state.py:1145: ValueError
+____ test_sparse_after_image_rejects_owner_from_another_team_run_before_dml ____
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_sparse_after_image_reject0/v2.db), autoflush=True, expire_on_commit=True)
+resolved_blueprint_json = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+requested_at = datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)
+
+    def test_sparse_after_image_rejects_owner_from_another_team_run_before_dml(
+        v2_session_factory, resolved_blueprint_json, requested_at
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        document = json.loads(resolved_blueprint_json)
+        document["team"]["name"] = "Other sparse-owner team"
+        other = create_aggregate(v2_session_factory, canonical_json(document), requested_at)
+        template = make_work_item()
+        other_work = replace(
+            template,
+            id=item_rng_id(other.team.id, template.creation_kind, 0),
+            team_id=other.team.id,
+            run_id=other.run.id,
+        )
+        with v2_session_factory.begin() as session:
+            SqlAlchemyScrumStateMapper().add(
+                session, ScrumStateWriteSet(work_items=(other_work,))
+            )
+        factor = make_factor()
+        alien = replace(
+            factor,
+            id=semantic_uuid(f"factor/{other_work.id}/{factor.kind.value}"),
+            work_item_id=other_work.id,
+        )
+        _assert_rejected_without_new_task5_write(
+>           v2_session_factory, ScrumStateWriteSet(work_item_factors=(alien,))
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:363:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1204: in validate
+    _validate_work_references(self)
+app/v2/domain/scrum_state.py:1128: in _validate_work_references
+    _require_reference(factor.work_item_id, work_items, "factor work item")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('fb285679-2084-5256-b208-81cd9c4cc034'), owners = {}
+label = 'factor work item'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: factor work item must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_____ test_existing_visit_after_image_can_reuse_unchanged_persisted_sample _____
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_existing_visit_after_imag0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_existing_visit_after_image_can_reuse_unchanged_persisted_sample(v2_session_factory):
+        seed_parent_team_and_run(v2_session_factory)
+        original = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            mapper.add(session, original)
+        updated_visit = replace(
+            original.status_visits[0],
+            queue_microseconds=original.status_visits[0].queue_microseconds + 1,
+        )
+
+        with v2_session_factory.begin() as session:
+>           updated = mapper.add(session, ScrumStateWriteSet(status_visits=(updated_visit,)))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_scrum_state_mapper.py:379:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1120: in _validate_member_references
+    _require_reference(visit.member_id, members, "visit member")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), owners = {}
+label = 'visit member'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: visit member must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_____________ test_new_visit_without_sample_is_rejected_before_dml _____________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_new_visit_without_sample_0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_new_visit_without_sample_is_rejected_before_dml(v2_session_factory):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        missing_sample = ScrumStateWriteSet(
+            member_identities=state.member_identities,
+            work_items=state.work_items,
+            status_visits=state.status_visits,
+        )
+>       _assert_rejected_before_task5_write(v2_session_factory, missing_sample)
+
+tests/v2/integration/test_scrum_state_mapper.py:395:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_new_visit_without_sample_0/v2.db), autoflush=True, expire_on_commit=True)
+state = ScrumStateWriteSet(member_identities=(MemberIdentity(id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), team_id=UUID('30...dited_labor_microseconds=1800000000),), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+
+    def _assert_rejected_before_task5_write(v2_session_factory, state) -> None:
+        engine = v2_session_factory.kw["bind"]
+        statements, listener = _task5_dml(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises((TypeError, ValueError)):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/integration/test_scrum_state_mapper.py:524: Failed
+_________ test_restart_load_rejects_visit_whose_sample_row_is_missing __________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_restart_load_rejects_visi0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_restart_load_rejects_visit_whose_sample_row_is_missing(v2_session_factory):
+        seed_parent_team_and_run(v2_session_factory)
+        with v2_session_factory.begin() as session:
+            SqlAlchemyScrumStateMapper().add(session, make_write_set())
+            session.execute(delete(V2StatusVisitSampleModel))
+        database_url = str(v2_session_factory.kw["bind"].url)
+        v2_session_factory.kw["bind"].dispose()
+
+        restarted = _foreign_key_engine(database_url)
+>       with Session(restarted) as session, pytest.raises(ValueError, match="sample"):
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:407: Failed
+_ test_existing_visit_without_persisted_sample_rejects_sparse_update_before_dml _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_existing_visit_without_pe0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_existing_visit_without_persisted_sample_rejects_sparse_update_before_dml(
+        v2_session_factory,
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        original = make_write_set()
+        with v2_session_factory.begin() as session:
+            SqlAlchemyScrumStateMapper().add(session, original)
+            session.execute(delete(V2StatusVisitSampleModel))
+        updated = replace(
+            original.status_visits[0],
+            queue_microseconds=original.status_visits[0].queue_microseconds + 1,
+        )
+        _assert_rejected_without_new_task5_write(
+>           v2_session_factory, ScrumStateWriteSet(status_visits=(updated,))
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests/v2/integration/test_scrum_state_mapper.py:425:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:14: in __init__
+    ???
+app/v2/domain/scrum_state.py:1341: in __post_init__
+    self.validate()
+app/v2/domain/scrum_state.py:1203: in validate
+    _validate_member_references(self)
+app/v2/domain/scrum_state.py:1120: in _validate_member_references
+    _require_reference(visit.member_id, members, "visit member")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+identifier = UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), owners = {}
+label = 'visit member'
+
+    def _require_reference(identifier: UUID, owners: dict[UUID, object], label: str) -> None:
+        if identifier not in owners:
+>           raise ValueError(f"{label} must reference a state owner")
+E           ValueError: visit member must reference a state owner
+
+app/v2/domain/scrum_state.py:1111: ValueError
+_________ test_forged_required_work_digest_subclass_rejects_before_sql _________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_forged_required_work_dige0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_forged_required_work_digest_subclass_rejects_before_sql(v2_session_factory):
+        class ForgedDigest(str):
+            pass
+
+        seed_parent_team_and_run(v2_session_factory)
+        sample = make_sample()
+        forged = object.__new__(type(sample))
+        for field in fields(sample):
+            value = getattr(sample, field.name)
+            if field.name == "required_work_sha256":
+                value = ForgedDigest(value)
+            object.__setattr__(forged, field.name, value)
+        state = make_write_set()
+        invalid = _unsafe_write_set(
+            member_identities=state.member_identities,
+            work_items=state.work_items,
+            status_visits=state.status_visits,
+            status_visit_samples=(forged,),
+        )
+>       _assert_rejected_before_task5_write(v2_session_factory, invalid)
+
+tests/v2/integration/test_scrum_state_mapper.py:448:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_forged_required_work_dige0/v2.db), autoflush=True, expire_on_commit=True)
+state = ScrumStateWriteSet(member_identities=(MemberIdentity(id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), team_id=UUID('30...f40558208dc858b6a2e52050c929c60e2fdf2673581187e3d40d10a0a3a'),), semantic_counters=(), natural_decision_evaluations=())
+
+    def _assert_rejected_before_task5_write(v2_session_factory, state) -> None:
+        engine = v2_session_factory.kw["bind"]
+        statements, listener = _task5_dml(engine)
+        try:
+>           with v2_session_factory() as session, pytest.raises((TypeError, ValueError)):
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/integration/test_scrum_state_mapper.py:524: Failed
+___________ test_revision_015_matches_every_task5_orm_schema_detail ____________
+
+tmp_path = PosixPath('/private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_revision_015_matches_ever0')
+
+    def test_revision_015_matches_every_task5_orm_schema_detail(tmp_path):
+        orm_engine = _foreign_key_engine(f"sqlite:///{tmp_path / 'orm-015.db'}")
+        migrated_path = tmp_path / "migrated-015.db"
+        Base.metadata.create_all(orm_engine)
+        config = _alembic_config(Path(__file__).parents[3], migrated_path)
+        command.upgrade(config, "015")
+        migrated_engine = _foreign_key_engine(f"sqlite:///{migrated_path}")
+
+        orm_inspector = inspect(orm_engine)
+        migrated_inspector = inspect(migrated_engine)
+        for table_name in TASK5_TABLES:
+            assert _metadata(orm_inspector, table_name) == _metadata(migrated_inspector, table_name)
+>       assert _column_nullable(orm_inspector, "v2_status_visits", "activity_key")
+E       AssertionError: assert False
+E        +  where False = _column_nullable(<sqlalchemy.engine.reflection.Inspector object at 0x10e2abb30>, 'v2_status_visits', 'activity_key')
+
+tests/v2/integration/test_migration_015.py:59: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+INFO  [alembic.runtime.migration] Running upgrade 002 -> 003, Add jira bootstrap fields to teams
+INFO  [alembic.runtime.migration] Running upgrade 003 -> 004, Create jira_config table
+INFO  [alembic.runtime.migration] Running upgrade 004 -> 005, Create jira_write_queue table
+INFO  [alembic.runtime.migration] Running upgrade 005 -> 006, Create jira_issue_map table
+INFO  [alembic.runtime.migration] Running upgrade 006 -> 007, Create jira_issue_links table
+INFO  [alembic.runtime.migration] Running upgrade 007 -> 008, Stage 4 schema — simulation engine tables and column additions
+INFO  [alembic.runtime.migration] Running upgrade 008 -> 009, Engine rewrite — new columns for distribution-based simulation
+INFO  [alembic.runtime.migration] Running upgrade 009 -> 010, Add story_points column to move_left_config
+INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, Add timing templates and status_category
+INFO  [alembic.runtime.migration] Running upgrade 011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+INFO  [alembic.runtime.migration] Running upgrade 012 -> 013, Add isolated v2 team persistence spine.
+INFO  [alembic.runtime.migration] Running upgrade 013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Running upgrade 014 -> 015, Add authoritative v2 Scrum state.
+______ test_populated_014_round_trip_preserves_every_prior_row_and_schema ______
+
+tmp_path = PosixPath('/private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_populated_014_round_trip_0')
+
+    def test_populated_014_round_trip_preserves_every_prior_row_and_schema(tmp_path):
+        database_path = tmp_path / "migration-015.db"
+        backend_root = Path(__file__).parents[3]
+        config = _alembic_config(backend_root, database_path)
+        command.upgrade(config, "012")
+        engine = _foreign_key_engine(f"sqlite:///{database_path}")
+        _seed_every_legacy_table(engine)
+        command.upgrade(config, "014")
+        _seed_task_one_and_two(engine)
+        expected = _snapshot_revision_014(engine)
+
+        command.upgrade(config, "015")
+        _assert_prior_schema_plus_run_ownership(engine, expected)
+>       _assert_task5_schema(engine)
+
+tests/v2/integration/test_migration_015.py:92:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+engine = Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-143/test_populated_014_round_trip_0/migration-015.db)
+
+    def _assert_task5_schema(engine) -> None:
+        inspector = inspect(engine)
+        assert TASK5_TABLES <= set(inspector.get_table_names())
+>       assert _column_nullable(inspector, "v2_status_visits", "activity_key")
+E       AssertionError: assert False
+E        +  where False = _column_nullable(<sqlalchemy.engine.reflection.Inspector object at 0x10e672cf0>, 'v2_status_visits', 'activity_key')
+
+tests/v2/integration/test_migration_015.py:403: AssertionError
+----------------------------- Captured stderr call -----------------------------
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+INFO  [alembic.runtime.migration] Running upgrade 002 -> 003, Add jira bootstrap fields to teams
+INFO  [alembic.runtime.migration] Running upgrade 003 -> 004, Create jira_config table
+INFO  [alembic.runtime.migration] Running upgrade 004 -> 005, Create jira_write_queue table
+INFO  [alembic.runtime.migration] Running upgrade 005 -> 006, Create jira_issue_map table
+INFO  [alembic.runtime.migration] Running upgrade 006 -> 007, Create jira_issue_links table
+INFO  [alembic.runtime.migration] Running upgrade 007 -> 008, Stage 4 schema — simulation engine tables and column additions
+INFO  [alembic.runtime.migration] Running upgrade 008 -> 009, Engine rewrite — new columns for distribution-based simulation
+INFO  [alembic.runtime.migration] Running upgrade 009 -> 010, Add story_points column to move_left_config
+INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, Add timing templates and status_category
+INFO  [alembic.runtime.migration] Running upgrade 011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 012 -> 013, Add isolated v2 team persistence spine.
+INFO  [alembic.runtime.migration] Running upgrade 013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 014 -> 015, Add authoritative v2 Scrum state.
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_scrum_state.py::test_zero_touch_route_visits_use_exact_none_activity_and_no_member[TO_DO]
+FAILED tests/v2/unit/test_scrum_state.py::test_zero_touch_route_visits_use_exact_none_activity_and_no_member[DONE]
+FAILED tests/v2/unit/test_scrum_state.py::test_blueprint_rejects_activity_or_member_on_the_wrong_route_step
+FAILED tests/v2/unit/test_scrum_state.py::test_required_work_digest_rejects_equal_string_subclass_in_value_and_aggregate
+FAILED tests/v2/unit/test_scrum_state.py::test_sparse_write_set_allows_persisted_owners_but_snapshot_requires_complete_closure
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart[TO_DO]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_nullable_zero_touch_visit_and_sample_survive_disposed_engine_restart[DONE]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_resolve_unchanged_persisted_owners[consumption]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_resolve_unchanged_persisted_owners[factor]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_resolve_unchanged_persisted_owners[visit]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_resolve_unchanged_persisted_owners[visit_counter]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_reject_nonexistent_owners_before_dml[consumption]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_reject_nonexistent_owners_before_dml[factor]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_images_reject_nonexistent_owners_before_dml[visit_counter]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sparse_after_image_rejects_owner_from_another_team_run_before_dml
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_existing_visit_after_image_can_reuse_unchanged_persisted_sample
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_new_visit_without_sample_is_rejected_before_dml
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_restart_load_rejects_visit_whose_sample_row_is_missing
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_existing_visit_without_persisted_sample_rejects_sparse_update_before_dml
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_forged_required_work_digest_subclass_rejects_before_sql
+FAILED tests/v2/integration/test_migration_015.py::test_revision_015_matches_every_task5_orm_schema_detail
+FAILED tests/v2/integration/test_migration_015.py::test_populated_014_round_trip_preserves_every_prior_row_and_schema
+22 failed, 247 passed in 14.99s

@@ -97,6 +97,18 @@ team, blueprint, and run in the caller session and validates references, bluepri
 activities/timing, natural owners, and semantic/partial uniqueness before Task 5 DML. Task 6 must
 consume this reviewed contract without changing revision 015 or weakening restart authentication.
 
+Review fix round 2 is also part of the completed Task 5 boundary. `StatusVisitState.activity_key`
+is exactly `str | None`: approved null-activity route steps require no member and zero touch while
+still retaining one authenticated sample. `ScrumStateWriteSet` contains sparse touched-row
+after-images, whereas every returned or loaded `ScrumStateSnapshot` is complete. Under the caller's
+session and `no_autoflush`, the mapper loads omitted persisted owners and unchanged visit samples,
+merges them with touched rows, and validates the complete aggregate before Task 5 DML. New visits
+and complete snapshots require exactly one authenticated sample; an existing visit may omit only
+its unchanged persisted sample after reauthentication. Required-work hashes are exact plain
+lower-case SHA-256 strings. Only existing visits gain the narrow reviewed after-image update;
+generalized Task 6 upsert/CAS remains deferred. ORM and migration 015 share nullable activity-key
+parity, and no revision 016 exists.
+
 ## Task 5: Persist authoritative Scrum state at revision 015
 
 **Goal:** Define, validate, persist, and restart-reload a representative authoritative Scrum state
@@ -158,18 +170,21 @@ Alembic revision 015.
 - `SprintState` stores semantic ordinal, lifecycle, immutable planned start/end UTC instants,
   optional observed start/end, and aware created/updated times. `SprintScopeEntry` stores item
   membership with added/removed instants; at most one non-removed scope row exists per item.
-- `StatusVisitState` stores semantic item-scoped ordinal, lifecycle, canonical status/activity keys,
-  optional semantic member owner, entered/closed instants, and exact required/elapsed/remaining,
-  queue, pause, and credited microseconds. Required equals elapsed plus remaining where applicable;
+- `StatusVisitState` stores semantic item-scoped ordinal, lifecycle, canonical status and exact
+  `str | None` activity keys, optional semantic member owner, entered/closed instants, and exact
+  required/elapsed/remaining, queue, pause, and credited microseconds. An approved null-activity
+  route step has no member and zero touch. Required equals elapsed plus remaining where applicable;
   closed visits have `closed_at`, open visits do not; at most one open visit exists per work item.
 - `StatusVisitSample` is immutable and one-to-one with a visit. It retains timing profile/version,
   sampler versions, dwell anchors/touch bounds, both Task 3 explicit unit draws and complete canonical
   draw provenance, sampled float hours, and the exact persisted required microseconds/hash used by
   `StatusVisitState`. Its sealed factory and restart mapper authenticate all retained values against
-  the persisted blueprint seed and exact timing cell.
+  the persisted blueprint seed and exact timing cell. Every complete snapshot and new visit has
+  exactly one sample, including zero-touch visits.
 - `ScrumStateSnapshot` is the detached aggregate returned by the mapper. `ScrumStateWriteSet` is a
-  frozen tuple-only collection of complete after-images that Task 6 will persist; it contains no
-  callable, SQLAlchemy object, transition decision, or external intent.
+  frozen tuple-only collection of sparse after-images for only the rows touched by a slice; it
+  contains no callable, SQLAlchemy object, transition decision, or external intent. The mapper
+  resolves omitted persisted owners and returns a complete snapshot.
 
 ### Files
 
@@ -221,7 +236,7 @@ Alembic revision 015.
 - `v2_sprint_scope`: semantic UUID primary key; composite sprint and item ownership, added/removed UTC
   instants; unique sprint/item pair and one partial unique non-removed scope row per item.
 - `v2_status_visits`: semantic UUID primary key; composite work-item and optional member ownership;
-  safe item-scoped ordinal, lifecycle/status/activity, UTC entered/closed, and every required,
+  safe item-scoped ordinal, lifecycle/status/nullable activity, UTC entered/closed, and every required,
   elapsed, remaining, queue, pause, and credit value as checked non-negative integer microseconds;
   unique item ordinal and one partial unique open visit per item.
 - `v2_status_visit_samples`: visit UUID primary/composite FK; timing/sampler versions, canonical
@@ -251,11 +266,13 @@ class SqlAlchemyScrumStateMapper:
     def add(self, session: Session, state: ScrumStateWriteSet) -> ScrumStateSnapshot: ...
 ```
 
-`load` returns detached immutable values in deterministic semantic order and reauthenticates stored
-samples against the persisted blueprint. `add` validates the full write set structurally before its
-first SQL statement, loads team/blueprint/run authority without autoflush, completes blueprint and
-reference validation before Task 5 DML, inserts only Task 5 state, flushes so constraints surface
-inside the caller's transaction, and returns the detached persisted subset. The caller decides to
+`load` returns a complete detached immutable snapshot in deterministic semantic order and
+reauthenticates stored samples against the persisted blueprint. `add` validates the sparse write
+set structurally, loads team/blueprint/run authority plus omitted persisted owners without
+autoflush, merges a complete candidate snapshot, and completes blueprint/reference/sample
+validation before Task 5 DML. It applies only touched Task 5 rows, narrowly updating existing visit
+after-images while preserving reviewed insert semantics elsewhere, flushes so constraints surface
+inside the caller's transaction, and returns the complete detached snapshot. The caller decides to
 commit or roll back; a mapper exception leaves that decision with the caller.
 
 ### RED and focused behavior
