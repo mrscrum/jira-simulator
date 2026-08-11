@@ -62,6 +62,11 @@ ground truth, and empty projection. This is planning only: no capacity code, tes
 schema, migration, or implementation evidence exists yet. Both tasks leave visits open, do not
 evaluate dwell or transition status/lifecycle, and defer fractional residue/arbitrary scheduler
 partition invariance to a later schema task rather than creating revision 016.
+Independent plan review corrected two binding details before implementation: work order is exactly
+`(WORK_PRIORITY_ORDER index, relative_rank, visit.entered_at, work_item.id)`, never `SimulatorRank`
+or visit UUID, and a retained sticky owner with exhausted effective labor yields `CAPACITY` even
+when another eligible member is idle. Task 7's tests and Task 8's selection ground truth must retain
+those exact rules.
 
 On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
 fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds

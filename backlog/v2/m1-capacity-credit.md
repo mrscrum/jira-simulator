@@ -85,10 +85,14 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
   minimum configured cap and all non-null runtime ceilings. Multiplication is exact half-even.
   Existing consumption is never reversed; when it equals or exceeds the resolved cap, remaining
   labor is zero.
-- Work order is exactly `SimulatorRank` followed by `entered_at` and semantic visit UUID. Sticky
-  eligible owners are retained before new assignment. An owner is released only when touch is
-  already complete or the member is ineligible or effectively unavailable for the segment. Merely
-  exhausting the current date's remaining capacity does not erase ownership.
+- Work order is exactly the four-field tuple
+  `(WORK_PRIORITY_ORDER.index(work_item.priority.value), work_item.relative_rank,
+  visit.entered_at, work_item.id)`. Compare those fields directly in that order. Never order via a
+  `SimulatorRank` object, whose item UUID precedes `visit.entered_at`, and never use the visit UUID
+  as the final tie-break. Sticky eligible owners are retained before new assignment. An owner is
+  released only when touch is already complete or the member is ineligible or effectively
+  unavailable for the segment. Merely exhausting the current date's remaining capacity does not
+  erase ownership.
 - WIP is the count of open positive-touch visits currently owned by a member across the complete
   run snapshot. New assignment requires `active_wip < max_concurrent_wip`. Among eligible members,
   compare `active_wip / max_wip` by integer cross-multiplication, then descending proficiency,
@@ -105,10 +109,13 @@ before an API accepts arbitrary v2 payload objects; neither capacity task change
   microseconds whose half-even credit reaches the remaining demand, end the segment there, set
   remaining touch to zero, and release the member while leaving the visit `OPEN` with
   `closed_at=None`.
-- Queue-reason precedence is exact: `CAPACITY` when no responsibility-eligible member has remaining
-  effective labor, `WIP_LIMIT` when labor exists but every otherwise-selectable member is at WIP,
-  then `CONTENTION` when another higher-ordered owned visit receives that member's labor. Zero
-  business elapsed accrues no queue. Ineligible, zero-touch, closed, out-of-scope, or already
+- A retained sticky owner with zero remaining effective labor produces `CAPACITY` for that visit,
+  based on the retained owner's capacity, even when another responsibility-eligible member has
+  labor; sticky ownership forbids reassignment. For an unowned visit, queue-reason precedence is
+  closed and exact: `CAPACITY` when no responsibility-eligible, effectively available member has
+  remaining labor; `WIP_LIMIT` when labor exists but every candidate is WIP-full; otherwise
+  `CONTENTION` when labor and WIP space exist but selected members serve higher-ordered owned work.
+  Zero business elapsed accrues no queue. Ineligible, zero-touch, closed, out-of-scope, or already
   touch-complete visits accrue none.
 - A segment result retains every ordering key, candidate WIP numerator/denominator, proficiency
   numerator/denominator, capacity contributor, prior consumption, labor debit, effective credit,
@@ -130,8 +137,9 @@ Jira, OpenAI, scheduler, wall-clock, or random module.
 **Inputs:** Exact `ResolvedTeamBlueprint`, complete `ScrumStateSnapshot`, `UtcInterval`, and a unique
 tuple of semantic visit UUIDs selected by a later application policy.
 
-**Outputs:** Exact duration helpers; immutable member score, availability resolution, ownership
-decision, labor credit, request, and result values; and one pure allocation function.
+**Outputs:** Exact duration helpers; immutable four-field work-order key, member score, availability
+resolution, ownership decision, labor credit, request, and result values; and one pure allocation
+function.
 
 ### Files
 
@@ -167,6 +175,14 @@ class CapacityQueueReason(StrEnum):
 
 
 @immutable_dataclass
+class CapacityWorkOrderKey(ImmutableValue):
+    work_priority_order_index: int
+    relative_rank: int
+    entered_at: datetime
+    work_item_id: UUID
+
+
+@immutable_dataclass
 class CapacityMemberScore(ImmutableValue):
     member_id: UUID
     active_wip: int
@@ -192,6 +208,7 @@ class AvailabilityResolution(ImmutableValue):
 @immutable_dataclass
 class CapacityOwnershipDecision(ImmutableValue):
     visit_id: UUID
+    work_order_key: CapacityWorkOrderKey
     previous_member_id: UUID | None
     labor_member_id: UUID | None
     owner_after_member_id: UUID | None
@@ -284,13 +301,19 @@ assignment at start and release at end while `owner_after_member_id` is `None`.
   overlay may only lower them. Apply the minimum pre-fraction cap and minimum fraction once with
   exact rational half-even arithmetic, then subtract the exact persisted business-date consumption.
 - Validate eligible IDs as a unique exact tuple of existing `OPEN`, positive-touch visits from one
-  team/run. Sort visits by `SimulatorRank`, `entered_at`, and visit UUID. A member is a candidate only
-  when the blueprint responsibility matches `activity_key`; compare WIP fractions by integer cross-
-  multiplication, then proficiency descending, remaining labor descending, and member UUID.
+  team/run. Build and retain `CapacityWorkOrderKey` directly as
+  `(WORK_PRIORITY_ORDER.index(work_item.priority.value), work_item.relative_rank,
+  visit.entered_at, work_item.id)` and sort only by those four fields. Never compare
+  `work_item.simulator_rank`/`SimulatorRank`, and never append or substitute `visit.id`. A member is
+  a candidate only when the blueprint responsibility matches `activity_key`; compare WIP fractions
+  by integer cross-multiplication, then proficiency descending, remaining labor descending, and
+  member UUID.
 - Preserve an eligible/effectively-available sticky owner. Release an ineligible/unavailable or
-  already-complete owner at segment start; daily exhaustion alone retains ownership. Assign
-  unowned visits in work order while WIP space remains, then give each member's labor to only their
-  first owned visit in that same order.
+  already-complete owner at segment start; daily exhaustion alone retains ownership. A retained
+  sticky owner with zero remaining effective labor is not replaced by another eligible member: it
+  receives zero labor and exact `CAPACITY` queue denial based on that owner. Assign unowned visits in
+  work order while WIP space remains, then give each member's labor to only their first owned visit
+  in that same order.
 - Choose one common processed end: earliest requested end, workday/date boundary, configured/runtime
   availability boundary, daily-capacity exhaustion, or touch completion. Debit unadjusted labor,
   credit exact capped proficiency work, and release a touch-complete owner at that end. Never close
@@ -302,9 +325,12 @@ assignment at start and release at end while `owner_after_member_id` is `None`.
   as the common processed end. Arithmetic is segment-local: persist no fractional residue or hidden
   carry, and defer arbitrary scheduler partition invariance/residue storage to the separately planned
   revision 016 schema task.
-- For every eligible positive-touch visit receiving zero labor over positive business time, accrue
-  queue using exact precedence `CAPACITY`, `WIP_LIMIT`, then `CONTENTION`. Do not accrue queue for an
-  ineligible/out-of-scope/closed/zero-touch/already-complete visit, and never change pause or dwell.
+- For every eligible positive-touch visit receiving zero labor over positive business time, apply
+  retained-sticky `CAPACITY` first. For an unowned visit only, use `CAPACITY` when no
+  responsibility-eligible/effectively-available member has labor, `WIP_LIMIT` when labor exists but
+  all candidates are WIP-full, then `CONTENTION` when labor/WIP space exist but selected members
+  serve higher-ordered owned work. Do not accrue queue for an ineligible/out-of-scope/closed/zero-
+  touch/already-complete visit, and never change pause or dwell.
 - Return only changed visit and consumption after-images, ordered by semantic identity, plus complete
   availability/selection/change/credit/queue traces. The result contains no draft, ORM value,
   callable, fractional residue, implicit clock, or hidden second segment.
@@ -319,8 +345,12 @@ assignment at start and release at end while `owner_after_member_id` is `None`.
   default availability; one configured interval; overlapping runtime restrictions; boundary-active
   half-open intervals; a later restriction below prior consumption; daily exhaustion; ineligible
   activity; zero fraction; sticky owner; completed/unavailable release; WIP full/equal fractions;
-  every work/member tie-break; two owned visits for one member; two members in parallel; touch
-  completion before the requested end; capacity exhaustion before completion; non-working time;
+  every work/member tie-break; an older-entered item whose larger UUID opposes a newer-entered
+  item's smaller UUID and must still sort first; equal-entry items whose semantic work-item UUIDs
+  decide regardless of opposing visit UUIDs; two owned visits for one member; two members in
+  parallel; a sticky owner A with zero remaining labor while eligible member B is idle, proving A
+  remains owner and the visit receives `CAPACITY`; touch completion before the requested end;
+  capacity exhaustion before completion; non-working time;
   one-date/DST windows; duplicate/foreign/missing eligible IDs; unsafe clocks; input permutation;
   exact `CAPACITY`/`WIP_LIMIT`/`CONTENTION` queue precedence and accrual; assignment/release event
   instants including assign-then-complete and release-then-reassign; zero/non-business queue;
@@ -479,7 +509,9 @@ a view made stale after the read.
   horizon. Invalid/stale/foreign inputs fail before Task 7 or the commit port.
 - Eligible visits are derived, not supplied by an API: take non-removed scope entries in the exact
   active sprint, their `WorkItemLifecycle.ACTIVE` work items, and their exact open positive-touch
-  visits with remaining work. Order IDs by Task 7 work order before constructing its request.
+  visits with remaining work. Order IDs only by Task 7's retained four fields:
+  `WORK_PRIORITY_ORDER` index, relative rank, visit entry instant, and semantic work-item UUID.
+  Neither `SimulatorRank` nor visit UUID participates.
 - Call `allocate_capacity` once. Do not loop to the original `through` when Task 7 returns an earlier
   segment boundary; advance runtime only to `allocation.processed_interval.end`, preserve runtime
   state and `next_wake_at`, and let a later caller request the next segment.
@@ -500,7 +532,9 @@ a view made stale after the read.
   `capacity-credit/.../<visit-id>/<member-id>` record per credit subsegment. Neither identity
   contains a timestamp or ledger position.
 - Resolution payloads contain every configured/runtime contributor and exact cap/consumption result;
-  selection payloads contain every ordering/WIP/proficiency/capacity key plus owner and queue reason;
+  selection payloads contain the exact `work_priority_order_index`, `relative_rank`, `entered_at`,
+  and `work_item_id` from `CapacityWorkOrderKey`, every WIP/proficiency/capacity key, owner, and queue
+  reason;
   every credit payload contains requested/processed UTC intervals, business date, labor debit,
   effective credit, exact proficiency ratio, and before/after touch/queue balances. All payloads
   include `CAPACITY_ALLOCATOR_V1`, `AVAILABILITY_OVERLAY_V1`, `PROFICIENCY_CREDIT_V1`, expected
@@ -519,8 +553,11 @@ a view made stale after the read.
   `remaining_work_microseconds=0` and `member_id=None`. Task 8 must not inspect the next route step,
   sample a visit, claim a visit ordinal, evaluate dwell, or change any lifecycle.
 - Queue increments only by Task 7's exact business subsegment for an eligible positive-touch visit
-  denied labor by `CAPACITY`, `WIP_LIMIT`, or `CONTENTION`. Never label or serialize this value as
-  dwell, and never infer a lifecycle or readiness result from it.
+  denied labor by `CAPACITY`, `WIP_LIMIT`, or `CONTENTION`. A retained sticky owner with zero
+  remaining effective labor is `CAPACITY` based on that owner even if another eligible member is
+  idle. Only an unowned visit uses the closed no-labor, all-WIP-full, then higher-work-contention
+  precedence. Never label or serialize this value as dwell, and never infer a lifecycle or readiness
+  result from it.
 - Validate the complete `AuthoritativeTickSliceCommit` before calling the committer. Call the
   committer exactly once, return its exact committed result plus the Task 7 result, propagate typed
   stale/semantic conflicts, and perform no hidden retry.
@@ -542,8 +579,10 @@ a view made stale after the read.
   sprint eligibility, one allocator call, one committer call, early segment truncation, exact visit
   and consumption after-images, capacity/WIP/contention queue-business increments, touch-completion
   release while the visit stays open, assignment/release-only activity, deterministic resolution/
-  selection/every-credit ground truth, empty projection/claims, no work/sprint/status/sample
-  mutation, and stable propagation of invalid and stale input before partial effects.
+  selection/every-credit ground truth including all four work-order components and the opposed item-
+  UUID/entry-instant order, sticky-owner-A-exhausted/member-B-idle `CAPACITY`, empty projection/
+  claims, no work/sprint/status/sample mutation, and stable propagation of invalid and stale input
+  before partial effects.
 - [ ] Add a two-reader stale race, injected Task 6 failures at runtime/visit/consumption/ground-truth/
   final-flush/commit, identical semantic evidence replay, conflicting evidence rollback, response-
   loss reload, disposed-engine continuation, and consecutive segment tests. Assert every failure
