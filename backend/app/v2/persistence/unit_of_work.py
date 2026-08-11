@@ -127,6 +127,8 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
     ) -> CommittedAuthoritativeTickSlice:
         mapper = SqlAlchemyScrumStateMapper()
         runtime = self._advance_runtime(session, commit.live_slice)
+        if mapper.preflight_replay(session, commit):
+            _require_replayed_ledgers(session, commit.live_slice)
         if any(commit.state._collection_values()):
             mapper.apply_after_images(session, commit)
         counters = mapper.apply_counter_claims(session, commit)
@@ -239,6 +241,22 @@ def _raise_authoritative_error(error: Exception) -> NoReturn:
     if isinstance(error, ScrumStateConflictError):
         raise SemanticDeduplicationConflict(str(error)) from error
     raise error
+
+
+def _require_replayed_ledgers(session: Session, commit: TickSliceCommit) -> None:
+    specifications = (
+        (commit.activity, V2ActivityEventModel, _map_activity),
+        (commit.ground_truth, V2GroundTruthRecordModel, _map_ground_truth),
+        (commit.projection_intents, V2ProjectionIntentModel, _map_projection),
+    )
+    for drafts, model_type, mapper in specifications:
+        for draft in drafts:
+            model = session.scalar(
+                select(model_type).where(model_type.semantic_key == draft.semantic_key)
+            )
+            if model is None:
+                raise CounterClaimStaleError("advanced replay has fresh ledger semantic keys")
+            _require_identical(mapper(model), draft, commit)
 
 
 def _envelope_values(commit: TickSliceCommit, draft, position: int) -> dict[str, object]:

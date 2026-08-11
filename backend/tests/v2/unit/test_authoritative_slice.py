@@ -1,6 +1,6 @@
 import copy
 import pickle
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, fields, replace
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -12,6 +12,7 @@ from app.v2.domain.authoritative_slice import (
     EligibleNaturalDecisionClaim,
     SemanticCounterClaim,
 )
+from app.v2.domain.canonical_json import semantic_uuid
 from app.v2.domain.deterministic_rng import (
     MAX_SAFE_INTEGER,
     DecisionOccurrence,
@@ -20,11 +21,18 @@ from app.v2.domain.deterministic_rng import (
     sprint_rng_id,
     visit_rng_id,
 )
-from app.v2.domain.live_slice import CommittedTickSlice
+from app.v2.domain.live_slice import (
+    ActivityEvent,
+    CommittedTickSlice,
+    GroundTruthRecord,
+    ProjectionIntent,
+)
 from app.v2.domain.scrum_state import (
     ScrumStateSnapshot,
     ScrumStateWriteSet,
     SemanticCounter,
+    SemanticCounterKind,
+    SemanticCounterScope,
     SprintLifecycle,
 )
 from app.v2.domain.team_runtime import TeamRuntime
@@ -50,6 +58,7 @@ from tests.v2.scrum_state_support import (
     TEAM_ID,
     make_consumption,
     make_evaluation,
+    make_member,
     make_sprint,
     make_visit,
     make_work_item,
@@ -71,7 +80,7 @@ def _command() -> AuthoritativeTickSliceCommit:
 
 def _committed_live_slice() -> CommittedTickSlice:
     runtime = TeamRuntime(
-        UUID(int=7),
+        semantic_uuid(f"runtime/{TEAM_ID}"),
         TEAM_ID,
         RUN_ID,
         1,
@@ -82,6 +91,65 @@ def _committed_live_slice() -> CommittedTickSlice:
         NOW,
     )
     return CommittedTickSlice(runtime, (), (), ())
+
+
+def _persisted_values(draft: object) -> dict[str, object]:
+    values = {field.name: getattr(draft, field.name) for field in fields(type(draft))}
+    return values | {
+        "append_sequence": 1,
+        "team_id": TEAM_ID,
+        "run_id": RUN_ID,
+        "commit_id": semantic_uuid("commit/authoritative-result"),
+        "transaction_sequence": 0,
+        "recorded_at": LATER,
+    }
+
+
+def _committed_live_with_records() -> CommittedTickSlice:
+    live = _live_slice()
+    activity = ActivityEvent(**_persisted_values(live.activity[0]))
+    ground_truth = GroundTruthRecord(**_persisted_values(live.ground_truth[0]))
+    projection = ProjectionIntent(**_persisted_values(live.projection_intents[0]))
+    return CommittedTickSlice(
+        _committed_live_slice().runtime,
+        (activity,),
+        (ground_truth,),
+        (projection,),
+    )
+
+
+def _result_state() -> ScrumStateSnapshot:
+    counter = SemanticCounter(TEAM_ID, RUN_ID, item_claim().scope, 2)
+    evaluation = make_evaluation()
+    return ScrumStateSnapshot(
+        work_items=(make_work_item(),),
+        semantic_counters=(counter,),
+        natural_decision_evaluations=(evaluation,),
+    )
+
+
+def _committed_result() -> CommittedAuthoritativeTickSlice:
+    state = _result_state()
+    return CommittedAuthoritativeTickSlice(
+        _committed_live_with_records(),
+        state,
+        state.semantic_counters,
+        state.natural_decision_evaluations,
+    )
+
+
+def _natural_pair(
+    decision_type: DecisionType, entity_id: UUID
+) -> tuple[SemanticCounterClaim, EligibleNaturalDecisionClaim]:
+    scope = SemanticCounterScope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+        entity_id,
+        decision_type.value,
+    )
+    decision = DecisionOccurrence(entity_id, decision_type, 0)
+    return SemanticCounterClaim(scope, 0, 1), EligibleNaturalDecisionClaim(
+        decision, BUSINESS_DATE
+    )
 
 
 @pytest.mark.parametrize(
@@ -347,6 +415,68 @@ def test_natural_claim_must_bind_the_same_decision_type_and_entity_scope():
         )
 
 
+@pytest.mark.parametrize(
+    "decision_type,state",
+    [
+        (
+            DecisionType.RISK_CANCELLATION_OUTCOME,
+            ScrumStateWriteSet(member_identities=(make_member(),)),
+        ),
+        (
+            DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME,
+            ScrumStateWriteSet(work_items=(make_work_item(),)),
+        ),
+    ],
+)
+def test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind(decision_type, state):
+    owner = state.member_identities[0] if state.member_identities else state.work_items[0]
+    counter, eligible = _natural_pair(decision_type, owner.id)
+
+    with pytest.raises(ValueError, match="owner"):
+        AuthoritativeTickSliceCommit(_live_slice(), state, (counter,), (eligible,))
+
+
+@pytest.mark.parametrize(
+    "decision_type,state",
+    [
+        (
+            DecisionType.RISK_CANCELLATION_OUTCOME,
+            ScrumStateWriteSet(work_items=(make_work_item(),)),
+        ),
+        (
+            DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME,
+            ScrumStateWriteSet(member_identities=(make_member(),)),
+        ),
+    ],
+)
+def test_natural_claim_accepts_visible_owner_of_the_required_kind(decision_type, state):
+    owner = state.work_items[0] if state.work_items else state.member_identities[0]
+    counter, eligible = _natural_pair(decision_type, owner.id)
+
+    command = AuthoritativeTickSliceCommit(_live_slice(), state, (counter,), (eligible,))
+
+    assert command.natural_decision_claims == (eligible,)
+
+
+@pytest.mark.parametrize(
+    "decision_type,entity_id",
+    [
+        (DecisionType.RISK_CANCELLATION_OUTCOME, ITEM_ID),
+        (DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME, make_member().id),
+    ],
+)
+def test_natural_claim_allows_an_owner_omitted_from_the_sparse_write_set(
+    decision_type, entity_id
+):
+    counter, eligible = _natural_pair(decision_type, entity_id)
+
+    command = AuthoritativeTickSliceCommit(
+        _live_slice(), ScrumStateWriteSet(), (counter,), (eligible,)
+    )
+
+    assert command.counter_claims == (counter,)
+
+
 def test_one_natural_counter_scope_cannot_claim_multiple_business_dates():
     second_date = replace(
         eligible_claim(),
@@ -407,6 +537,101 @@ def test_committed_result_revalidates_exact_nested_types(change):
 
     with pytest.raises(TypeError):
         CommittedAuthoritativeTickSlice(**(values | change))
+
+
+def _malformed_committed_live(case: str) -> CommittedTickSlice:
+    live = _committed_live_with_records()
+    if case == "runtime":
+        return replace(live, runtime=replace(live.runtime, version=False))
+    collection_name = {
+        "activity": "activity",
+        "ground_truth": "ground_truth",
+        "projection": "projection_intents",
+    }[case]
+    rows = getattr(live, collection_name)
+    malformed = replace(rows[0], append_sequence=False)
+    return replace(live, **{collection_name: (malformed,)})
+
+
+@pytest.mark.parametrize("case", ["runtime", "activity", "ground_truth", "projection"])
+def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
+    valid = _committed_result()
+    malformed = _malformed_committed_live(case)
+
+    with pytest.raises((TypeError, ValueError)):
+        CommittedAuthoritativeTickSlice(
+            malformed,
+            valid.state,
+            valid.counters,
+            valid.natural_decision_evaluations,
+        )
+    with pytest.raises((TypeError, ValueError)):
+        replace(valid, live_slice=malformed)
+
+
+@pytest.mark.parametrize(
+    "collection_name",
+    ["activity", "ground_truth", "projection_intents"],
+)
+def test_committed_result_requires_exact_ledger_element_types(collection_name):
+    valid = _committed_result()
+    malformed = replace(
+        valid.live_slice,
+        **{collection_name: (object(),)},
+    )
+
+    with pytest.raises(TypeError):
+        replace(valid, live_slice=malformed)
+
+
+def _result_membership_change(case: str) -> dict[str, object]:
+    state = _result_state()
+    counter = state.semantic_counters[0]
+    evaluation = state.natural_decision_evaluations[0]
+    changes = {
+        "counter_absent": {"state": replace(state, semantic_counters=())},
+        "counter_divergent": {"counters": (replace(counter, next_value=3),)},
+        "counter_duplicate": {"counters": (counter, counter)},
+        "evaluation_absent": {
+            "state": replace(state, natural_decision_evaluations=())
+        },
+        "evaluation_divergent": {
+            "natural_decision_evaluations": (
+                replace(evaluation, commit_id=uuid4()),
+            )
+        },
+        "evaluation_duplicate": {
+            "natural_decision_evaluations": (evaluation, evaluation)
+        },
+    }
+    return changes[case]
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "counter_absent",
+        "counter_divergent",
+        "counter_duplicate",
+        "evaluation_absent",
+        "evaluation_divergent",
+        "evaluation_duplicate",
+    ],
+)
+def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+    valid = _committed_result()
+    changes = _result_membership_change(case)
+    values = {
+        "live_slice": valid.live_slice,
+        "state": valid.state,
+        "counters": valid.counters,
+        "natural_decision_evaluations": valid.natural_decision_evaluations,
+    }
+
+    with pytest.raises(ValueError, match="snapshot"):
+        CommittedAuthoritativeTickSlice(**(values | changes))
+    with pytest.raises(ValueError, match="snapshot"):
+        replace(valid, **changes)
 
 
 @pytest.mark.parametrize(

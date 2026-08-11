@@ -1,0 +1,25 @@
+$ PYTHONPATH=. ../.venv/bin/alembic heads
+015 (head)
+$ PYTHONPATH=. ../.venv/bin/alembic branches
+$ DATABASE_URL=<temporary sqlite> PYTHONPATH=. ../.venv/bin/alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+INFO  [alembic.runtime.migration] Running upgrade 002 -> 003, Add jira bootstrap fields to teams
+INFO  [alembic.runtime.migration] Running upgrade 003 -> 004, Create jira_config table
+INFO  [alembic.runtime.migration] Running upgrade 004 -> 005, Create jira_write_queue table
+INFO  [alembic.runtime.migration] Running upgrade 005 -> 006, Create jira_issue_map table
+INFO  [alembic.runtime.migration] Running upgrade 006 -> 007, Create jira_issue_links table
+INFO  [alembic.runtime.migration] Running upgrade 007 -> 008, Stage 4 schema — simulation engine tables and column additions
+INFO  [alembic.runtime.migration] Running upgrade 008 -> 009, Engine rewrite — new columns for distribution-based simulation
+INFO  [alembic.runtime.migration] Running upgrade 009 -> 010, Add story_points column to move_left_config
+INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, Add timing templates and status_category
+INFO  [alembic.runtime.migration] Running upgrade 011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+INFO  [alembic.runtime.migration] Running upgrade 012 -> 013, Add isolated v2 team persistence spine.
+INFO  [alembic.runtime.migration] Running upgrade 013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Running upgrade 014 -> 015, Add authoritative v2 Scrum state.
+$ DATABASE_URL=<temporary sqlite> PYTHONPATH=. ../.venv/bin/alembic current
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+015 (head)

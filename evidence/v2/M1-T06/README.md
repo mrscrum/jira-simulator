@@ -3,15 +3,17 @@
 ## Scope and provenance
 
 - Date: 2026-08-11
-- Reviewed base: `b449ca0`
-- Exact task commit subject: `feat(v2): commit scrum state atomically`
+- Original Task 6 commit: `4cfaa65` (`feat(v2): commit scrum state atomically`)
+- Review-fix base: `4cfaa65`
+- Exact review-fix subject: `fix(v2): enforce authoritative after-image identity`
 - Alembic remains at sole linear head `015`; Task 6 creates no revision `016`.
-- The bounded non-Ultra precommit audit is clean. Independent technical review remains pending, so
-  Task 6 and M1 remain open.
+- The bounded non-Ultra review-fix audit is CLEAN with no Critical or Important findings.
+  Independent Ultra re-review remains pending, so Task 6 and M1 remain open.
 - No Jira/OpenAI/provider call, projection delivery, deployment, push, UAT, or live mutation ran.
 
 Task 6 adds immutable authoritative command/result values and one atomic SQLAlchemy operation. The
-transaction order is runtime CAS, sparse Scrum after-images and new-owner zero-counter seeds,
+transaction order is runtime CAS, sparse Scrum after-images and authorized work-owner zero-counter
+seeds,
 semantic-counter CAS, natural-eligibility resolution, activity/ground-truth/pending-intent appends,
 final flush, and one commit. The existing `commit_tick_slice` and post-commit adapter boundary remain
 compatible.
@@ -60,9 +62,11 @@ Review-driven TDD cycles were retained rather than rewriting the historical RED:
 - Sparse after-images for existing sprint/item/visit rows consume no range. A claim covers only its
   new contiguous coordinates, allowing existing and new rows in one scope. Persistence proves an
   unclaimed missing ordinal is new and raises typed `StaleSemanticCounter` before commit.
-- New work-item owners receive visit and cancellation counters at zero; new member owners receive
-  member-unavailability counters at zero. Seeds consume no occurrence, survive restart, and support a
-  later first claim. Missing/deleted established child or team counters remain stale.
+- New work-item owners receive visit and cancellation counters at zero. Blueprint members and their
+  unavailable-member counters are established by Task 5/bootstrap before Task 6; Task 6 rejects a
+  missing member rather than recreating its identity or resetting its counter. Seeds consume no
+  occurrence, survive restart, and support a later first claim. Missing/deleted established child
+  or team counters remain stale.
 - Identical state, ledger, and natural eligibility replay is a no-op for immutable rows. Older
   eligibility replay after later occurrences returns the stored assignment without decrementing or
   consuming the counter again. Differing immutable content raises the typed state, natural, or
@@ -77,7 +81,7 @@ Review-driven TDD cycles were retained rather than rewriting the historical RED:
   runtime, the complete Scrum snapshot, counters/evaluations, or any ledger. Static tests prove both
   UOW methods import/call no adapter or external client.
 
-## Final verification
+## Original Task 6 verification
 
 All commands ran from `backend/` with `set -o pipefail`, `PYTHONDONTWRITEBYTECODE=1`,
 `INTEGRATION_TESTS=false`, `python -B`, and `-p no:cacheprovider` where applicable.
@@ -106,6 +110,61 @@ The full-suite warning inventory is unchanged: one Starlette/httpx deprecation w
 pre-existing `jira_bootstrapper` unawaited-`AsyncMock` warnings, and one pre-existing SQLAlchemy
 identity warning. The 43 normal integration skips remain expected because live integration tests
 were disabled. No warning was suppressed or fixed outside Task 6 scope.
+
+## Review fix round 1
+
+The six Ultra findings were converted into focused regressions before production changes. From
+`backend/`, the consolidated RED command was:
+
+```bash
+set -o pipefail
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_authoritative_slice.py tests/v2/integration/test_authoritative_unit_of_work.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/unit/test_architecture_boundaries.py -q 2>&1 | tee ../evidence/v2/M1-T06/fix-round-1-red.txt
+```
+
+Expected RED: `32 failed, 199 passed in 21.04s`. The failures proved global/composite row theft,
+mutable advanced replay, missing-member recreation, shallow committed-result validation,
+contradictory returned counter/evaluation membership, and visible natural-owner cross-binding. A
+corrected five-case scope selection was separately witnessed at `1 failed, 4 deselected`, then
+`1 passed, 4 deselected` after restoring the guard. No historical RED was rewritten.
+
+The identical consolidated command targeting `fix-round-1-green.txt` produced `231 passed in
+19.61s`. The repair now:
+
+- freezes every reviewed after-image identity/history coordinate while retaining explicitly mutable
+  operational fields;
+- treats any advanced allocation claim as whole-command replay, requiring every supplied state row,
+  allocation claim, natural occurrence, and ledger draft to be already persisted and exact;
+- rejects missing established blueprint members instead of reconstructing identity/counter history;
+- deeply revalidates runtime and exact ledger result elements, and requires every returned unique
+  counter/evaluation to be an exact member of the complete snapshot; and
+- rejects visible cancellation-to-member and member-unavailability-to-work cross-binding before a
+  session factory is called.
+
+Final post-audit verification:
+
+| Verification | Retained result |
+|---|---|
+| Task 1 focused | 62 passed, 1 baseline warning in 2.06s (`fix-round-1-task1-focused.txt`) |
+| Task 2 accepted focused | 197 passed in 13.87s (`fix-round-1-task2-focused.txt`) |
+| Task 3 focused | 257 passed in 0.79s (`fix-round-1-task3-focused.txt`) |
+| Task 4 focused | 152 passed in 0.53s (`fix-round-1-task4-focused.txt`) |
+| Task 5 focused | 338 passed in 20.48s (`fix-round-1-task5-focused.txt`) |
+| Task 6 focused | 231 passed in 19.61s (`fix-round-1-green.txt`) |
+| Atomic stale/conflict/rollback matrix | 48 passed, 26 deselected in 4.83s (`fix-round-1-atomic-matrix.txt`) |
+| Disposed-engine restart | 1 passed, 73 deselected in 0.32s (`fix-round-1-restart.txt`) |
+| All v2 | 1016 passed, 1 baseline warning in 30.34s (`fix-round-1-all-v2.txt`) |
+| Single fresh full backend | 1534 passed, 43 skipped, 15 baseline warnings in 58.64s (`fix-round-1-full.txt`) |
+| Ruff | `All checks passed!` (`fix-round-1-ruff.txt`) |
+| Static import/architecture boundary | 67 passed in 13.41s (`fix-round-1-static-boundaries.txt`) |
+| Migration parity/round trip, cold import, restart, adapter boundary | 49 passed in 14.12s (`fix-round-1-boundaries.txt`) |
+| Function/argument shape | 6 Python files; no function over 30 lines or 3 arguments (`fix-round-1-code-shape.txt`) |
+| Alembic | sole `015 (head)`, empty branches, fresh upgrade/current at 015 (`fix-round-1-alembic-graph.txt`) |
+| Migration diff from `4cfaa65` | empty, exit 0 (`fix-round-1-no-migration-diff.txt`) |
+
+The warning inventory remains exactly the documented baseline. The required bounded non-Ultra
+post-GREEN audit reported CLEAN after rechecking identity theft, whole-slice replay, member/counter
+non-resurrection, result validation/membership, and visible owner binding. No external or live call,
+revision 016, deployment, push, or UAT occurred.
 
 ## Files under test
 

@@ -10,9 +10,9 @@ not a fixed microtask sequence.
 - [ ] M1 — Deliver the persisted Scrum simulation core — **IN PROGRESS**; the reviewed
   persistence-spine and deterministic-kernel plans are complete, Task 5 has added authoritative
   state at revision 015 and is technically accepted after Ultra review of round-5 commit `0782070`
-  reported CLEAN with no Critical or Important findings; Task 6 is implemented, verified, and
-  locally committed from base `b449ca0` under its exact subject, but remains open pending independent
-  review in [`m1-scrum-state.md`](m1-scrum-state.md)
+  reported CLEAN with no Critical or Important findings; Task 6 original commit `4cfaa65` has a
+  verified review-fix round 1 with a CLEAN bounded audit, but remains open pending independent Ultra
+  re-review in [`m1-scrum-state.md`](m1-scrum-state.md)
 - [ ] M2 — Deliver one-team live Jira and Codex alpha
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed five-team Scrum MVP
@@ -47,14 +47,16 @@ sample identities during cascade restoration while preserving unrelated caller c
 isolated and full verification is GREEN, and independent Ultra technical review reported CLEAN
 with no Critical or Important findings. Task 6 now adds the exact immutable authoritative command,
 one-session runtime/state/counter/natural/evidence transaction, sparse existing-row updates, exact
-new-allocation ranges, proactive zero child counters for new work/member owners, monotonic replay,
-typed stale/conflict rollback, restart continuation, and unchanged post-commit adapter boundary.
-Deleted established counters remain stale; revision 015 remains the sole head and no external call
-or revision 016 was added. Task 6 verification is 189 focused, 974 all-v2 with one baseline warning,
-and 1492 full-backend with 43 skipped and 15 baseline warnings; Ruff, static, Alembic, and
-no-migration checks are clean. The bounded non-Ultra precommit audit is clean and the local task
-commit uses `feat(v2): commit scrum state atomically`; independent technical review remains pending,
-so Task 6 and M1 stay open. Capacity
+new-allocation ranges, work-item child-counter seeds, monotonic replay, typed stale/conflict rollback,
+restart continuation, and unchanged post-commit adapter boundary. Review-fix round 1 freezes every
+ownership/history coordinate, rejects missing established blueprint members, requires whole-slice
+exactness for advanced replay, deeply validates committed results, and binds visible natural owners
+before a session. Deleted established counters remain stale; revision 015 remains the sole head and
+no external call or revision 016 was added. Verification is 231 focused, 1016 all-v2 with one
+baseline warning, and 1534 full-backend with 43 skipped and 15 baseline warnings; Ruff, static,
+Alembic, and no-migration checks are clean. Original commit `4cfaa65` and the exact fix
+subject `fix(v2): enforce authoritative after-image identity` have a CLEAN bounded audit;
+independent Ultra re-review remains pending, so Task 6 and M1 stay open. Capacity
 allocation, live flow, planning, lifecycle mechanics, dependencies, risks, scheduler/external
 wiring, UAT, and any next task remain deferred.
 

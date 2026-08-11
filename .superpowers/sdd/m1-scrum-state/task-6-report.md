@@ -2,10 +2,11 @@
 
 ## Status
 
-Implementation, strict TDD, verification, documentation, and the bounded non-Ultra precommit audit
-are complete on reviewed base `b449ca0`. The exact task commit subject is
-`feat(v2): commit scrum state atomically`. Independent technical review remains pending; Task 6 and
-M1 therefore remain open. No live system, deployment, push, UAT, or external provider was used.
+The original Task 6 implementation is commit `4cfaa65` (`feat(v2): commit scrum state atomically`).
+Review-fix round 1 is implemented and verified on that base under the exact subject
+`fix(v2): enforce authoritative after-image identity`. The bounded non-Ultra post-GREEN audit is
+CLEAN; independent Ultra re-review remains pending, so Task 6 and M1 remain open. No live system,
+deployment, push, UAT, or external provider was used.
 
 ## Implemented behavior
 
@@ -28,10 +29,12 @@ and shares only private runtime/ledger helpers; it is never called from the new 
 The mapper distinguishes persisted sparse after-images from declared new allocations. Claims bind
 only exact contiguous new coordinates and semantic IDs. If an unclaimed ordinal proves missing in
 the database, the slice raises typed `StaleSemanticCounter` and rolls back. New work items seed visit
-and cancellation counters at zero, and new members seed member-unavailability counters at zero, so
-first claims may occur in a later transaction or after restart. Missing/deleted established counters
-are never recreated. Sprint planning coordinates and all existing immutable Task 5 records remain
-conflict-checked. Natural replay is monotonic and cannot double-consume or regress a counter.
+and cancellation counters at zero so first claims may occur later or after restart. Blueprint
+members and their unavailable-member counters are established by Task 5/bootstrap; Task 6 rejects
+missing established members and never recreates their identity or counter history. Missing/deleted
+established counters are never recreated. Sprint planning coordinates and all existing immutable
+Task 5 records remain conflict-checked. Natural replay is monotonic and cannot double-consume or
+regress a counter.
 
 Projection delivery stays outside the transaction. No allocator, transition, lifecycle engine,
 scheduler, Jira/OpenAI client, probability/eligibility logic, migration `016`, API, or frontend was
@@ -154,3 +157,46 @@ truthfulness. No Critical or Important concern remains from the bounded audit.
 
 No implementation concern is known. Independent technical review is still required before Task 6
 or this plan is marked complete. M1 remains in progress, and no next slice was inferred.
+
+## Review fix round 1 — authoritative after-image identity
+
+### RED
+
+All review regressions were added before production edits. The exact five-file Task 6 command shown
+above, targeting `fix-round-1-red.txt`, exited non-zero with `32 failed, 199 passed in 21.04s`.
+Failures covered global/composite row theft, forbidden coordinate mutation for every mutable model,
+advanced-claim state/ledger/natural replay, deleted established-member recreation, malformed nested
+committed results, contradictory result membership, and visible owner-kind cross-binding before
+session creation. A corrected five-case scope selection separately witnessed `1 failed, 4
+deselected`, then `1 passed, 4 deselected` after the production guard was restored.
+
+### GREEN and behavior
+
+The identical focused command targeting `fix-round-1-green.txt` produced `231 passed in 19.61s`.
+The repair freezes the required ownership/history coordinates for overlay, consumption, work,
+sprint, scope, and visit after-images; member, factor, and sample remain fully immutable. Any advanced
+allocation claim now authenticates the entire replay: all allocation claims must already be
+consumed, all supplied after-images and natural occurrences must exist exactly, and every submitted
+ledger semantic key must resolve to identical persisted content. A changed or mixed replay raises a
+typed stale/semantic conflict and the runtime CAS rolls back with every state and ledger write.
+
+Task 6 no longer inserts a missing member or resets its natural counter. Returned runtime/ledger
+values are deeply revalidated, and unique returned counter/evaluation values must be exact members
+of the complete snapshot. Visible natural-owner cross-binding rejects before the session factory.
+The bounded non-Ultra post-GREEN audit independently rechecked all six seams and reported CLEAN.
+
+### Final verification
+
+- Task 1: 62 passed, 1 baseline warning; Task 2: 197 passed; Task 3: 257 passed; Task 4:
+  152 passed; Task 5: 338 passed; Task 6: 231 passed.
+- All v2: 1016 passed, 1 baseline warning in 30.34s.
+- Single fresh full backend after the final production change: 1534 passed, 43 skipped, exactly 15
+  baseline warnings in 58.64s.
+- Atomic stale/conflict/rollback selection: 48 passed, 26 deselected; disposed-engine restart:
+  1 passed, 73 deselected.
+- Ruff: all checks passed. Static import/architecture: 67 passed. Migration parity/round trip,
+  cold import, restart, and adapter boundary: 49 passed.
+- Shape: six changed Python files, no function over 30 lines or three arguments.
+- Alembic: sole 015 head, empty branches, fresh upgrade/current at 015; migration diff from
+  `4cfaa65` empty.
+- Repository diff checks are clean. No test, warning, or scope was weakened.

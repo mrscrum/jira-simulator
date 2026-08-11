@@ -1,8 +1,9 @@
 """Immutable command values for one authoritative v2 tick slice."""
 
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
+from app.v2.domain.canonical_json import semantic_uuid
 from app.v2.domain.deterministic_rng import (
     MAX_SAFE_INTEGER,
     DecisionOccurrence,
@@ -12,7 +13,13 @@ from app.v2.domain.deterministic_rng import (
     visit_rng_id,
 )
 from app.v2.domain.immutable_value import ImmutableValue, immutable_dataclass
-from app.v2.domain.live_slice import CommittedTickSlice, TickSliceCommit
+from app.v2.domain.live_slice import (
+    ActivityEvent,
+    CommittedTickSlice,
+    GroundTruthRecord,
+    ProjectionIntent,
+    TickSliceCommit,
+)
 from app.v2.domain.scrum_state import (
     NATURAL_OWNER_DECISIONS,
     NaturalDecisionEvaluation,
@@ -35,6 +42,36 @@ def _require_safe_integer(value: object, label: str) -> int:
         raise TypeError(f"{label} must be an integer")
     if not 0 <= value <= MAX_SAFE_INTEGER:
         raise ValueError(f"{label} must be in the safe integer domain")
+    return value
+
+
+def _require_nonnegative_integer(value: object, label: str) -> int:
+    if type(value) is not int:
+        raise TypeError(f"{label} must be an integer")
+    if value < 0:
+        raise ValueError(f"{label} must be non-negative")
+    return value
+
+
+def _require_uuid(value: object, label: str) -> UUID:
+    if type(value) is not UUID:
+        raise TypeError(f"{label} must be a UUID")
+    return value
+
+
+def _require_text(value: object, label: str) -> str:
+    if type(value) is not str:
+        raise TypeError(f"{label} must be a string")
+    if not value or value.strip() != value:
+        raise ValueError(f"{label} must be non-empty canonical text")
+    return value
+
+
+def _require_aware(value: object, label: str) -> datetime:
+    if type(value) is not datetime:
+        raise TypeError(f"{label} must be a datetime")
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{label} must be aware")
     return value
 
 
@@ -144,18 +181,66 @@ class CommittedAuthoritativeTickSlice(ImmutableValue):
         runtime = self.live_slice.runtime
         _validate_coordinates(self.state, runtime.team_id, runtime.run_id)
         _validate_result_coordinates(counters, evaluations, runtime)
+        _validate_snapshot_members(counters, self.state.semantic_counters, "counter")
+        _validate_snapshot_members(
+            evaluations,
+            self.state.natural_decision_evaluations,
+            "natural evaluation",
+        )
 
 
 def _validate_committed_live(live_slice: object) -> None:
     _require_exact(live_slice, CommittedTickSlice, "live_slice")
-    _require_exact(live_slice.runtime, TeamRuntime, "live_slice runtime")
-    for values, label in (
-        (live_slice.activity, "activity"),
-        (live_slice.ground_truth, "ground_truth"),
-        (live_slice.projection_intents, "projection_intents"),
+    runtime = live_slice.runtime
+    _validate_runtime(runtime)
+    for values, specification in (
+        (live_slice.activity, (ActivityEvent, "activity")),
+        (live_slice.ground_truth, (GroundTruthRecord, "ground_truth")),
+        (live_slice.projection_intents, (ProjectionIntent, "projection_intents")),
     ):
-        if type(values) is not tuple:
-            raise TypeError(f"{label} must be a tuple")
+        _validate_committed_collection(values, specification, runtime)
+
+
+def _validate_runtime(runtime: object) -> None:
+    _require_exact(runtime, TeamRuntime, "live_slice runtime")
+    for name in ("id", "team_id", "run_id"):
+        _require_uuid(getattr(runtime, name), f"runtime {name}")
+    _require_nonnegative_integer(runtime.version, "runtime version")
+    _require_text(runtime.state, "runtime state")
+    for name in ("simulation_time", "created_at", "updated_at"):
+        _require_aware(getattr(runtime, name), f"runtime {name}")
+    if runtime.next_wake_at is not None:
+        _require_aware(runtime.next_wake_at, "runtime next_wake_at")
+    if runtime.id != semantic_uuid(f"runtime/{runtime.team_id}"):
+        raise ValueError("runtime id must match its semantic team coordinate")
+    if runtime.updated_at < runtime.created_at:
+        raise ValueError("runtime updated_at must not precede created_at")
+
+
+def _validate_committed_collection(
+    values: object, specification: tuple[type, str], runtime: TeamRuntime
+) -> None:
+    value_type, label = specification
+    if type(values) is not tuple:
+        raise TypeError(f"{label} must be a tuple")
+    for value in values:
+        _require_exact(value, value_type, label)
+        value.validate()
+        _validate_ledger_metadata(value, runtime)
+
+
+def _validate_ledger_metadata(value: object, runtime: TeamRuntime) -> None:
+    append_sequence = _require_nonnegative_integer(
+        value.append_sequence, "append_sequence"
+    )
+    if append_sequence == 0:
+        raise ValueError("append_sequence must be positive")
+    _require_nonnegative_integer(value.transaction_sequence, "transaction_sequence")
+    for name in ("team_id", "run_id", "commit_id"):
+        _require_uuid(getattr(value, name), name)
+    _require_aware(value.recorded_at, "recorded_at")
+    if (value.team_id, value.run_id) != (runtime.team_id, runtime.run_id):
+        raise ValueError("committed ledger row must match the runtime team/run")
 
 
 def _validate_coordinates(
@@ -179,6 +264,24 @@ def _validate_result_coordinates(
         raise ValueError("committed claims must match the committed runtime")
 
 
+def _validate_snapshot_members(
+    returned: tuple[object, ...], stored: tuple[object, ...], label: str
+) -> None:
+    identities = tuple(_result_identity(item) for item in returned)
+    if len(set(identities)) != len(identities):
+        raise ValueError(f"returned {label} values must be unique snapshot members")
+    stored_by_identity = {_result_identity(item): item for item in stored}
+    returned_pairs = zip(identities, returned)
+    if any(stored_by_identity.get(identity) != item for identity, item in returned_pairs):
+        raise ValueError(f"returned {label} must be an exact snapshot member")
+
+
+def _result_identity(value: object) -> object:
+    if type(value) is SemanticCounter:
+        return value.team_id, value.run_id, value.scope
+    return value.id
+
+
 def _validate_claim_bindings(
     state: ScrumStateWriteSet,
     claims: tuple[SemanticCounterClaim, ...],
@@ -192,6 +295,7 @@ def _validate_claim_bindings(
     if len(set(natural_scopes)) != len(natural_scopes):
         raise ValueError("natural counter scopes must be unique per command")
     _validate_natural_bindings(claim_map, natural_map)
+    _validate_visible_natural_owners(state, natural)
     claimed_natural = {
         scope
         for scope in claim_map
@@ -310,3 +414,20 @@ def _validate_natural_bindings(
             raise ValueError("natural counter claim count must be exactly one")
         if eligible.decision.occurrence != claim.expected_next:
             raise ValueError("natural decision occurrence must equal counter expected_next")
+
+
+def _validate_visible_natural_owners(
+    state: ScrumStateWriteSet,
+    natural: tuple[EligibleNaturalDecisionClaim, ...],
+) -> None:
+    member_ids = {item.id for item in state.member_identities}
+    work_ids = {item.id for item in state.work_items}
+    for eligible in natural:
+        decision = eligible.decision
+        wrong_ids = (
+            member_ids
+            if decision.decision_type is DecisionType.RISK_CANCELLATION_OUTCOME
+            else work_ids
+        )
+        if decision.entity_id in wrong_ids:
+            raise ValueError("natural decision is visibly bound to the wrong owner kind")

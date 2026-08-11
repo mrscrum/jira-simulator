@@ -71,27 +71,27 @@ Status: IN PROGRESS
 
 - [x] Task 5 — Persist authoritative Scrum state at revision 015 — completed and technically
   accepted 2026-08-11 after Ultra review reported CLEAN with no Critical or Important findings
-- [ ] Task 6 — Commit authoritative Scrum state atomically — implementation, verification,
-  bounded precommit audit, and local task commit complete; independent technical review pending
+- [ ] Task 6 — Commit authoritative Scrum state atomically — original commit and review-fix round 1
+  implementation/verification complete with CLEAN bounded audit; independent Ultra re-review pending
 
 ### Task 6 Current Implementation Status
 
-Task 6 is implemented locally on base `b449ca0` with exact commit subject
-`feat(v2): commit scrum state atomically`. The immutable authoritative command is validated before
-session creation; one session then performs runtime CAS, sparse Task 5 after-images, exact semantic
-counter CAS, natural-eligibility resolution, ordered evidence/pending-intent appends, final flush,
-and one commit. Existing sparse after-images update without reconsuming allocation ranges, new
-work/member owners receive zero-valued child counters for later or restarted claims, and every
-deleted established counter remains stale. Replay is monotonic and typed state/eligibility/evidence
-conflicts or any injected failure roll back the complete slice. Projection delivery remains
+Task 6 original commit is `4cfaa65` (`feat(v2): commit scrum state atomically`). Review-fix round 1
+is implemented on that base under exact subject `fix(v2): enforce authoritative after-image
+identity`. The immutable authoritative command is validated before session creation; one session
+then performs runtime CAS, sparse Task 5 after-images, exact semantic-counter CAS, natural-
+eligibility resolution, ordered evidence/pending-intent appends, final flush, and one commit.
+Ownership/history coordinates cannot move persisted rows, missing established blueprint members
+reject instead of being recreated, and advanced allocation replay requires the entire submitted
+state/claim/natural/ledger slice to be already persisted and exact. Projection delivery remains
 post-commit; no external client or adapter is imported or called.
 
-Final retained verification is 189 Task 6 focused tests, 974 all-v2 tests with one baseline warning,
-and 1492 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, touched-function
+Final retained verification is 231 Task 6 focused tests, 1016 all-v2 tests with one baseline warning,
+and 1534 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, touched-function
 shape/static/import checks, Alembic sole head 015 with empty branches and linear history, and the
-no-migration diff are clean. No revision 016 exists. The bounded non-Ultra precommit audit is clean;
-keep this task and plan open until independent technical review is clean. M1 remains in progress,
-and this plan selects no next task.
+no-migration diff are clean. No revision 016 exists. The bounded non-Ultra post-GREEN audit is CLEAN;
+keep this task and plan open until independent Ultra re-review is clean. M1 remains in progress, and
+this plan selects no next task.
 
 ## Deferred Validation Hardening Outside These Tasks
 
@@ -452,10 +452,15 @@ one rollback and restart boundary.
   persists them in the caller's current session. Task 6 does not derive transitions, allocate labor,
   recalculate time, resample, inspect Jira, or synthesize a write set.
 - The atomic order is: validate the complete command before session creation; open one short session;
-  runtime team/run/version CAS; apply Task 5 state after-images and seed new-owner child counters at
-  zero; CAS semantic counters; insert/resolve eligible natural-evaluation rows; append existing
-  activity, ground truth, and pending projection; flush; commit once. Seeds consume no occurrence,
-  missing established counters remain stale, and any exception rolls back every class.
+  runtime team/run/version CAS; apply Task 5 state after-images and seed newly claimed work-item child
+  counters at zero; CAS semantic counters; insert/resolve eligible natural-evaluation rows; append
+  existing activity, ground truth, and pending projection; flush; commit once. Blueprint member
+  identities/counters must already exist from Task 5/bootstrap. Seeds consume no occurrence,
+  missing established owners/counters remain stale, and any exception rolls back every class.
+- If any allocation claim is already advanced, treat the whole supplied slice as replay: every
+  allocation claim must be advanced, every after-image and natural occurrence must exist exactly,
+  and every ledger semantic key must resolve to identical content. Fresh or changed replay content
+  raises a typed stale/semantic conflict and rolls back the runtime CAS.
 - Existing `commit_tick_slice`, paging, replay, and adapter boundaries remain public and compatible.
   Refactor shared private in-session helpers, but never call `commit_tick_slice` from inside the new
   operation because it owns its own session/transaction.

@@ -107,16 +107,23 @@ def member_eligible_claim(occurrence: int = 0) -> EligibleNaturalDecisionClaim:
 
 
 def baseline_write_set() -> ScrumStateWriteSet:
-    member = MemberIdentity(BASE_MEMBER_ID, TEAM_ID, 0)
+    base_member = MemberIdentity(BASE_MEMBER_ID, TEAM_ID, 0)
+    blueprint_member = make_member()
+    blueprint_member_scope = counter_scope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+        blueprint_member.id,
+        DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME.value,
+    )
     counters = (
         SemanticCounter(TEAM_ID, RUN_ID, sprint_claim().scope, 0),
         SemanticCounter(TEAM_ID, RUN_ID, item_claim().scope, 1),
         SemanticCounter(TEAM_ID, RUN_ID, visit_claim().scope, 0),
         SemanticCounter(TEAM_ID, RUN_ID, natural_counter_claim().scope, 0),
         SemanticCounter(TEAM_ID, RUN_ID, member_natural_counter_claim().scope, 0),
+        SemanticCounter(TEAM_ID, RUN_ID, blueprint_member_scope, 0),
     )
     return ScrumStateWriteSet(
-        member_identities=(member,),
+        member_identities=(base_member, blueprint_member),
         work_items=(make_work_item(),),
         semantic_counters=counters,
     )

@@ -334,3 +334,14 @@
 - No Task 7, lifecycle/eligibility mechanics, allocator, live-flow engine, external wiring,
   revision 016, deployment, UAT, or M1 completion was assumed. Base `b449ca0`, the exact commit
   subject, and all final verification counts were supplied explicitly.
+
+## [2026-08-11] M1 — Task 6 review fix round 1
+
+- Treated Task 5/bootstrap as the only authorized first-persistence boundary for blueprint member
+  identities and their member-unavailability counters. Task 6 therefore rejects an absent member
+  rather than recreating possibly deleted history.
+- Treated any already-consumed allocation claim as replay of the entire submitted authoritative
+  slice. Mixing a fresh or changed state row, allocation claim, natural occurrence, or ledger draft
+  with that replay is stale/conflicting and rolls back atomically.
+- Preserved revision 015 and all Task 6 scope exclusions. No Task 7, allocator, lifecycle/live-flow
+  behavior, migration 016, external call, deployment, push, UAT, or M1 completion was assumed.

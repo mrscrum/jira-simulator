@@ -94,6 +94,21 @@ IMMUTABLE_AFTER_IMAGE_MODELS = (
     V2StatusVisitSampleModel,
 )
 IMMUTABLE_AFTER_IMAGE_FIELDS = {
+    V2MemberAvailabilityOverlayModel: ("id", "team_id", "run_id", "member_id"),
+    V2MemberBusinessDateConsumptionModel: (
+        "team_id",
+        "run_id",
+        "member_id",
+        "business_date",
+    ),
+    V2WorkItemModel: (
+        "id",
+        "team_id",
+        "run_id",
+        "creation_kind",
+        "creation_sequence",
+        "created_at",
+    ),
     V2SprintModel: (
         "id",
         "team_id",
@@ -102,6 +117,24 @@ IMMUTABLE_AFTER_IMAGE_FIELDS = {
         "planned_start_at",
         "planned_end_at",
         "created_at",
+    ),
+    V2SprintScopeModel: (
+        "id",
+        "team_id",
+        "run_id",
+        "sprint_id",
+        "work_item_id",
+        "added_at",
+    ),
+    V2StatusVisitModel: (
+        "id",
+        "team_id",
+        "run_id",
+        "work_item_id",
+        "ordinal",
+        "status_key",
+        "activity_key",
+        "entered_at",
     ),
 }
 NEW_ALLOCATION_SCOPES_KEY = "v2_task6_new_allocation_scopes"
@@ -156,7 +189,6 @@ class SqlAlchemyScrumStateMapper:
         candidate = _candidate_snapshot(session, state, _state_coordinates(state))
         new_scopes: set[SemanticCounterScope] = set()
         new_work_items: set[UUID] = set()
-        new_members: set[UUID] = set()
         for spec, items in zip(LOAD_SPECS[:9], state._collection_values()[:9], strict=True):
             for item in items:
                 if _apply_after_image(session, item, spec):
@@ -166,12 +198,21 @@ class SqlAlchemyScrumStateMapper:
                         new_scopes.add(scope)
                     if type(item) is WorkItemState:
                         new_work_items.add(item.id)
-                    if type(item) is MemberIdentity:
-                        new_members.add(item.id)
             session.flush()
-        _seed_owner_counters(session, commit, (new_work_items, new_members))
+        _seed_owner_counters(session, commit, (new_work_items, set()))
         session.info[NEW_ALLOCATION_SCOPES_KEY] = frozenset(new_scopes)
         return candidate
+
+    def preflight_replay(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> bool:
+        claims = _allocation_claims(commit)
+        if not _contains_advanced_claim(session, commit, claims):
+            return False
+        _require_allocation_replay(session, commit, claims)
+        _require_replayed_after_images(session, commit.state)
+        _require_replayed_natural_claims(session, commit)
+        return True
 
     def apply_counter_claims(
         self, session: Session, commit: AuthoritativeTickSliceCommit
@@ -215,6 +256,8 @@ def _apply_after_image(session: Session, item: object, spec: tuple) -> bool:
     values = _record_values(item)
     model = session.get(model_type, identity, populate_existing=True)
     if model is None:
+        if model_type is V2MemberIdentityModel:
+            raise ScrumStateConflictError("Task 6 cannot recreate a missing member identity")
         if model_type is V2StatusVisitModel:
             _expunge_deleted_visit_identities(session, identity)
         session.add(model_type(**values))
@@ -226,6 +269,64 @@ def _apply_after_image(session: Session, item: object, spec: tuple) -> bool:
     _require_immutable_fields(model, values, model_type)
     _update_model(model, values)
     return False
+
+
+def _allocation_claims(
+    commit: AuthoritativeTickSliceCommit,
+) -> tuple[SemanticCounterClaim, ...]:
+    return tuple(
+        claim
+        for claim in commit.counter_claims
+        if claim.scope.kind is not SemanticCounterKind.NATURAL_DECISION_OCCURRENCE
+    )
+
+
+def _contains_advanced_claim(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claims: tuple[SemanticCounterClaim, ...],
+) -> bool:
+    return any(_claim_is_advanced(_load_counter(session, commit, claim), claim) for claim in claims)
+
+
+def _claim_is_advanced(
+    counter: SemanticCounter | None, claim: SemanticCounterClaim
+) -> bool:
+    return counter is not None and counter.next_value >= claim.expected_next + claim.count
+
+
+def _require_allocation_replay(
+    session: Session,
+    commit: AuthoritativeTickSliceCommit,
+    claims: tuple[SemanticCounterClaim, ...],
+) -> None:
+    for claim in claims:
+        if not _claim_is_advanced(_load_counter(session, commit, claim), claim):
+            raise CounterClaimStaleError("advanced replay cannot mix a current allocation claim")
+
+
+def _require_replayed_after_images(session: Session, state: ScrumStateWriteSet) -> None:
+    for spec, items in zip(LOAD_SPECS[:9], state._collection_values()[:9], strict=True):
+        model_type, value_type, _order = spec
+        for item in items:
+            model = session.get(
+                model_type,
+                _model_identity(item, model_type),
+                populate_existing=True,
+            )
+            if model is None:
+                raise CounterClaimStaleError("advanced replay references a missing after-image")
+            if _domain_record(model, value_type) != item:
+                raise ScrumStateConflictError("advanced replay changed a persisted after-image")
+
+
+def _require_replayed_natural_claims(
+    session: Session, commit: AuthoritativeTickSliceCommit
+) -> None:
+    for claim in commit.natural_decision_claims:
+        eligibility, occurrence = _natural_rows(session, commit, claim)
+        if eligibility is None or occurrence is None:
+            raise CounterClaimStaleError("advanced replay cannot consume a natural occurrence")
 
 
 def _require_immutable_fields(

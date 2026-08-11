@@ -1,8 +1,9 @@
+import json
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import create_engine, delete, event, update
+from sqlalchemy import create_engine, delete, event, text, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import Base
@@ -16,6 +17,8 @@ from app.v2.domain.deterministic_rng import (
     DecisionType,
     DeterministicRandomStream,
     item_rng_id,
+    member_rng_id,
+    run_rng_id,
     visit_rng_id,
 )
 from app.v2.domain.live_slice import (
@@ -27,13 +30,24 @@ from app.v2.domain.live_slice import (
 )
 from app.v2.domain.sampling import sample_touch, touch_bounds
 from app.v2.domain.scrum_state import (
+    MemberIdentity,
     ScrumStateQuery,
     ScrumStateSnapshot,
     ScrumStateWriteSet,
     SemanticCounterKind,
 )
-from app.v2.persistence.scrum_state_mapper import SqlAlchemyScrumStateMapper
-from app.v2.persistence.scrum_state_models import V2SemanticCounterModel
+from app.v2.persistence.scrum_state_mapper import (
+    ScrumStateConflictError,
+    SqlAlchemyScrumStateMapper,
+    _record_values,
+    _require_immutable_fields,
+)
+from app.v2.persistence.scrum_state_models import (
+    V2MemberBusinessDateConsumptionModel,
+    V2MemberIdentityModel,
+    V2SemanticCounterModel,
+)
+from app.v2.persistence.team_models import V2RunModel
 from app.v2.persistence.unit_of_work import (
     NaturalEligibilityConflict,
     SemanticDeduplicationConflict,
@@ -42,6 +56,7 @@ from app.v2.persistence.unit_of_work import (
     StaleSemanticCounter,
 )
 from tests.v2.authoritative_slice_support import (
+    BASE_MEMBER_ID,
     AuthoritativeCommandSpec,
     allocation_claims,
     authoritative_write_set,
@@ -53,17 +68,22 @@ from tests.v2.authoritative_slice_support import (
     member_eligible_claim,
     member_natural_counter_claim,
     natural_counter_claim,
+    new_sprint_scope,
     new_work_item,
     sprint_claim,
+    visit_claim,
 )
 from tests.v2.live_slice_support import create_aggregate, make_tick_commit
 from tests.v2.scrum_state_support import (
     BLUEPRINT,
     BUSINESS_DATE,
     LATER,
+    NOW,
     RUN_ID,
     TEAM_ID,
+    make_consumption,
     make_member,
+    make_overlay,
     make_sample_for,
     make_sprint,
     make_visit,
@@ -71,7 +91,6 @@ from tests.v2.scrum_state_support import (
 )
 
 STATE_INSERT_FRAGMENTS = (
-    "INSERT INTO v2_member_identities",
     "INSERT INTO v2_member_availability_overlays",
     "INSERT INTO v2_member_business_date_consumption",
     "INSERT INTO v2_work_items",
@@ -88,6 +107,14 @@ OTHER_WRITE_FRAGMENTS = (
     "INSERT INTO v2_ground_truth_records",
     "INSERT INTO v2_projection_intents",
 )
+MUTABLE_COLLECTIONS = {
+    "overlay": "member_availability_overlays",
+    "consumption": "member_business_date_consumption",
+    "work": "work_items",
+    "sprint": "sprints",
+    "scope": "sprint_scope",
+    "visit": "status_visits",
+}
 
 
 @dataclass(frozen=True)
@@ -172,6 +199,50 @@ def _baseline_view(context: AtomicContext) -> StoredView:
     return StoredView(context.baseline_runtime, context.baseline, (), (), ())
 
 
+def _single_after_image(case: str, item: object) -> ScrumStateWriteSet:
+    return ScrumStateWriteSet(**{MUTABLE_COLLECTIONS[case]: (item,)})
+
+
+def _forbidden_after_image(case: str) -> ScrumStateWriteSet:
+    items = {
+        "overlay": replace(make_overlay(), member_id=BASE_MEMBER_ID),
+        "work": replace(new_work_item(), created_at=NOW - timedelta(minutes=1)),
+        "sprint": replace(
+            make_sprint(),
+            planned_end_at=make_sprint().planned_end_at + timedelta(days=1),
+            updated_at=LATER,
+        ),
+        "scope": replace(new_sprint_scope(), added_at=NOW - timedelta(minutes=1)),
+        "visit": replace(make_visit(), entered_at=NOW - timedelta(minutes=1)),
+    }
+    return _single_after_image(case, items[case])
+
+
+def _allowed_after_image(case: str) -> ScrumStateWriteSet:
+    items = {
+        "overlay": replace(make_overlay(), availability_fraction=0.5),
+        "consumption": replace(
+            make_consumption(), consumed_labor_microseconds=3_600_000_001
+        ),
+        "work": replace(new_work_item(), relative_rank=4, updated_at=LATER),
+        "sprint": replace(make_sprint(), updated_at=LATER),
+        "scope": replace(new_sprint_scope(), removed_at=LATER),
+        "visit": replace(make_visit(), queue_microseconds=300_000_001),
+    }
+    return _single_after_image(case, items[case])
+
+
+def _claimed_replay(case: str) -> tuple[ScrumStateWriteSet, object]:
+    if case == "sprint":
+        changed = replace(make_sprint(), updated_at=LATER)
+        return ScrumStateWriteSet(sprints=(changed,)), sprint_claim()
+    if case == "item":
+        changed = replace(new_work_item(), relative_rank=4, updated_at=LATER)
+        return ScrumStateWriteSet(work_items=(changed,)), item_claim()
+    changed = replace(make_visit(), queue_microseconds=300_000_001)
+    return ScrumStateWriteSet(status_visits=(changed,)), visit_claim()
+
+
 def _counter_values(snapshot: ScrumStateSnapshot) -> dict[tuple[str, str], int]:
     return {
         (counter.scope.kind.value, counter.scope.scope_key): counter.next_value
@@ -245,7 +316,7 @@ def _assert_success_evaluations(committed, context: AtomicContext) -> None:
 def _assert_write_order(statements: list[str]) -> None:
     ordered = (
         "UPDATE v2_team_runtimes",
-        "INSERT INTO v2_member_identities",
+        "INSERT INTO v2_member_availability_overlays",
         "UPDATE v2_semantic_counters",
         "INSERT INTO v2_natural_decision_evaluations",
         "INSERT INTO v2_activity_events",
@@ -289,6 +360,146 @@ def test_success_commits_runtime_state_claims_evaluations_and_ledgers_in_order(a
     _assert_success_evaluations(committed, atomic_context)
     _assert_committed_ledgers(committed, atomic_context.command)
     _assert_write_order(statements)
+    assert all(item in committed.state.semantic_counters for item in committed.counters)
+    assert all(
+        item in committed.state.natural_decision_evaluations
+        for item in committed.natural_decision_evaluations
+    )
+
+
+@pytest.mark.parametrize("case", ["overlay", "work", "sprint", "scope", "visit"])
+def test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back(
+    atomic_context, case
+):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    live = make_tick_commit(atomic_context.aggregate, 1, f"forbidden-{case}")
+    command = AuthoritativeTickSliceCommit(live, _forbidden_after_image(case), (), ())
+
+    with pytest.raises(SemanticDeduplicationConflict):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
+
+
+@pytest.mark.parametrize("case", tuple(MUTABLE_COLLECTIONS))
+def test_each_mutable_after_image_accepts_one_permitted_field_update(atomic_context, case):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    live = make_tick_commit(atomic_context.aggregate, 1, f"allowed-{case}")
+    changed = _allowed_after_image(case)
+
+    committed = unit_of_work.commit_authoritative_slice(
+        AuthoritativeTickSliceCommit(live, changed, (), ())
+    )
+
+    collection = getattr(committed.state, MUTABLE_COLLECTIONS[case])
+    assert getattr(changed, MUTABLE_COLLECTIONS[case])[0] in collection
+
+
+def test_consumption_identity_coordinates_are_explicitly_immutable(atomic_context):
+    SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+        atomic_context.command
+    )
+    original = make_consumption()
+    changed = replace(original, business_date=original.business_date + timedelta(days=1))
+    identity = (str(TEAM_ID), str(RUN_ID), str(original.member_id), original.business_date)
+    with atomic_context.session_factory() as session:
+        model = session.get(V2MemberBusinessDateConsumptionModel, identity)
+        assert model is not None
+        with pytest.raises(ScrumStateConflictError):
+            _require_immutable_fields(
+                model,
+                _record_values(changed),
+                V2MemberBusinessDateConsumptionModel,
+            )
+
+
+def _other_team_overlay_state(other: object) -> ScrumStateWriteSet:
+    member_id = member_rng_id(other.team.id, 1)
+    member = MemberIdentity(member_id, other.team.id, 1)
+    overlay = replace(
+        make_overlay(),
+        team_id=other.team.id,
+        run_id=other.run.id,
+        member_id=member_id,
+    )
+    return ScrumStateWriteSet(
+        member_identities=(member,),
+        member_availability_overlays=(overlay,),
+    )
+
+
+def test_global_overlay_id_cannot_steal_a_row_from_another_team(
+    atomic_context, resolved_blueprint_json, requested_at
+):
+    document = json.loads(resolved_blueprint_json)
+    document["team"]["name"] = "Authoritative collision team"
+    other = create_aggregate(
+        atomic_context.session_factory,
+        canonical_json(document),
+        requested_at,
+    )
+    other_state = _other_team_overlay_state(other)
+    mapper = SqlAlchemyScrumStateMapper()
+    with atomic_context.session_factory.begin() as session:
+        assert session.scalar(text("PRAGMA foreign_keys")) == 1
+        mapper.add(session, other_state)
+    with atomic_context.session_factory() as session:
+        other_before = mapper.load(session, ScrumStateQuery(other.team.id, other.run.id))
+    before = _stored_view(atomic_context)
+    live = make_tick_commit(atomic_context.aggregate, 0, "cross-team-overlay")
+    state = ScrumStateWriteSet(member_availability_overlays=(make_overlay(),))
+
+    with pytest.raises(SemanticDeduplicationConflict):
+        SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+            AuthoritativeTickSliceCommit(live, state, (), ())
+        )
+
+    assert _stored_view(atomic_context) == before
+    with atomic_context.session_factory() as session:
+        assert mapper.load(session, ScrumStateQuery(other.team.id, other.run.id)) == other_before
+
+
+def _seed_cross_run_item(context: AtomicContext) -> tuple[object, object]:
+    second_run_id = run_rng_id(TEAM_ID, 1)
+    item = replace(_sequence_two_item(), run_id=second_run_id)
+    with context.session_factory.begin() as session:
+        session.add(
+            V2RunModel(
+                id=str(second_run_id),
+                team_id=str(TEAM_ID),
+                ordinal=1,
+                state="CREATED",
+                created_at=NOW,
+            )
+        )
+    with context.session_factory.begin() as session:
+        SqlAlchemyScrumStateMapper().add(
+            session,
+            ScrumStateWriteSet(work_items=(item,)),
+        )
+    return second_run_id, item
+
+
+def test_global_work_id_cannot_move_a_row_between_runs(atomic_context):
+    second_run_id, item = _seed_cross_run_item(atomic_context)
+    mapper = SqlAlchemyScrumStateMapper()
+    with atomic_context.session_factory() as session:
+        other_before = mapper.load(session, ScrumStateQuery(TEAM_ID, second_run_id))
+    before = _stored_view(atomic_context)
+    live = make_tick_commit(atomic_context.aggregate, 0, "cross-run-work")
+    state = ScrumStateWriteSet(work_items=(replace(item, run_id=RUN_ID),))
+
+    with pytest.raises(SemanticDeduplicationConflict):
+        SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+            AuthoritativeTickSliceCommit(live, state, (), ())
+        )
+
+    assert _stored_view(atomic_context) == before
+    with atomic_context.session_factory() as session:
+        assert mapper.load(session, ScrumStateQuery(TEAM_ID, second_run_id)) == other_before
 
 
 @pytest.mark.parametrize("fragment", (*STATE_INSERT_FRAGMENTS, *OTHER_WRITE_FRAGMENTS))
@@ -406,6 +617,51 @@ def test_uow_rejects_duck_typed_command_before_requesting_a_session(atomic_conte
     assert counting.calls == 0
 
 
+def _crossbound_natural_command(
+    context: AtomicContext, case: str
+) -> AuthoritativeTickSliceCommit:
+    is_cancellation = case == "cancellation-member"
+    decision_type = (
+        DecisionType.RISK_CANCELLATION_OUTCOME
+        if is_cancellation
+        else DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME
+    )
+    entity_id = make_member().id if is_cancellation else make_work_item().id
+    template = eligible_claim() if is_cancellation else member_eligible_claim()
+    eligible = replace(
+        template,
+        decision=DecisionOccurrence(entity_id, decision_type, 0),
+    )
+    scope = counter_scope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
+        entity_id,
+        decision_type.value,
+    )
+    counter = replace(natural_counter_claim(), scope=scope)
+    live = make_tick_commit(context.aggregate, 0, f"crossbound-{case}")
+    return AuthoritativeTickSliceCommit(live, ScrumStateWriteSet(), (counter,), (eligible,))
+
+
+@pytest.mark.parametrize("case", ["cancellation-member", "unavailable-work"])
+def test_visible_wrong_natural_owner_rejects_before_requesting_session(
+    atomic_context, case
+):
+    command = _crossbound_natural_command(atomic_context, case)
+    wrong_state = (
+        ScrumStateWriteSet(member_identities=(make_member(),))
+        if case == "cancellation-member"
+        else ScrumStateWriteSet(work_items=(make_work_item(),))
+    )
+    object.__setattr__(command, "state", wrong_state)
+    counting = CountingSessionFactory(atomic_context.session_factory)
+
+    with pytest.raises(ValueError, match="owner"):
+        SqlAlchemyV2UnitOfWork(counting).commit_authoritative_slice(command)
+
+    assert counting.calls == 0
+    assert _stored_view(atomic_context) == _baseline_view(atomic_context)
+
+
 def _stale_runtime_command(context: AtomicContext) -> AuthoritativeTickSliceCommit:
     unique_consumption = replace(
         authoritative_write_set().member_business_date_consumption[0],
@@ -486,6 +742,98 @@ def test_identical_authoritative_replay_is_idempotent_and_consumes_no_claim_twic
     assert repeated.live_slice.ground_truth == initial.live_slice.ground_truth
     assert repeated.live_slice.projection_intents == initial.live_slice.projection_intents
     assert repeated.live_slice.runtime.version == 2
+
+
+@pytest.mark.parametrize("case", ["sprint", "item", "visit"])
+def test_advanced_allocation_replay_requires_exact_persisted_after_image(
+    atomic_context, case
+):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    state, claim = _claimed_replay(case)
+    live = make_tick_commit(atomic_context.aggregate, 1, f"changed-{case}-replay")
+    command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+    with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
+
+
+def test_advanced_allocation_replay_rejects_an_unrelated_state_mutation(atomic_context):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    state = ScrumStateWriteSet(
+        sprints=(make_sprint(),),
+        member_availability_overlays=(
+            replace(make_overlay(), availability_fraction=0.5),
+        ),
+    )
+    live = make_tick_commit(atomic_context.aggregate, 1, "unrelated-replay-mutation")
+    command = AuthoritativeTickSliceCommit(live, state, (sprint_claim(),), ())
+
+    with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
+
+
+def test_advanced_allocation_replay_rejects_fresh_ledger_semantic_keys(atomic_context):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    live = make_tick_commit(atomic_context.aggregate, 1, "fresh-ledger-replay")
+    state = ScrumStateWriteSet(sprints=(make_sprint(),))
+    command = AuthoritativeTickSliceCommit(live, state, (sprint_claim(),), ())
+
+    with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
+
+
+def test_advanced_replay_cannot_mix_a_current_allocation_claim(atomic_context):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    state = ScrumStateWriteSet(
+        sprints=(make_sprint(),),
+        work_items=(_sequence_two_item(),),
+    )
+    live = make_tick_commit(atomic_context.aggregate, 1, "mixed-replay-allocation")
+    command = AuthoritativeTickSliceCommit(
+        live,
+        state,
+        (sprint_claim(), item_claim(2)),
+        (),
+    )
+
+    with pytest.raises(StaleSemanticCounter):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
+
+
+def test_advanced_replay_cannot_consume_a_fresh_natural_occurrence(atomic_context):
+    unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+    unit_of_work.commit_authoritative_slice(atomic_context.command)
+    before = _stored_view(atomic_context)
+    next_date = BUSINESS_DATE + timedelta(days=1)
+    natural = replace(eligible_claim(1), business_date=next_date)
+    live = make_tick_commit(atomic_context.aggregate, 1, "mixed-replay-natural")
+    command = AuthoritativeTickSliceCommit(
+        live,
+        ScrumStateWriteSet(sprints=(make_sprint(),)),
+        (sprint_claim(), natural_counter_claim(1)),
+        (natural,),
+    )
+
+    with pytest.raises(StaleSemanticCounter):
+        unit_of_work.commit_authoritative_slice(command)
+
+    assert _stored_view(atomic_context) == before
 
 
 def _existing_update_state() -> ScrumStateWriteSet:
@@ -753,6 +1101,24 @@ def test_seeded_child_counters_roll_back_with_their_new_owners(atomic_context):
     finally:
         event.remove(engine, "before_cursor_execute", fail_after_seeds)
     assert _stored_view(atomic_context) == _baseline_view(atomic_context)
+
+
+def test_deleted_established_member_and_counter_are_not_recreated(atomic_context):
+    with atomic_context.session_factory.begin() as session:
+        result = session.execute(
+            delete(V2MemberIdentityModel).where(
+                V2MemberIdentityModel.id == str(make_member().id)
+            )
+        )
+        assert result.rowcount == 1
+    before = _stored_view(atomic_context)
+
+    with pytest.raises(SemanticDeduplicationConflict):
+        SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+            atomic_context.command
+        )
+
+    assert _stored_view(atomic_context) == before
 
 
 def test_deleted_established_child_counter_is_not_recreated(atomic_context):

@@ -459,3 +459,23 @@
   with its exact typed conflict.
 - Revision 015 remains the sole linear Alembic head; no revision 016, external call, projection
   delivery, lifecycle/allocator behavior, deployment, UAT, or M1 completion was added.
+
+## [2026-08-11] M1 — Enforce authoritative after-image identity
+### Changed
+- Bound every mutable Task 6 after-image to immutable ownership/history coordinates and kept member,
+  factor, and sample rows fully immutable.
+- Made an advanced allocation claim authenticate the whole submitted replay: persisted state, every
+  allocation and natural claim, and all ledger semantic content must already be exact.
+- Deeply revalidated committed runtime/ledger results and required unique returned counters and
+  evaluations to be exact members of the complete Scrum snapshot.
+- Retained review-fix evidence from base `4cfaa65`: 231 focused tests, 1016 all-v2 tests with one
+  baseline warning, and 1534 full-backend tests with 43 skipped and 15 baseline warnings.
+### Fixed
+- Cross-team overlay IDs and cross-run work IDs can no longer move persisted rows; forbidden
+  ownership/history changes raise typed semantic conflict and roll back the complete slice.
+- Task 6 no longer recreates a missing established blueprint member or resets its natural counter;
+  Task 5/bootstrap remains the member initialization authority.
+- Visible natural owner-kind cross-binding now rejects before session creation. Whole-command replay
+  cannot mix fresh state, claims, natural occurrences, or ledger drafts with an advanced claim.
+- Revision 015 remains unchanged and sole head; no revision 016, external call, deployment, push,
+  UAT, or M1 completion was added. Independent Ultra re-review remains pending.

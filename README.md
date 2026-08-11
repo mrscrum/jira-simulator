@@ -94,9 +94,9 @@ that schema unchanged and adds no allocator, lifecycle transition, scheduler, or
 
 ## V2 authoritative atomic slices
 
-Task 6 is implemented locally on reviewed base `b449ca0`; its bounded non-Ultra precommit audit is
-clean and this slice uses the exact commit subject `feat(v2): commit scrum state atomically`.
-Independent technical review remains pending.
+Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review-fix round 1 is
+implemented on that base under the subject `fix(v2): enforce authoritative after-image
+identity`; its bounded non-Ultra audit is CLEAN, and independent Ultra re-review remains pending.
 `AuthoritativeTickSliceCommit` wraps the existing live-slice command with sparse authoritative Scrum
 after-images, explicit safe-integer semantic-counter ranges, and eligible natural-decision claims.
 The SQLAlchemy unit of work validates the exact immutable command before session creation, opens one
@@ -106,18 +106,18 @@ commits once. Every recognized stale writer, semantic conflict, database error, 
 or commit failure rolls back the complete slice.
 
 Claimed sprint/item/visit coordinates retain the existing semantic-ID derivations, while ordinary
-sparse updates to already persisted rows consume no allocation again. New work-item and member
-owners proactively receive their required zero-valued visit/cancellation/unavailability child
-counters, so a later slice or restarted process can claim occurrence zero without a gap. Those seeds
-consume nothing; a missing or deleted established counter remains stale and is never reconstructed
-from state or ledger rows. Identical eligibility replay returns the stored assignment without
-regressing a later counter, immutable state/evidence collisions remain typed conflicts, and
-projection delivery stays strictly post-commit. Task 6 creates no revision `016`, calls no external
-adapter/client, and implements no probability, eligibility, transition, labor-allocation, or live
-flow mechanics.
+sparse updates to already persisted rows consume no allocation again. New work-item owners receive
+zero-valued visit/cancellation child counters. Blueprint members and their unavailability counters
+must already exist from Task 5/bootstrap; Task 6 rejects missing established members instead of
+recreating their identity or counter history. Advanced allocation replay is accepted only when the
+entire submitted state, all claims, natural occurrences, and ledger drafts are already persisted and
+exact. Identity/history collisions and changed replay raise typed conflicts and roll back the whole
+slice. Projection delivery stays strictly post-commit. Task 6 creates no revision `016`, calls no
+external adapter/client, and implements no probability, eligibility, transition, labor-allocation,
+or live-flow mechanics.
 
-The retained Task 6 verification records 189 focused tests, 974 all-v2 tests with one baseline
-warning, and 1492 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
+The retained review-fix verification records 231 focused tests, 1016 all-v2 tests with one baseline
+warning, and 1534 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
 checks, the Alembic sole-head/empty-branch/linear-history checks, and the no-migration diff are clean.
 
 From `backend/`, run:
