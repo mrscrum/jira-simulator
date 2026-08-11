@@ -211,3 +211,10 @@
   schema, as explicitly allowed, without changing `CANONICAL_JSON_V1` or blueprint hash behavior.
 - Accepted finite Python integers and floats for explicit sampler numbers, normalized them to
   immutable floats, and rejected booleans even though `bool` subclasses `int`.
+
+## [2026-08-11] M1 — Task 3 review fix round 1
+- Chose the explicitly permitted sealed-construction design for `UniformDraw`: only
+  `DeterministicRandomStream.draw` can construct one, so keyed provenance is enforced without
+  storing or exposing the root seed on the result.
+- No product assumptions were made; UUID-only current decision entities, exact occurrence scopes,
+  the `0..2^53-1` domain, and formula-consistent duration provenance were supplied review findings.

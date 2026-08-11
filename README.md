@@ -9,9 +9,9 @@ for the assessed boundaries and gaps.
 
 **Approved future plan:** The concise requirements, architecture, and milestone roadmap for the
 additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-level-plan.md), with
-milestone status under [backlog/v2/](backlog/v2/README.md). These are planning artifacts only; none of the v2 behavior,
-including a simulation engine, Codex control, transport delivery, or Jira-side manual-intervention
-ingestion, is implemented beyond the local persistence spine described below.
+milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation is limited
+to the persistence spine and deterministic kernel described below; a simulation engine, Codex
+control, transport delivery, and Jira-side manual-intervention ingestion are not implemented.
 
 ## V2 persistence spine
 
@@ -50,13 +50,19 @@ team/run/member/sprint/item/visit/dependency/rework UUIDv5 identities from the e
 namespace and produces immutable unit draws from an NFC-normalized root-seed key plus an exact
 canonical decision coordinate. Draws are independent of process, call order, database identity,
 clock time, and mutable RNG state. The closed creation-kind and decision enums reject raw strings,
-and every ordinal/draw index rejects booleans and negative values.
+and current decision entities require semantic UUIDs rather than catalog/date strings. Every
+ordinal, occurrence, and draw index is a true integer in `0..2^53-1`; fixed-coordinate decisions
+require occurrence zero, while only the documented eligibility/forced/arrival decisions accept a
+positive caller-supplied occurrence. `UniformDraw` construction is sealed behind the keyed stream,
+so direct construction and `dataclasses.replace` cannot forge canonical or digest provenance.
 
 The same slice provides pure bounded dwell and touch sampling. Dwell uses the configured
 minimum/p25/p50/p99/maximum anchors with exact endpoints and log1p-space interpolation; touch uses
 the exact bounded linear formula. Both accept only explicit finite unit draws, preserve immutable
 input/result provenance, and consume no persisted occurrence. This slice adds no database table,
-migration, scheduler, engine, or external adapter.
+migration, scheduler, engine, or external adapter. Direct construction and replacement of a
+`DurationSample` also revalidate that sampled hours equal the exact formula for its retained
+parameters and draw.
 
 ## Prerequisites
 

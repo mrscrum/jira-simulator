@@ -1,0 +1,762 @@
+.....................F......FFFFFFFFFF.FF....FFFFFFFFFFFFFFFFFFF.....F.. [ 37%]
+...........F..FFFFFF..F................................................. [ 74%]
+....................................FFFF.........                        [100%]
+=================================== FAILURES ===================================
+_ test_every_ordinal_path_rejects_value_outside_safe_integer_domain[9007199254740992] _
+
+ordinal = 9007199254740992
+
+    @pytest.mark.parametrize("ordinal", [-1, True, False, 1.0, "1", 2**53])
+    def test_every_ordinal_path_rejects_value_outside_safe_integer_domain(ordinal: object):
+        for call in _ordinal_path_calls(ordinal):
+>           with pytest.raises((TypeError, ValueError)):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:234: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_ISSUE_TYPE-entity_id0-False] _
+
+decision_type = <DecisionType.BACKLOG_ISSUE_TYPE: 'BACKLOG_ISSUE_TYPE'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_STORY_POINTS-entity_id1-False] _
+
+decision_type = <DecisionType.BACKLOG_STORY_POINTS: 'BACKLOG_STORY_POINTS'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_PRIORITY-entity_id2-False] _
+
+decision_type = <DecisionType.BACKLOG_PRIORITY: 'BACKLOG_PRIORITY'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[ITEM_DESCRIPTION_QUALITY-entity_id3-False] _
+
+decision_type = <DecisionType.ITEM_DESCRIPTION_QUALITY: 'ITEM_DESCRIPTION_QUALITY'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[ITEM_LATENT_COMPLEXITY-entity_id4-False] _
+
+decision_type = <DecisionType.ITEM_LATENT_COMPLEXITY: 'ITEM_LATENT_COMPLEXITY'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[STATUS_DWELL-entity_id5-False] _
+
+decision_type = <DecisionType.STATUS_DWELL: 'STATUS_DWELL'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[STATUS_TOUCH-entity_id6-False] _
+
+decision_type = <DecisionType.STATUS_TOUCH: 'STATUS_TOUCH'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[SCRUM_CAPACITY_TARGET-entity_id7-False] _
+
+decision_type = <DecisionType.SCRUM_CAPACITY_TARGET: 'SCRUM_CAPACITY_TARGET'>
+entity_id = UUID('a7f24acf-7179-565e-ae21-aad23463f697'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[RISK_EXTERNAL_DEPENDENCY_OUTCOME-entity_id8-False] _
+
+decision_type = <DecisionType.RISK_EXTERNAL_DEPENDENCY_OUTCOME: 'RISK_EXTERNAL_DEPENDENCY_OUTCOME'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[RISK_EXTERNAL_DEPENDENCY_DURATION-entity_id9-False] _
+
+decision_type = <DecisionType.RISK_EXTERNAL_DEPENDENCY_DURATION: 'RISK_EXTERNAL_DEPENDENCY_DURATION'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[RISK_REVIEW_REJECTION_OUTCOME-entity_id11-False] _
+
+decision_type = <DecisionType.RISK_REVIEW_REJECTION_OUTCOME: 'RISK_REVIEW_REJECTION_OUTCOME'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[RISK_REWORK_DURATION-entity_id12-False] _
+
+decision_type = <DecisionType.RISK_REWORK_DURATION: 'RISK_REWORK_DURATION'>
+entity_id = UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_decision_type_enforces_approved_occurrence_scope[KANBAN_CLASS_OF_SERVICE-entity_id17-False] _
+
+decision_type = <DecisionType.KANBAN_CLASS_OF_SERVICE: 'KANBAN_CLASS_OF_SERVICE'>
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), allows_nonzero = False
+
+    @pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+    def test_every_decision_type_enforces_approved_occurrence_scope(
+        decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+    ):
+        assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+        if allows_nonzero:
+            assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+        else:
+>           with pytest.raises(ValueError, match="occurrence"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_deterministic_rng.py:305: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_ISSUE_TYPE] _
+
+decision_type = <DecisionType.BACKLOG_ISSUE_TYPE: 'BACKLOG_ISSUE_TYPE'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_STORY_POINTS] _
+
+decision_type = <DecisionType.BACKLOG_STORY_POINTS: 'BACKLOG_STORY_POINTS'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_PRIORITY] _
+
+decision_type = <DecisionType.BACKLOG_PRIORITY: 'BACKLOG_PRIORITY'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[ITEM_DESCRIPTION_QUALITY] _
+
+decision_type = <DecisionType.ITEM_DESCRIPTION_QUALITY: 'ITEM_DESCRIPTION_QUALITY'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[ITEM_LATENT_COMPLEXITY] _
+
+decision_type = <DecisionType.ITEM_LATENT_COMPLEXITY: 'ITEM_LATENT_COMPLEXITY'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[STATUS_DWELL] _
+
+decision_type = <DecisionType.STATUS_DWELL: 'STATUS_DWELL'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[STATUS_TOUCH] _
+
+decision_type = <DecisionType.STATUS_TOUCH: 'STATUS_TOUCH'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[SCRUM_CAPACITY_TARGET] _
+
+decision_type = <DecisionType.SCRUM_CAPACITY_TARGET: 'SCRUM_CAPACITY_TARGET'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_EXTERNAL_DEPENDENCY_OUTCOME] _
+
+decision_type = <DecisionType.RISK_EXTERNAL_DEPENDENCY_OUTCOME: 'RISK_EXTERNAL_DEPENDENCY_OUTCOME'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_EXTERNAL_DEPENDENCY_DURATION] _
+
+decision_type = <DecisionType.RISK_EXTERNAL_DEPENDENCY_DURATION: 'RISK_EXTERNAL_DEPENDENCY_DURATION'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_CANCELLATION_OUTCOME] _
+
+decision_type = <DecisionType.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_REVIEW_REJECTION_OUTCOME] _
+
+decision_type = <DecisionType.RISK_REVIEW_REJECTION_OUTCOME: 'RISK_REVIEW_REJECTION_OUTCOME'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_REWORK_DURATION] _
+
+decision_type = <DecisionType.RISK_REWORK_DURATION: 'RISK_REWORK_DURATION'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_MEMBER_UNAVAILABLE_OUTCOME] _
+
+decision_type = <DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_MEMBER_UNAVAILABLE_DURATION] _
+
+decision_type = <DecisionType.RISK_MEMBER_UNAVAILABLE_DURATION: 'RISK_MEMBER_UNAVAILABLE_DURATION'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[FORCED_REWORK_DURATION] _
+
+decision_type = <DecisionType.FORCED_REWORK_DURATION: 'FORCED_REWORK_DURATION'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[KANBAN_ARRIVAL_GAP] _
+
+decision_type = <DecisionType.KANBAN_ARRIVAL_GAP: 'KANBAN_ARRIVAL_GAP'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_every_current_decision_type_rejects_catalog_or_business_date_entity[KANBAN_CLASS_OF_SERVICE] _
+
+decision_type = <DecisionType.KANBAN_CLASS_OF_SERVICE: 'KANBAN_CLASS_OF_SERVICE'>
+
+    @pytest.mark.parametrize("decision_type", tuple(DecisionType))
+    def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+        decision_type: DecisionType,
+    ):
+>       with pytest.raises(TypeError, match="UUID"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:313: Failed
+_ test_decision_occurrence_rejects_invalid_coordinates[entity_id5-RISK_CANCELLATION_OUTCOME-9007199254740992] _
+
+entity_id = UUID('8f317d4f-8156-5b43-9571-6b3b32d32304')
+decision_type = <DecisionType.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>
+occurrence = 9007199254740992
+
+    @pytest.mark.parametrize(
+        ("entity_id", "decision_type", "occurrence"),
+        [
+            ("", DecisionType.STATUS_DWELL, 0),
+            (7, DecisionType.STATUS_DWELL, 0),
+            (ITEM_ID, "STATUS_DWELL", 0),
+            (ITEM_ID, DecisionType.STATUS_DWELL, -1),
+            (ITEM_ID, DecisionType.STATUS_DWELL, True),
+            (ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 2**53),
+        ],
+    )
+    def test_decision_occurrence_rejects_invalid_coordinates(
+        entity_id: object, decision_type: object, occurrence: object
+    ):
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:331: Failed
+____ test_draw_rejects_index_outside_safe_integer_domain[9007199254740992] _____
+
+draw_index = 9007199254740992
+
+    @pytest.mark.parametrize("draw_index", [-1, True, False, 1.0, "1", 2**53])
+    def test_draw_rejects_index_outside_safe_integer_domain(draw_index: object):
+        stream = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
+        decision = DecisionOccurrence(ITEM_ID, DecisionType.STATUS_DWELL, 0)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:402: Failed
+____________ test_uniform_draw_normal_direct_construction_is_sealed ____________
+
+    def test_uniform_draw_normal_direct_construction_is_sealed():
+        draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:431: Failed
+______________ test_uniform_draw_dataclass_replacement_is_sealed _______________
+
+    def test_uniform_draw_dataclass_replacement_is_sealed():
+        draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:438: Failed
+___ test_uniform_draw_rejects_boolean_integer_in_forged_message[occurrence] ____
+
+integer_field = 'occurrence'
+
+    @pytest.mark.parametrize("integer_field", ["occurrence", "draw_index"])
+    def test_uniform_draw_rejects_boolean_integer_in_forged_message(integer_field: str):
+        decision = DecisionOccurrence(ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 1)
+        draw = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID).draw(decision, 1)
+        forged_message = _changed_message(draw, integer_field, True)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:448: Failed
+___ test_uniform_draw_rejects_boolean_integer_in_forged_message[draw_index] ____
+
+integer_field = 'draw_index'
+
+    @pytest.mark.parametrize("integer_field", ["occurrence", "draw_index"])
+    def test_uniform_draw_rejects_boolean_integer_in_forged_message(integer_field: str):
+        decision = DecisionOccurrence(ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 1)
+        draw = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID).draw(decision, 1)
+        forged_message = _changed_message(draw, integer_field, True)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:448: Failed
+_ test_uniform_draw_rejects_changed_message_with_retained_digest[team_id-225606fc-5044-5c3a-911f-44fd9f316efd] _
+
+message_field = 'team_id', forged_value = '225606fc-5044-5c3a-911f-44fd9f316efd'
+
+    @pytest.mark.parametrize(
+        ("message_field", "forged_value"),
+        [
+            ("team_id", "225606fc-5044-5c3a-911f-44fd9f316efd"),
+            ("run_id", "a7f24acf-7179-565e-ae21-aad23463f697"),
+            ("entity_id", "867b58b0-43d3-5956-960a-2a291ac6258d"),
+            ("decision_type", "RISK_MEMBER_UNAVAILABLE_OUTCOME"),
+        ],
+    )
+    def test_uniform_draw_rejects_changed_message_with_retained_digest(
+        message_field: str, forged_value: str
+    ):
+        draw = _draw_from_vector(_golden_vector("positive_occurrence_and_draw"))
+        forged_message = _changed_message(draw, message_field, forged_value)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:467: Failed
+_ test_uniform_draw_rejects_changed_message_with_retained_digest[run_id-a7f24acf-7179-565e-ae21-aad23463f697] _
+
+message_field = 'run_id', forged_value = 'a7f24acf-7179-565e-ae21-aad23463f697'
+
+    @pytest.mark.parametrize(
+        ("message_field", "forged_value"),
+        [
+            ("team_id", "225606fc-5044-5c3a-911f-44fd9f316efd"),
+            ("run_id", "a7f24acf-7179-565e-ae21-aad23463f697"),
+            ("entity_id", "867b58b0-43d3-5956-960a-2a291ac6258d"),
+            ("decision_type", "RISK_MEMBER_UNAVAILABLE_OUTCOME"),
+        ],
+    )
+    def test_uniform_draw_rejects_changed_message_with_retained_digest(
+        message_field: str, forged_value: str
+    ):
+        draw = _draw_from_vector(_golden_vector("positive_occurrence_and_draw"))
+        forged_message = _changed_message(draw, message_field, forged_value)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:467: Failed
+__ test_uniform_draw_rejects_arbitrary_digest_with_self_consistent_u53_values __
+
+    def test_uniform_draw_rejects_arbitrary_digest_with_self_consistent_u53_values():
+        draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_deterministic_rng.py:474: Failed
+_ test_duration_sample_direct_construction_rejects_formula_inconsistent_result[case0] _
+
+case = (DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), 0.5, 4.0)
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            (DwellAnchors(1, 2, 3, 5, 6), 0.5, 4.0),
+            (TouchBounds(1, 4), 0.5, 3.0),
+        ],
+    )
+    def test_duration_sample_direct_construction_rejects_formula_inconsistent_result(
+        case: tuple[DwellAnchors | TouchBounds, float, float],
+    ):
+        parameters, unit_draw, forged_result = case
+
+>       with pytest.raises(ValueError, match="formula"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_sampling.py:212: Failed
+_ test_duration_sample_direct_construction_rejects_formula_inconsistent_result[case1] _
+
+case = (TouchBounds(minimum=1.0, maximum=4.0), 0.5, 3.0)
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            (DwellAnchors(1, 2, 3, 5, 6), 0.5, 4.0),
+            (TouchBounds(1, 4), 0.5, 3.0),
+        ],
+    )
+    def test_duration_sample_direct_construction_rejects_formula_inconsistent_result(
+        case: tuple[DwellAnchors | TouchBounds, float, float],
+    ):
+        parameters, unit_draw, forged_result = case
+
+>       with pytest.raises(ValueError, match="formula"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_sampling.py:212: Failed
+_ test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result[case0] _
+
+case = (DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0), 4.0)
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            (sample_dwell(DwellAnchors(1, 2, 3, 5, 6), 0.5), 4.0),
+            (sample_touch(TouchBounds(1, 4), 0.5), 3.0),
+        ],
+    )
+    def test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result(
+        case: tuple[DurationSample, float],
+    ):
+        sample, forged_result = case
+
+>       with pytest.raises(ValueError, match="formula"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_sampling.py:228: Failed
+_ test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result[case1] _
+
+case = (DurationSample(parameters=TouchBounds(minimum=1.0, maximum=4.0), unit_draw=0.5, sampled_hours=2.5), 3.0)
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            (sample_dwell(DwellAnchors(1, 2, 3, 5, 6), 0.5), 4.0),
+            (sample_touch(TouchBounds(1, 4), 0.5), 3.0),
+        ],
+    )
+    def test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result(
+        case: tuple[DurationSample, float],
+    ):
+        sample, forged_result = case
+
+>       with pytest.raises(ValueError, match="formula"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_sampling.py:228: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_ordinal_path_rejects_value_outside_safe_integer_domain[9007199254740992]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_ISSUE_TYPE-entity_id0-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_STORY_POINTS-entity_id1-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[BACKLOG_PRIORITY-entity_id2-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[ITEM_DESCRIPTION_QUALITY-entity_id3-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[ITEM_LATENT_COMPLEXITY-entity_id4-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[STATUS_DWELL-entity_id5-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[STATUS_TOUCH-entity_id6-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[SCRUM_CAPACITY_TARGET-entity_id7-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[RISK_EXTERNAL_DEPENDENCY_OUTCOME-entity_id8-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[RISK_EXTERNAL_DEPENDENCY_DURATION-entity_id9-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[RISK_REVIEW_REJECTION_OUTCOME-entity_id11-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[RISK_REWORK_DURATION-entity_id12-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_decision_type_enforces_approved_occurrence_scope[KANBAN_CLASS_OF_SERVICE-entity_id17-False]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_ISSUE_TYPE]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_STORY_POINTS]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[BACKLOG_PRIORITY]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[ITEM_DESCRIPTION_QUALITY]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[ITEM_LATENT_COMPLEXITY]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[STATUS_DWELL]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[STATUS_TOUCH]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[SCRUM_CAPACITY_TARGET]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_EXTERNAL_DEPENDENCY_OUTCOME]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_EXTERNAL_DEPENDENCY_DURATION]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_CANCELLATION_OUTCOME]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_REVIEW_REJECTION_OUTCOME]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_REWORK_DURATION]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_MEMBER_UNAVAILABLE_OUTCOME]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[RISK_MEMBER_UNAVAILABLE_DURATION]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[FORCED_REWORK_DURATION]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[KANBAN_ARRIVAL_GAP]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_every_current_decision_type_rejects_catalog_or_business_date_entity[KANBAN_CLASS_OF_SERVICE]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_decision_occurrence_rejects_invalid_coordinates[entity_id5-RISK_CANCELLATION_OUTCOME-9007199254740992]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_draw_rejects_index_outside_safe_integer_domain[9007199254740992]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_normal_direct_construction_is_sealed
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_dataclass_replacement_is_sealed
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_rejects_boolean_integer_in_forged_message[occurrence]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_rejects_boolean_integer_in_forged_message[draw_index]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_rejects_changed_message_with_retained_digest[team_id-225606fc-5044-5c3a-911f-44fd9f316efd]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_rejects_changed_message_with_retained_digest[run_id-a7f24acf-7179-565e-ae21-aad23463f697]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_uniform_draw_rejects_arbitrary_digest_with_self_consistent_u53_values
+FAILED tests/v2/unit/test_sampling.py::test_duration_sample_direct_construction_rejects_formula_inconsistent_result[case0]
+FAILED tests/v2/unit/test_sampling.py::test_duration_sample_direct_construction_rejects_formula_inconsistent_result[case1]
+FAILED tests/v2/unit/test_sampling.py::test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result[case0]
+FAILED tests/v2/unit/test_sampling.py::test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result[case1]
+45 failed, 148 passed in 0.50s

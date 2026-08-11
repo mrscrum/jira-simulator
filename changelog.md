@@ -254,3 +254,17 @@
 ### Fixed
 - Deterministic v2 decisions no longer require a future caller to invent process-local RNG state,
   database ordering, or implicit occurrence consumption.
+
+## [2026-08-11] M1 — Bind deterministic sample provenance
+### Changed
+- Sealed `UniformDraw` creation behind the keyed deterministic stream and made direct construction
+  plus `dataclasses.replace` reject instead of accepting unauthenticated provenance.
+- Restricted current decision entities to semantic UUIDs, enforced every documented zero/nonzero
+  occurrence scope, and bounded all semantic indices to the exact safe-integer domain.
+- Added independently re-encoded cancellation and maximum-safe-integer ECMAScript vectors plus
+  table coverage for every decision type.
+### Fixed
+- Arbitrary digests with self-consistent derived U53 values can no longer form valid draws.
+- Boolean canonical coordinates no longer compare equal to integer coordinates.
+- `DurationSample` construction and replacement now reject in-bounds results that do not equal the
+  retained dwell/touch formula.

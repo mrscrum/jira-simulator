@@ -78,6 +78,8 @@ class DurationSample:
         hours = _finite_non_negative(self.sampled_hours, "sampled_hours")
         if not self.parameters.minimum <= hours <= self.parameters.maximum:
             raise ValueError("sampled_hours must remain within the supplied parameters")
+        if hours != _sampled_hours(self.parameters, draw):
+            raise ValueError("sampled_hours does not match the sampling formula")
         object.__setattr__(self, "unit_draw", draw)
         object.__setattr__(self, "sampled_hours", hours)
 
@@ -109,29 +111,37 @@ def _interpolate_log_hours(lower: float, upper: float, position: float) -> float
     return min(upper, max(lower, math.expm1(interpolated_log)))
 
 
+def _dwell_hours(anchors: DwellAnchors, unit_draw: float) -> float:
+    values = (anchors.minimum, anchors.p25, anchors.p50, anchors.p99, anchors.maximum)
+    if unit_draw in DWELL_PROBABILITIES:
+        return values[DWELL_PROBABILITIES.index(unit_draw)]
+    segment, position = _dwell_segment(unit_draw)
+    return _interpolate_log_hours(values[segment], values[segment + 1], position)
+
+
+def _touch_hours(bounds: TouchBounds, unit_draw: float) -> float:
+    if unit_draw == 0 or bounds.minimum == bounds.maximum:
+        return bounds.minimum
+    if unit_draw == 1:
+        return bounds.maximum
+    return bounds.minimum + (bounds.maximum - bounds.minimum) * unit_draw
+
+
+def _sampled_hours(parameters: DwellAnchors | TouchBounds, unit_draw: float) -> float:
+    if isinstance(parameters, DwellAnchors):
+        return _dwell_hours(parameters, unit_draw)
+    return _touch_hours(parameters, unit_draw)
+
+
 def sample_dwell(anchors: DwellAnchors, unit_draw: float) -> DurationSample:
     if not isinstance(anchors, DwellAnchors):
         raise TypeError("anchors must be DwellAnchors")
     draw = _unit_draw(unit_draw)
-    anchor_values = (anchors.minimum, anchors.p25, anchors.p50, anchors.p99, anchors.maximum)
-    if draw in DWELL_PROBABILITIES:
-        sampled_hours = anchor_values[DWELL_PROBABILITIES.index(draw)]
-    else:
-        segment, position = _dwell_segment(draw)
-        sampled_hours = _interpolate_log_hours(
-            anchor_values[segment], anchor_values[segment + 1], position
-        )
-    return DurationSample(anchors, draw, sampled_hours)
+    return DurationSample(anchors, draw, _dwell_hours(anchors, draw))
 
 
 def sample_touch(bounds: TouchBounds, unit_draw: float) -> DurationSample:
     if not isinstance(bounds, TouchBounds):
         raise TypeError("bounds must be TouchBounds")
     draw = _unit_draw(unit_draw)
-    if draw == 0 or bounds.minimum == bounds.maximum:
-        sampled_hours = bounds.minimum
-    elif draw == 1:
-        sampled_hours = bounds.maximum
-    else:
-        sampled_hours = bounds.minimum + (bounds.maximum - bounds.minimum) * draw
-    return DurationSample(bounds, draw, sampled_hours)
+    return DurationSample(bounds, draw, _touch_hours(bounds, draw))

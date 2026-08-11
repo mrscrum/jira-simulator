@@ -13,11 +13,11 @@ from uuid import UUID
 from app.v2.domain.canonical_json import canonical_json, semantic_uuid
 
 ALGORITHM_ID = "HMAC_SHA256_U53_V1"
-BLUEPRINT_DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
-HMAC_DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
+LOWER_HEX_64_PATTERN = re.compile(r"[0-9a-f]{64}")
 U53_BIT_COUNT = 53
 DISCARDED_LOW_BITS = 11
 U53_DENOMINATOR = 1 << U53_BIT_COUNT
+MAX_SAFE_INTEGER = U53_DENOMINATOR - 1
 CANONICAL_DECISION_KEYS = frozenset(
     {
         "algorithm",
@@ -60,6 +60,17 @@ class DecisionType(StrEnum):
     KANBAN_CLASS_OF_SERVICE = "KANBAN_CLASS_OF_SERVICE"
 
 
+NONZERO_OCCURRENCE_DECISIONS = frozenset(
+    {
+        DecisionType.RISK_CANCELLATION_OUTCOME,
+        DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME,
+        DecisionType.RISK_MEMBER_UNAVAILABLE_DURATION,
+        DecisionType.FORCED_REWORK_DURATION,
+        DecisionType.KANBAN_ARRIVAL_GAP,
+    }
+)
+
+
 def _require_uuid(value: object, label: str) -> UUID:
     if not isinstance(value, UUID):
         raise TypeError(f"{label} must be a UUID")
@@ -71,6 +82,8 @@ def _require_non_negative_integer(value: object, label: str) -> int:
         raise TypeError(f"{label} must be an integer")
     if value < 0:
         raise ValueError(f"{label} must be non-negative")
+    if value > MAX_SAFE_INTEGER:
+        raise ValueError(f"{label} must not exceed 2^53 - 1")
     return value
 
 
@@ -83,7 +96,7 @@ def _ordinal_uuid(prefix: str, parent_id: UUID, ordinal: int) -> UUID:
 def team_rng_id(blueprint_sha256: str) -> UUID:
     if not isinstance(blueprint_sha256, str):
         raise TypeError("blueprint_sha256 must be a string")
-    if BLUEPRINT_DIGEST_PATTERN.fullmatch(blueprint_sha256) is None:
+    if LOWER_HEX_64_PATTERN.fullmatch(blueprint_sha256) is None:
         raise ValueError("blueprint_sha256 must be 64 lower-case hexadecimal characters")
     return semantic_uuid(f"team/{blueprint_sha256}")
 
@@ -120,27 +133,23 @@ def rework_rng_id(item_id: UUID, ordinal: int) -> UUID:
     return _ordinal_uuid("rework", item_id, ordinal)
 
 
-def _entity_text(entity_id: UUID | str) -> str:
-    if isinstance(entity_id, UUID):
-        return str(entity_id)
-    if not isinstance(entity_id, str):
-        raise TypeError("entity_id must be a UUID or catalog key")
-    if not entity_id or entity_id != entity_id.strip():
-        raise ValueError("catalog entity_id must be non-empty and trimmed")
-    return entity_id
+def _entity_text(entity_id: UUID) -> str:
+    return str(_require_uuid(entity_id, "entity_id"))
 
 
 @dataclass(frozen=True)
 class DecisionOccurrence:
-    entity_id: UUID | str
+    entity_id: UUID
     decision_type: DecisionType
     occurrence: int
 
     def __post_init__(self) -> None:
-        _entity_text(self.entity_id)
+        _require_uuid(self.entity_id, "entity_id")
         if not isinstance(self.decision_type, DecisionType):
             raise TypeError("decision_type must be a DecisionType")
-        _require_non_negative_integer(self.occurrence, "occurrence")
+        occurrence = _require_non_negative_integer(self.occurrence, "occurrence")
+        if occurrence and self.decision_type not in NONZERO_OCCURRENCE_DECISIONS:
+            raise ValueError("occurrence must be zero for this decision type")
 
 
 def _canonical_message(
@@ -196,14 +205,17 @@ def _validate_canonical_message(
         raise ValueError("canonical_message must use canonical JSON")
     _canonical_uuid_text(document["team_id"], "team_id")
     _canonical_uuid_text(document["run_id"], "run_id")
+    _canonical_uuid_text(document["entity_id"], "entity_id")
+    occurrence = _require_non_negative_integer(document["occurrence"], "occurrence")
+    index = _require_non_negative_integer(document["draw_index"], "draw_index")
     expected = (ALGORITHM_ID, _entity_text(decision.entity_id), decision.decision_type.value)
     if (document["algorithm"], document["entity_id"], document["decision_type"]) != expected:
         raise ValueError("canonical_message does not match the decision")
-    if (document["occurrence"], document["draw_index"]) != (decision.occurrence, draw_index):
+    if (occurrence, index) != (decision.occurrence, draw_index):
         raise ValueError("canonical_message does not match the decision coordinate")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class UniformDraw:
     algorithm: str
     decision: DecisionOccurrence
@@ -213,7 +225,10 @@ class UniformDraw:
     u53_integer: int
     unit_value: float
 
-    def __post_init__(self) -> None:
+    def __init__(self, *_values: object, **_named_values: object) -> None:
+        raise TypeError("UniformDraw instances come from DeterministicRandomStream.draw")
+
+    def _validate(self) -> None:
         if self.algorithm != ALGORITHM_ID:
             raise ValueError("algorithm must be HMAC_SHA256_U53_V1")
         if not isinstance(self.decision, DecisionOccurrence):
@@ -227,7 +242,7 @@ class UniformDraw:
     def _validate_digest_and_value(self) -> None:
         if not isinstance(self.hmac_sha256, str):
             raise TypeError("hmac_sha256 must be a string")
-        if HMAC_DIGEST_PATTERN.fullmatch(self.hmac_sha256) is None:
+        if LOWER_HEX_64_PATTERN.fullmatch(self.hmac_sha256) is None:
             raise ValueError("hmac_sha256 must be 64 lower-case hexadecimal characters")
         expected_integer = _high_u53(bytes.fromhex(self.hmac_sha256))
         if type(self.u53_integer) is not int or self.u53_integer != expected_integer:
@@ -237,6 +252,24 @@ class UniformDraw:
             raise TypeError("unit_value must be a finite float")
         if self.unit_value != expected_value:
             raise ValueError("unit_value does not match u53_integer")
+
+
+def _create_uniform_draw(
+    stream: "DeterministicRandomStream", decision: DecisionOccurrence, draw_index: int
+) -> UniformDraw:
+    message = _canonical_message(stream, decision, draw_index)
+    digest = _hmac_digest(stream.root_seed, message)
+    integer = _high_u53(digest)
+    draw = object.__new__(UniformDraw)
+    object.__setattr__(draw, "algorithm", ALGORITHM_ID)
+    object.__setattr__(draw, "decision", decision)
+    object.__setattr__(draw, "draw_index", draw_index)
+    object.__setattr__(draw, "canonical_message", message)
+    object.__setattr__(draw, "hmac_sha256", digest.hex())
+    object.__setattr__(draw, "u53_integer", integer)
+    object.__setattr__(draw, "unit_value", integer / U53_DENOMINATOR)
+    draw._validate()
+    return draw
 
 
 @dataclass(frozen=True)
@@ -257,15 +290,4 @@ class DeterministicRandomStream:
         if not isinstance(decision, DecisionOccurrence):
             raise TypeError("decision must be a DecisionOccurrence")
         index = _require_non_negative_integer(draw_index, "draw_index")
-        message = _canonical_message(self, decision, index)
-        digest = _hmac_digest(self.root_seed, message)
-        integer = _high_u53(digest)
-        return UniformDraw(
-            ALGORITHM_ID,
-            decision,
-            index,
-            message,
-            digest.hex(),
-            integer,
-            integer / U53_DENOMINATOR,
-        )
+        return _create_uniform_draw(self, decision, index)

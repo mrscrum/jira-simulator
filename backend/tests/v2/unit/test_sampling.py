@@ -1,9 +1,10 @@
 import math
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
 from app.v2.domain.sampling import (
+    DurationSample,
     DwellAnchors,
     TouchBounds,
     dwell_anchors,
@@ -177,6 +178,55 @@ def test_samples_retain_parameters_draw_and_result_as_frozen_provenance():
     )
     with pytest.raises(FrozenInstanceError):
         dwell_sample.sampled_hours = 99.0
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (DwellAnchors(1, 2, 3, 5, 6), 0.5, 3.0),
+        (TouchBounds(1, 4), 0.5, 2.5),
+        (DwellAnchors(0, 0, 0, 0, 0), 0.73, 0.0),
+        (TouchBounds(7, 7), 0.73, 7.0),
+    ],
+)
+def test_duration_sample_direct_construction_accepts_exact_formula(
+    case: tuple[DwellAnchors | TouchBounds, float, float],
+):
+    parameters, unit_draw, expected = case
+
+    assert DurationSample(parameters, unit_draw, expected).sampled_hours == expected
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (DwellAnchors(1, 2, 3, 5, 6), 0.5, 4.0),
+        (TouchBounds(1, 4), 0.5, 3.0),
+    ],
+)
+def test_duration_sample_direct_construction_rejects_formula_inconsistent_result(
+    case: tuple[DwellAnchors | TouchBounds, float, float],
+):
+    parameters, unit_draw, forged_result = case
+
+    with pytest.raises(ValueError, match="formula"):
+        DurationSample(parameters, unit_draw, forged_result)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (sample_dwell(DwellAnchors(1, 2, 3, 5, 6), 0.5), 4.0),
+        (sample_touch(TouchBounds(1, 4), 0.5), 3.0),
+    ],
+)
+def test_duration_sample_dataclass_replacement_rejects_formula_inconsistent_result(
+    case: tuple[DurationSample, float],
+):
+    sample, forged_result = case
+
+    with pytest.raises(ValueError, match="formula"):
+        replace(sample, sampled_hours=forged_result)
 
 
 def test_every_resolved_timing_cell_runs_through_both_pure_samplers(

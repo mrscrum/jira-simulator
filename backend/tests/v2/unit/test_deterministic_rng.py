@@ -1,7 +1,7 @@
 import json
 import subprocess
 import sys
-from dataclasses import FrozenInstanceError, replace
+from dataclasses import FrozenInstanceError, fields, replace
 from functools import partial
 from pathlib import Path
 from uuid import UUID
@@ -15,6 +15,7 @@ from app.v2.domain.deterministic_rng import (
     DecisionOccurrence,
     DecisionType,
     DeterministicRandomStream,
+    UniformDraw,
     dependency_rng_id,
     item_rng_id,
     member_rng_id,
@@ -30,11 +31,35 @@ TEAM_ID = UUID("30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6")
 RUN_ID = UUID("bdaf2033-9766-55f7-abf2-2cc41a15c10e")
 ITEM_ID = UUID("8f317d4f-8156-5b43-9571-6b3b32d32304")
 VISIT_ID = UUID("0e45dd9b-8583-5863-bbc7-af9dfe5c0a43")
+MEMBER_ID = UUID("867b58b0-43d3-5956-960a-2a291ac6258d")
+SPRINT_ID = UUID("a7f24acf-7179-565e-ae21-aad23463f697")
+MAX_SAFE_INTEGER = 2**53 - 1
 VECTOR_NAMES = (
     "composed_unicode_seed",
     "decomposed_unicode_seed",
     "distinct_unicode_seed",
     "positive_occurrence_and_draw",
+    "max_safe_integer_ecmascript",
+)
+DECISION_COORDINATES = (
+    (DecisionType.BACKLOG_ISSUE_TYPE, ITEM_ID, False),
+    (DecisionType.BACKLOG_STORY_POINTS, ITEM_ID, False),
+    (DecisionType.BACKLOG_PRIORITY, ITEM_ID, False),
+    (DecisionType.ITEM_DESCRIPTION_QUALITY, ITEM_ID, False),
+    (DecisionType.ITEM_LATENT_COMPLEXITY, ITEM_ID, False),
+    (DecisionType.STATUS_DWELL, VISIT_ID, False),
+    (DecisionType.STATUS_TOUCH, VISIT_ID, False),
+    (DecisionType.SCRUM_CAPACITY_TARGET, SPRINT_ID, False),
+    (DecisionType.RISK_EXTERNAL_DEPENDENCY_OUTCOME, VISIT_ID, False),
+    (DecisionType.RISK_EXTERNAL_DEPENDENCY_DURATION, VISIT_ID, False),
+    (DecisionType.RISK_CANCELLATION_OUTCOME, ITEM_ID, True),
+    (DecisionType.RISK_REVIEW_REJECTION_OUTCOME, VISIT_ID, False),
+    (DecisionType.RISK_REWORK_DURATION, VISIT_ID, False),
+    (DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME, MEMBER_ID, True),
+    (DecisionType.RISK_MEMBER_UNAVAILABLE_DURATION, MEMBER_ID, True),
+    (DecisionType.FORCED_REWORK_DURATION, VISIT_ID, True),
+    (DecisionType.KANBAN_ARRIVAL_GAP, RUN_ID, True),
+    (DecisionType.KANBAN_CLASS_OF_SERVICE, ITEM_ID, False),
 )
 
 
@@ -48,10 +73,8 @@ def _golden_vector(name: str) -> dict[str, object]:
 
 
 def _draw_from_vector(vector: dict[str, object]):
-    entity_text = str(vector["entity_id"])
-    entity_id = UUID(entity_text) if entity_text.count("-") == 4 else entity_text
     decision = DecisionOccurrence(
-        entity_id,
+        UUID(str(vector["entity_id"])),
         DecisionType(str(vector["decision_type"])),
         int(vector["occurrence"]),
     )
@@ -72,12 +95,39 @@ stream = DeterministicRandomStream(
     {vector["seed"]!r}, UUID({vector["team_id"]!r}), UUID({vector["run_id"]!r})
 )
 decision = DecisionOccurrence(
-    {vector["entity_id"]!r}, DecisionType.RISK_CANCELLATION_OUTCOME, 7
+    UUID({vector["entity_id"]!r}), DecisionType({vector["decision_type"]!r}),
+    {vector["occurrence"]}
 )
-draw = stream.draw(decision, 3)
+draw = stream.draw(decision, {vector["draw_index"]})
 result = [draw.canonical_message.decode(), draw.hmac_sha256, draw.u53_integer, draw.unit_value]
 print(json.dumps(result))
 """
+
+
+def _ordinal_path_calls(ordinal: object) -> tuple[object, ...]:
+    return (
+        partial(run_rng_id, TEAM_ID, ordinal),
+        partial(member_rng_id, TEAM_ID, ordinal),
+        partial(sprint_rng_id, TEAM_ID, ordinal),
+        partial(item_rng_id, TEAM_ID, CreationKind.INITIAL_BACKLOG, ordinal),
+        partial(visit_rng_id, ITEM_ID, ordinal),
+        partial(dependency_rng_id, VISIT_ID, ordinal),
+        partial(rework_rng_id, ITEM_ID, ordinal),
+    )
+
+
+def _direct_draw(draw: UniformDraw, **changes: object) -> UniformDraw:
+    values = {field.name: getattr(draw, field.name) for field in fields(draw)}
+    values.update(changes)
+    return UniformDraw(**values)
+
+
+def _changed_message(draw: UniformDraw, field: str, value: object) -> bytes:
+    document = json.loads(draw.canonical_message)
+    document[field] = value
+    return json.dumps(
+        document, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
 
 
 def test_creation_kind_is_the_closed_approved_set():
@@ -178,20 +228,15 @@ def test_team_path_rejects_malformed_blueprint_digest(digest: object):
         team_rng_id(digest)
 
 
-@pytest.mark.parametrize("ordinal", [-1, True, False, 1.0, "1"])
-def test_every_ordinal_path_rejects_non_true_non_negative_integer(ordinal: object):
-    calls = (
-        partial(run_rng_id, TEAM_ID, ordinal),
-        partial(member_rng_id, TEAM_ID, ordinal),
-        partial(sprint_rng_id, TEAM_ID, ordinal),
-        partial(item_rng_id, TEAM_ID, CreationKind.INITIAL_BACKLOG, ordinal),
-        partial(visit_rng_id, ITEM_ID, ordinal),
-        partial(dependency_rng_id, VISIT_ID, ordinal),
-        partial(rework_rng_id, ITEM_ID, ordinal),
-    )
-    for call in calls:
+@pytest.mark.parametrize("ordinal", [-1, True, False, 1.0, "1", 2**53])
+def test_every_ordinal_path_rejects_value_outside_safe_integer_domain(ordinal: object):
+    for call in _ordinal_path_calls(ordinal):
         with pytest.raises((TypeError, ValueError)):
             call()
+
+
+def test_every_ordinal_path_accepts_maximum_safe_integer():
+    assert all(isinstance(call(), UUID) for call in _ordinal_path_calls(MAX_SAFE_INTEGER))
 
 
 def test_every_nested_path_rejects_non_uuid_parent():
@@ -240,16 +285,33 @@ def test_semantic_paths_are_independent_of_call_order_and_unrelated_ids():
     assert actual == expected == ITEM_ID
 
 
-def test_decision_occurrence_accepts_uuid_or_non_empty_catalog_key_and_is_frozen():
-    uuid_decision = DecisionOccurrence(ITEM_ID, DecisionType.STATUS_DWELL, 0)
-    catalog_decision = DecisionOccurrence(
-        "business-date/2026-08-10", DecisionType.RISK_CANCELLATION_OUTCOME, 7
-    )
+def test_decision_occurrence_accepts_scoped_semantic_uuid_and_is_frozen():
+    uuid_decision = DecisionOccurrence(ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 7)
 
     assert uuid_decision.entity_id == ITEM_ID
-    assert catalog_decision.occurrence == 7
+    assert uuid_decision.occurrence == 7
     with pytest.raises(FrozenInstanceError):
-        uuid_decision.occurrence = 1
+        uuid_decision.occurrence = 8
+
+
+@pytest.mark.parametrize(("decision_type", "entity_id", "allows_nonzero"), DECISION_COORDINATES)
+def test_every_decision_type_enforces_approved_occurrence_scope(
+    decision_type: DecisionType, entity_id: UUID, allows_nonzero: bool
+):
+    assert DecisionOccurrence(entity_id, decision_type, 0).occurrence == 0
+    if allows_nonzero:
+        assert DecisionOccurrence(entity_id, decision_type, 1).occurrence == 1
+    else:
+        with pytest.raises(ValueError, match="occurrence"):
+            DecisionOccurrence(entity_id, decision_type, 1)
+
+
+@pytest.mark.parametrize("decision_type", tuple(DecisionType))
+def test_every_current_decision_type_rejects_catalog_or_business_date_entity(
+    decision_type: DecisionType,
+):
+    with pytest.raises(TypeError, match="UUID"):
+        DecisionOccurrence("business-date/2026-08-10", decision_type, 0)
 
 
 @pytest.mark.parametrize(
@@ -260,6 +322,7 @@ def test_decision_occurrence_accepts_uuid_or_non_empty_catalog_key_and_is_frozen
         (ITEM_ID, "STATUS_DWELL", 0),
         (ITEM_ID, DecisionType.STATUS_DWELL, -1),
         (ITEM_ID, DecisionType.STATUS_DWELL, True),
+        (ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 2**53),
     ],
 )
 def test_decision_occurrence_rejects_invalid_coordinates(
@@ -297,14 +360,15 @@ def test_nfc_equivalent_seeds_replay_and_distinct_seed_separates():
 def test_reversed_interleaved_and_fresh_stream_draw_order_is_irrelevant():
     stream = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
     decisions = tuple(
-        DecisionOccurrence(ITEM_ID, decision_type, index)
-        for index, decision_type in enumerate(tuple(DecisionType)[:4])
+        DecisionOccurrence(ITEM_ID, decision_type, 0)
+        for decision_type in tuple(DecisionType)[:4]
     )
     expected = {decision: stream.draw(decision, 2) for decision in decisions}
 
     actual = {}
     for decision in reversed(decisions):
-        stream.draw(DecisionOccurrence(VISIT_ID, DecisionType.STATUS_TOUCH, 99), 17)
+        unrelated = DecisionOccurrence(ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 99)
+        stream.draw(unrelated, 17)
         actual[decision] = stream.draw(decision, 2)
     fresh = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
 
@@ -330,13 +394,23 @@ def test_fixed_draw_replays_in_a_fresh_python_process():
     ]
 
 
-@pytest.mark.parametrize("draw_index", [-1, True, False, 1.0, "1"])
-def test_draw_rejects_non_true_non_negative_draw_index(draw_index: object):
+@pytest.mark.parametrize("draw_index", [-1, True, False, 1.0, "1", 2**53])
+def test_draw_rejects_index_outside_safe_integer_domain(draw_index: object):
     stream = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID)
     decision = DecisionOccurrence(ITEM_ID, DecisionType.STATUS_DWELL, 0)
 
     with pytest.raises((TypeError, ValueError)):
         stream.draw(decision, draw_index)
+
+
+def test_draw_accepts_maximum_safe_index_with_ecmascript_canonical_bytes():
+    vector = _golden_vector("max_safe_integer_ecmascript")
+
+    draw = _draw_from_vector(vector)
+
+    assert draw.decision.occurrence == MAX_SAFE_INTEGER
+    assert draw.draw_index == MAX_SAFE_INTEGER
+    assert draw.canonical_message == str(vector["canonical_message"]).encode("utf-8")
 
 
 def test_stream_rejects_invalid_seed_and_uuid_boundaries():
@@ -349,6 +423,58 @@ def test_stream_rejects_invalid_seed_and_uuid_boundaries():
     for arguments in invalid_arguments:
         with pytest.raises((TypeError, ValueError)):
             DeterministicRandomStream(*arguments)
+
+
+def test_uniform_draw_normal_direct_construction_is_sealed():
+    draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+    with pytest.raises(TypeError):
+        _direct_draw(draw)
+    with pytest.raises(TypeError):
+        UniformDraw()
+
+
+def test_uniform_draw_dataclass_replacement_is_sealed():
+    draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+    with pytest.raises(TypeError):
+        replace(draw)
+
+
+@pytest.mark.parametrize("integer_field", ["occurrence", "draw_index"])
+def test_uniform_draw_rejects_boolean_integer_in_forged_message(integer_field: str):
+    decision = DecisionOccurrence(ITEM_ID, DecisionType.RISK_CANCELLATION_OUTCOME, 1)
+    draw = DeterministicRandomStream("fixed-root", TEAM_ID, RUN_ID).draw(decision, 1)
+    forged_message = _changed_message(draw, integer_field, True)
+
+    with pytest.raises((TypeError, ValueError)):
+        _direct_draw(draw, canonical_message=forged_message)
+
+
+@pytest.mark.parametrize(
+    ("message_field", "forged_value"),
+    [
+        ("team_id", "225606fc-5044-5c3a-911f-44fd9f316efd"),
+        ("run_id", "a7f24acf-7179-565e-ae21-aad23463f697"),
+        ("entity_id", "867b58b0-43d3-5956-960a-2a291ac6258d"),
+        ("decision_type", "RISK_MEMBER_UNAVAILABLE_OUTCOME"),
+    ],
+)
+def test_uniform_draw_rejects_changed_message_with_retained_digest(
+    message_field: str, forged_value: str
+):
+    draw = _draw_from_vector(_golden_vector("positive_occurrence_and_draw"))
+    forged_message = _changed_message(draw, message_field, forged_value)
+
+    with pytest.raises((TypeError, ValueError)):
+        _direct_draw(draw, canonical_message=forged_message)
+
+
+def test_uniform_draw_rejects_arbitrary_digest_with_self_consistent_u53_values():
+    draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+    with pytest.raises((TypeError, ValueError)):
+        _direct_draw(draw, hmac_sha256="0" * 64, u53_integer=0, unit_value=0.0)
 
 
 @pytest.mark.parametrize(
@@ -366,11 +492,24 @@ def test_stream_rejects_invalid_seed_and_uuid_boundaries():
         ("unit_value", 0.5),
     ],
 )
-def test_uniform_draw_rejects_invalid_or_decoupled_provenance(field: str, value: object):
+def test_uniform_draw_rejects_every_previously_guarded_invalid_field(
+    field: str, value: object
+):
     draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
 
     with pytest.raises((TypeError, ValueError)):
-        replace(draw, **{field: value})
+        _direct_draw(draw, **{field: value})
+
+
+def test_uniform_draw_persists_only_public_provenance_without_root_seed():
+    draw = _draw_from_vector(_golden_vector("composed_unicode_seed"))
+
+    assert tuple(field.name for field in fields(draw)) == (
+        "algorithm", "decision", "draw_index", "canonical_message",
+        "hmac_sha256", "u53_integer", "unit_value",
+    )
+    assert not hasattr(draw, "root_seed")
+    assert "café-seed" not in repr(draw)
 
 
 def test_uniform_draw_and_stream_are_frozen():

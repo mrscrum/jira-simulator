@@ -28,7 +28,7 @@ Status: IN PROGRESS
 
 ## Task Checklist
 
-- [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10
+- [x] Task 3 — Add exact deterministic HMAC-U53 decisions and bounded dwell/touch sampling — completed 2026-08-10; review fix round 1 completed 2026-08-11
 - [ ] Task 4 — Add dual-clock, DST-safe business-calendar primitives
 
 ## Deferred Non-Blocking Validation Hardening
@@ -41,7 +41,9 @@ Status: IN PROGRESS
 
 **Dependency:** Start from the reviewed persistence-spine head with Alembic `014`. This task consumes existing `canonical_json`, `semantic_uuid`, `ResolvedTeamBlueprint`, `TimingBlueprint`, and `TimingEntry` contracts but does not modify their persisted representation.
 
-**Inputs:** The exact persisted root seed, stored canonical-final-blueprint SHA-256, stable team/run/entity UUIDs or catalog key, one closed decision type, explicit non-negative occurrence and draw index, and one validated timing entry's five dwell anchors plus touch bounds.
+**Inputs:** The exact persisted root seed, stored canonical-final-blueprint SHA-256, stable semantic
+team/run/entity UUIDs, one closed decision type, explicit safe non-negative occurrence and draw
+index, and one validated timing entry's five dwell anchors plus touch bounds.
 
 **Outputs:** Typed semantic RNG identity helpers, a closed creation-kind/decision enum, an immutable decision coordinate/provenance result, one stateless HMAC-U53 stream, and pure bounded dwell/touch sampling results suitable for later ground-truth serialization.
 
@@ -49,8 +51,13 @@ Status: IN PROGRESS
 
 - `CreationKind(StrEnum)` and `DecisionType(StrEnum)` are the closed exact enums below.
 - `team_rng_id(blueprint_sha256: str) -> UUID`, `run_rng_id(team_id: UUID, ordinal: int) -> UUID`, `member_rng_id(team_id: UUID, index: int) -> UUID`, `sprint_rng_id(team_id: UUID, ordinal: int) -> UUID`, `item_rng_id(team_id: UUID, creation_kind: CreationKind, sequence: int) -> UUID`, `visit_rng_id(item_id: UUID, ordinal: int) -> UUID`, `dependency_rng_id(visit_id: UUID, ordinal: int) -> UUID`, and `rework_rng_id(item_id: UUID, ordinal: int) -> UUID` expose only the approved paths.
-- Frozen `DecisionOccurrence(entity_id: UUID | str, decision_type: DecisionType, occurrence: int)` groups the semantic coordinate. `DeterministicRandomStream(root_seed: str, team_id: UUID, run_id: UUID).draw(decision: DecisionOccurrence, draw_index: int = 0) -> UniformDraw` is stateless and requires an explicit occurrence.
-- Frozen `UniformDraw` exposes `algorithm`, `decision`, `draw_index`, `canonical_message`, `hmac_sha256`, `u53_integer`, and `unit_value` with exact validated types.
+- Frozen `DecisionOccurrence(entity_id: UUID, decision_type: DecisionType, occurrence: int)` groups
+  the semantic coordinate. `DeterministicRandomStream(root_seed: str, team_id: UUID, run_id:
+  UUID).draw(decision: DecisionOccurrence, draw_index: int = 0) -> UniformDraw` is stateless and
+  requires an explicit occurrence.
+- Frozen `UniformDraw` exposes `algorithm`, `decision`, `draw_index`, `canonical_message`,
+  `hmac_sha256`, `u53_integer`, and `unit_value` with exact validated types; only the keyed stream
+  constructs it, and normal direct construction/replacement reject.
 - Frozen `DwellAnchors` exposes `minimum`, `p25`, `p50`, `p99`, and `maximum`; frozen `TouchBounds` exposes `minimum` and `maximum`; frozen `DurationSample` exposes the input draw and sampled hours without claiming persistence.
 - `dwell_anchors(entry: TimingEntry) -> DwellAnchors`, `touch_bounds(entry: TimingEntry) -> TouchBounds`, `sample_dwell(anchors: DwellAnchors, unit_draw: float) -> DurationSample`, and `sample_touch(bounds: TouchBounds, unit_draw: float) -> DurationSample` are the only sampling operations.
 
@@ -78,7 +85,9 @@ Status: IN PROGRESS
 - Dependency: `dependency/<visit-rng-uuid>/<zero-based-dependency-ordinal>`.
 - Rework: `rework/<item-rng-uuid>/<zero-based-rework-ordinal>`.
 - `creation-kind` is exactly one of `INITIAL_BACKLOG`, `SCRUM_REPLENISHMENT`, `KANBAN_ARRIVAL`, `AGENT_CREATED`, or `JIRA_IMPORTED`; its sequence is scoped to team plus kind.
-- Member identity uses persisted final-blueprint array position. The helpers validate a 64-character lower-case hexadecimal blueprint digest, exact enum membership, true non-negative integers (not booleans), and UUID inputs before derivation.
+- Member identity uses persisted final-blueprint array position. The helpers validate a 64-character
+  lower-case hexadecimal blueprint digest, exact enum membership, UUID inputs, and true integers in
+  `0..2^53-1` (not booleans) before derivation.
 - For the existing Task 1 aggregate, `team_rng_id(blueprint_sha256)` and `run_rng_id(team_id, 0)` must equal the already-persisted team/run semantic IDs; no parallel database identity is created.
 
 **Exact decision contract:**
@@ -88,7 +97,10 @@ Status: IN PROGRESS
 - Normalize the persisted root seed with Unicode NFC, encode UTF-8, and SHA-256 it once; the 32 digest bytes are the HMAC key. Do not replace or persist a normalized seed silently.
 - The canonical decision object has exactly `algorithm`, `team_id`, `run_id`, `entity_id`, `decision_type`, `occurrence`, and `draw_index`. UUID values use lower-case hyphenated text. It is encoded as RFC 8785 canonical UTF-8 JSON with no whitespace. For this closed string/integer schema, an implementation may reuse a proven byte-equivalent compact/sorted encoder but must not change `CANONICAL_JSON_V1` or use it to rehash persisted blueprints.
 - Calculate HMAC-SHA-256 over those exact bytes. Interpret the first eight digest bytes as unsigned big-endian, discard the low 11 bits, and divide the remaining integer by `2^53`. The generator returns `u` in `[0,1)`; it never emits `1`.
-- `entity_id` is the stable semantic UUID or approved catalog key. `occurrence` and `draw_index` are explicit true non-negative integers. A frozen result retains algorithm, coordinate, canonical message, full lower-case HMAC digest, high-53-bit integer, and `u` without exposing mutable state.
+- Every current `entity_id` is a stable semantic UUID; date/catalog strings are not HMAC entities.
+  `occurrence` and `draw_index` are explicit true integers in `0..2^53-1`. A frozen result retains
+  algorithm, coordinate, canonical message, full lower-case HMAC digest, high-53-bit integer, and
+  `u` without exposing mutable state or the root seed.
 - Backlog/item draws use the item semantic UUID and occurrence `0`; dwell/touch and visit-triggered natural risks use the visit semantic UUID and occurrence `0`; sprint capacity uses the sprint semantic UUID and occurrence `0`. Cancellation/member-unavailability eligibility additionally keys by business date while HMAC uses the item/member UUID and explicit zero-based committed eligible-evaluation occurrence. Forced rework uses the review-visit UUID and explicit committed forced ordinal. Kanban arrival gap uses the run UUID and explicit arrival ordinal; Kanban class uses the created item UUID and occurrence `0`.
 - Disabled, ineligible, forced, duplicate, or rolled-back natural evaluations must not consume an occurrence, but this task only validates caller-supplied coordinates; it does not implement that state transition.
 
@@ -98,7 +110,10 @@ Status: IN PROGRESS
 - At an exact anchor probability, return the configured anchor. Between adjacent anchors, interpolate linearly in `log1p(hours)` and transform with `expm1`. Results are monotone and bounded; five zero anchors return zero.
 - Reject a boolean/non-number/non-finite unit draw, a draw outside `[0,1]`, or any negative, non-finite, or unordered dwell anchor. Equal adjacent anchors are valid.
 - Touch uses exact `LINEAR_UNIFORM_TOUCH_V1`: for finite ordered bounds `a <= b` and explicit `u` in `[0,1]`, return `a + (b - a) * u`; exact `u=0` returns `a`, exact `u=1` returns `b`, and `a=b` returns that bound.
-- Samplers accept explicit `u=1` for endpoint tests even though HMAC-U53 does not emit it. They import no RNG and consume no occurrence. Results retain the supplied bounds/anchors, draw, and sampled hours; the existing timing profile/version/algorithm remains the provenance source and is not rewritten.
+- Samplers accept explicit `u=1` for endpoint tests even though HMAC-U53 does not emit it. They
+  import no RNG and consume no occurrence. Results retain the supplied bounds/anchors, draw, and
+  sampled hours, and direct construction/replacement revalidate the exact formula; the existing
+  timing profile/version/algorithm remains the provenance source and is not rewritten.
 
 **RED command and required failures:**
 
@@ -139,6 +154,18 @@ Status: IN PROGRESS
 - [x] Inspect/stage only Task 3 files and commit exactly `feat(v2): add deterministic decision sampling` before Task 4 begins.
 
 **Done condition:** Independent literal vectors and subprocess/order tests prove stable UUIDv5/HMAC-U53 results; bounded dwell/touch samples satisfy every endpoint, monotonicity, finite/order, and starter-fixture invariant; no persistence/schema/external boundary changed; Alembic remains sole head `014`; focused/v2/full tests and Ruff pass with truthful evidence and the exact Task 3 commit.
+
+### Task 3 review fix round 1 — completed 2026-08-11
+
+- [x] Seal keyed draw provenance; direct construction and `dataclasses.replace` reject, while the
+  public result retains only the seven approved provenance fields.
+- [x] Table-test every decision type against its approved UUID entity and zero/nonzero occurrence
+  scope; cancellation uses the item UUID rather than its business-date eligibility key.
+- [x] Enforce `0..2^53-1` for every semantic ordinal/index/sequence, occurrence, and draw index,
+  including boolean rejection and an independently fixed ECMAScript maximum-boundary vector.
+- [x] Revalidate exact dwell/touch formulas on direct `DurationSample` construction and replacement.
+- [x] Retain focused RED/GREEN plus prior-v2/full/Ruff/Alembic/shape evidence without adding an
+  occurrence allocator, schema, persistence, clock, scheduler, engine, or external call.
 
 ## Task 4: Add dual-clock, DST-safe business-calendar primitives
 

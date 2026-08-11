@@ -35,10 +35,18 @@ tracked under `backlog/v2/`; its active near-term plan is
 - Persistent scheduled events, Jira write queue, rate-limit handling, Jira client, bootstrapper,
   health monitor, and queue-status auditor.
 - Pure v2 deterministic semantic identities, `HMAC_SHA256_U53_V1` decision draws, and bounded
-  dwell/touch sampling with immutable provenance and no persistence/external dependency.
+  dwell/touch sampling with sealed/formula-bound provenance and no persistence/external dependency.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, Task 3 review fix round 1 sealed `UniformDraw` construction behind
+`DeterministicRandomStream.draw`, restricted every current decision entity to a semantic UUID,
+enforced the documented zero/nonzero occurrence scopes, and bounded every semantic
+ordinal/index/sequence plus occurrence/draw index to `0..2^53-1`. `DurationSample` construction and
+replacement now re-evaluate the exact retained dwell/touch formula. Corrected cancellation and
+maximum-safe-integer literals were independently re-encoded with Node.js. This added no state,
+allocator, migration, external dependency, Jira/OpenAI call, deployment, UAT, or M1 completion.
 
 On 2026-08-10, M1 deterministic-kernel Task 3 added the pure decision and timing-sampling boundary.
 `backend/app/v2/domain/deterministic_rng.py` owns the exact closed creation/decision enums, eight
@@ -89,9 +97,11 @@ runtime changes were made.
 
 Current local evidence:
 
-- Backend: 839 passed, 43 skipped, 15 baseline warnings.
-- V2: 321 passed, 1 baseline warning.
-- Task 3 focused: 143 passed.
+- Backend: 899 passed, 43 skipped, 15 baseline warnings.
+- V2: 381 passed, 1 baseline warning.
+- Task 3 focused: 203 passed.
+- Task 1 focused: 48 passed, 1 baseline warning.
+- Task 2 focused: 144 passed.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.
@@ -123,9 +133,9 @@ Current local evidence:
 - `backend/app/v2/domain/live_slice.py` — immutable live-slice drafts, stored records, runtime
   advance, transaction command/result, and page contracts.
 - `backend/app/v2/domain/deterministic_rng.py` — closed semantic ID/decision enums, exact UUIDv5
-  paths, immutable decision coordinates/results, and stateless HMAC-U53 draws.
+  paths, scoped safe-integer coordinates, and sealed stateless HMAC-U53 draws.
 - `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
-  bounded duration samples.
+  bounded duration samples whose retained result is formula-validated.
 - `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
   message/digest/U53/unit literals, including Unicode NFC equivalence.
 - `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
@@ -139,9 +149,10 @@ Current local evidence:
 
 ## Next Task
 
-Review Task 3, then implement Task 4 from `backlog/v2/m1-deterministic-kernel.md`: pure dual-clock,
-DST-safe business-calendar/cadence primitives and `US_FEDERAL_V1` horizon materialization through a
-separate strict RED -> GREEN -> REFACTOR cycle. Do not modify Task 3 algorithms/vectors, add a
+After accepting the reviewed Task 3 fix, implement Task 4 from
+`backlog/v2/m1-deterministic-kernel.md`: pure dual-clock, DST-safe business-calendar/cadence
+primitives and `US_FEDERAL_V1` horizon materialization through a separate strict RED -> GREEN ->
+REFACTOR cycle. Do not modify Task 3 algorithms/vectors, add a
 migration or persistence occurrence allocation, wire a scheduler, call Jira/OpenAI, deploy, claim
 UAT, or mark M1 complete.
 
