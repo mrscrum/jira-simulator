@@ -187,3 +187,12 @@
   separate not-found domain error; stale compare-and-swap writes still use `StaleRuntimeVersion`.
 - No further M1 implementation slice is assumed. The active near-term plan ends after Tasks 1 and
   2, while M1 intentionally remains in progress pending review and an approved next slice.
+
+## [2026-08-10] M1 — Task 2 review fix round 1
+- Used a test-only session subclass that hides one already-committed semantic-key lookup to
+  deterministically reproduce the insert-race branch on SQLite, whose writer serialization masks
+  the real interleaving; the test still executes the real unique constraint and verifies final data.
+- Used a nested database savepoint around only the candidate semantic insert so an identical race
+  can recover the winner without discarding the runtime advance, while a typed differing-content
+  conflict still escapes to the outer UOW rollback and removes every proposed write.
+- No new product assumptions made; all other changes directly implement the supplied review findings.

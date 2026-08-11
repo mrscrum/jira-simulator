@@ -1,0 +1,8 @@
+Rev: 014 (head)
+Parent: 013
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/014_add_v2_live_slice_ledgers.py
+
+    Add atomic v2 live-slice ledgers and runtime versioning.
+
+    Revision ID: 014
+    Revises: 013

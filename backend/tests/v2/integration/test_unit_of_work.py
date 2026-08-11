@@ -11,7 +11,11 @@ from app.v2.domain.live_slice import (
     ActivityDetails,
     ActivityEventDraft,
     DraftEnvelope,
+    GroundTruthDetails,
+    GroundTruthRecordDraft,
     LedgerPageQuery,
+    ProjectionDetails,
+    ProjectionIntentDraft,
     ProjectionPageQuery,
     RuntimeAdvance,
 )
@@ -32,6 +36,21 @@ from tests.v2.live_slice_support import (
 )
 
 LEDGER_MODELS = (V2ActivityEventModel, V2GroundTruthRecordModel, V2ProjectionIntentModel)
+RACE_TARGETS = (
+    ("activity", V2ActivityEventModel),
+    ("ground_truth", V2GroundTruthRecordModel),
+    ("projection_intents", V2ProjectionIntentModel),
+)
+
+
+class _CountingSessionFactory:
+    def __init__(self, delegate):
+        self.delegate = delegate
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        return self.delegate()
 
 
 @pytest.fixture
@@ -58,6 +77,46 @@ def _assert_committed_shape(committed, aggregate) -> None:
     assert [item.append_sequence for item in committed.ground_truth] == [1, 2]
     assert [item.append_sequence for item in committed.projection_intents] == [1, 2]
     assert [item.status for item in committed.projection_intents] == ["PENDING", "PENDING"]
+
+
+def _hiding_session_factory(session_factory, hidden_model):
+    engine = session_factory.kw["bind"]
+
+    class _HidingSession(session_factory.class_):
+        def scalar(self, statement, *args, **kwargs):
+            descriptions = getattr(statement, "column_descriptions", ())
+            selected = descriptions[0].get("entity") if descriptions else None
+            already_hidden = self.info.get("semantic_lookup_hidden", False)
+            if selected is hidden_model and not already_hidden:
+                self.info["semantic_lookup_hidden"] = True
+                return None
+            return super().scalar(statement, *args, **kwargs)
+
+    return sessionmaker(bind=engine, class_=_HidingSession)
+
+
+def _conflicting_draft(aggregate, original):
+    envelope = DraftEnvelope(
+        original.semantic_key,
+        original.schema_version,
+        original.occurred_at,
+        {"changed": True},
+    )
+    if isinstance(original, ActivityEventDraft):
+        details = ActivityDetails("ISSUE_UPDATED", "ISSUE", aggregate.team.id, 7)
+        return ActivityEventDraft.create(envelope, details)
+    if isinstance(original, GroundTruthRecordDraft):
+        return GroundTruthRecordDraft.create(
+            envelope, GroundTruthDetails("ISSUE_STATE", "SIMULATOR_V1")
+        )
+    details = ProjectionDetails("JIRA", "UPSERT_ISSUE", aggregate.team.id, 7, "PENDING")
+    return ProjectionIntentDraft.create(envelope, details)
+
+
+def _with_conflicting_target(aggregate, winner, loser, collection_name: str):
+    original = getattr(winner, collection_name)[0]
+    conflicting = _conflicting_draft(aggregate, original)
+    return replace(loser, **{collection_name: (conflicting,)})
 
 
 def test_commit_advances_runtime_and_appends_each_ordered_ledger_atomically(
@@ -104,6 +163,26 @@ def test_failure_at_each_write_class_rolls_back_runtime_and_ledgers(
     assert _ledger_counts(v2_session_factory) == [0, 0, 0]
 
 
+@pytest.mark.parametrize(
+    "collection_name", ["activity", "ground_truth", "projection_intents"]
+)
+def test_uow_revalidates_forged_drafts_before_opening_a_session(
+    v2_session_factory, resolved_blueprint_json, requested_at, collection_name
+):
+    aggregate = create_aggregate(v2_session_factory, resolved_blueprint_json, requested_at)
+    commit = make_tick_commit(aggregate, 0, "forged")
+    object.__setattr__(getattr(commit, collection_name)[0], "payload_sha256", "0" * 64)
+    counting_factory = _CountingSessionFactory(v2_session_factory)
+    unit_of_work = SqlAlchemyV2UnitOfWork(counting_factory)
+
+    with pytest.raises(ValueError, match="hash|digest"):
+        unit_of_work.commit_tick_slice(commit)
+
+    assert counting_factory.calls == 0
+    assert SqlAlchemyV2UnitOfWork(v2_session_factory).get_runtime(aggregate.team.id).version == 0
+    assert _ledger_counts(v2_session_factory) == [0, 0, 0]
+
+
 def test_two_loaded_writers_leave_stale_writer_with_zero_partial_rows(
     v2_session_factory, resolved_blueprint_json, requested_at
 ):
@@ -144,15 +223,33 @@ def test_identical_semantic_replay_returns_existing_records_without_new_rows(
     assert _ledger_counts(v2_session_factory) == [2, 2, 2]
 
 
-def _conflicting_activity(aggregate, original) -> ActivityEventDraft:
-    envelope = DraftEnvelope(
-        original.semantic_key,
-        original.schema_version,
-        original.occurred_at,
-        {"changed": True},
+@pytest.mark.parametrize("collection_name,hidden_model", RACE_TARGETS)
+def test_identical_semantic_insert_race_resolves_to_existing_records(
+    v2_session_factory,
+    resolved_blueprint_json,
+    requested_at,
+    collection_name,
+    hidden_model,
+):
+    aggregate = create_aggregate(v2_session_factory, resolved_blueprint_json, requested_at)
+    normal = SqlAlchemyV2UnitOfWork(v2_session_factory)
+    winner = make_tick_commit(aggregate, 0, "race-identical")
+    initial = normal.commit_tick_slice(winner)
+    replay = replace(
+        winner,
+        commit_id=semantic_uuid(f"commit/race-identical/{collection_name}"),
+        expected_runtime_version=1,
+        runtime_after=RuntimeAdvance("RUNNING", SLICE_TIME + timedelta(hours=2), None),
     )
-    details = ActivityDetails("ISSUE_UPDATED", "ISSUE", aggregate.team.id, 7)
-    return ActivityEventDraft.create(envelope, details)
+    raced = SqlAlchemyV2UnitOfWork(
+        _hiding_session_factory(v2_session_factory, hidden_model)
+    ).commit_tick_slice(replay)
+
+    assert raced.activity == initial.activity
+    assert raced.ground_truth == initial.ground_truth
+    assert raced.projection_intents == initial.projection_intents
+    assert raced.runtime.version == 2
+    assert _ledger_counts(v2_session_factory) == [2, 2, 2]
 
 
 def test_conflicting_semantic_replay_rolls_back_runtime_and_new_rows(
@@ -164,7 +261,7 @@ def test_conflicting_semantic_replay_rolls_back_runtime_and_new_rows(
     unit_of_work.commit_tick_slice(first)
     conflict = replace(
         make_tick_commit(aggregate, 1, "second"),
-        activity=(_conflicting_activity(aggregate, first.activity[0]),),
+        activity=(_conflicting_draft(aggregate, first.activity[0]),),
     )
 
     with pytest.raises(SemanticDeduplicationConflict):
@@ -172,6 +269,32 @@ def test_conflicting_semantic_replay_rolls_back_runtime_and_new_rows(
 
     assert unit_of_work.get_runtime(aggregate.team.id).version == 1
     assert _ledger_counts(v2_session_factory) == [2, 2, 2]
+
+
+@pytest.mark.parametrize("collection_name,hidden_model", RACE_TARGETS)
+def test_conflicting_semantic_insert_race_is_typed_and_rolls_back_whole_slice(
+    v2_session_factory,
+    resolved_blueprint_json,
+    requested_at,
+    collection_name,
+    hidden_model,
+):
+    aggregate = create_aggregate(v2_session_factory, resolved_blueprint_json, requested_at)
+    normal = SqlAlchemyV2UnitOfWork(v2_session_factory)
+    winner = make_tick_commit(aggregate, 0, "race-conflict")
+    committed = normal.commit_tick_slice(winner)
+    loser = make_tick_commit(aggregate, 1, f"loser-{collection_name}")
+    conflict = _with_conflicting_target(aggregate, winner, loser, collection_name)
+    raced = SqlAlchemyV2UnitOfWork(_hiding_session_factory(v2_session_factory, hidden_model))
+
+    with pytest.raises(SemanticDeduplicationConflict):
+        raced.commit_tick_slice(conflict)
+
+    assert normal.get_runtime(aggregate.team.id).version == 1
+    assert _ledger_counts(v2_session_factory) == [2, 2, 2]
+    assert normal.page_activity(LedgerPageQuery(aggregate.team.id, None, None, 10)).items == (
+        committed.activity
+    )
 
 
 def _activity_sequences(unit_of_work, aggregate) -> list[int]:

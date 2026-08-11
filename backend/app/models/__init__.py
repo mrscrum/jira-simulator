@@ -43,11 +43,20 @@ _V2_TEAM_MODELS = {
 }
 
 
-def _v2_model_import_is_active() -> bool:
-    return _V2_LIVE_MODULE in sys.modules or _V2_TEAM_MODULE in sys.modules
-
-
-if not _v2_model_import_is_active():
+if _V2_LIVE_MODULE in sys.modules:
+    from app.v2.persistence.team_models import (
+        V2RunModel,
+        V2TeamBlueprintModel,
+        V2TeamModel,
+        V2TeamRuntimeModel,
+    )
+elif _V2_TEAM_MODULE in sys.modules:
+    from app.v2.persistence.live_models import (
+        V2ActivityEventModel,
+        V2GroundTruthRecordModel,
+        V2ProjectionIntentModel,
+    )
+else:
     from app.v2.persistence.live_models import (
         V2ActivityEventModel,
         V2GroundTruthRecordModel,

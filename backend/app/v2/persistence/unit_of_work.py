@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.v2.domain.live_slice import (
@@ -67,10 +68,11 @@ class V2UnitOfWork(ABC):
 class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
     """One-short-transaction SQLAlchemy implementation of the v2 port."""
 
-    def __init__(self, session_factory: sessionmaker[Session]):
+    def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
     def commit_tick_slice(self, commit: TickSliceCommit) -> CommittedTickSlice:
+        commit.validate()
         with self._session_factory() as session:
             try:
                 committed = self._commit_in_session(session, commit)
@@ -204,9 +206,9 @@ def _resolve_activity(
         aggregate_id=str(draft.aggregate_id),
         aggregate_version=draft.aggregate_version,
     )
-    session.add(model)
-    session.flush()
-    return _map_activity(model)
+    record = _map_activity(_insert_or_find(session, model, draft.semantic_key))
+    _require_identical(record, draft, commit)
+    return record
 
 
 def _resolve_ground_truth(
@@ -229,9 +231,9 @@ def _resolve_ground_truth(
         record_type=draft.record_type,
         provenance_type=draft.provenance_type,
     )
-    session.add(model)
-    session.flush()
-    return _map_ground_truth(model)
+    record = _map_ground_truth(_insert_or_find(session, model, draft.semantic_key))
+    _require_identical(record, draft, commit)
+    return record
 
 
 def _resolve_projection(
@@ -257,9 +259,24 @@ def _resolve_projection(
         aggregate_version=draft.aggregate_version,
         status=draft.status,
     )
-    session.add(model)
-    session.flush()
-    return _map_projection(model)
+    record = _map_projection(_insert_or_find(session, model, draft.semantic_key))
+    _require_identical(record, draft, commit)
+    return record
+
+
+def _insert_or_find(session: Session, model, semantic_key: str):
+    try:
+        with session.begin_nested():
+            session.add(model)
+            session.flush()
+    except IntegrityError as error:
+        existing = session.scalar(
+            select(type(model)).where(type(model).semantic_key == semantic_key)
+        )
+        if existing is None:
+            raise error
+        return existing
+    return model
 
 
 def _require_identical(record, draft, commit: TickSliceCommit) -> None:

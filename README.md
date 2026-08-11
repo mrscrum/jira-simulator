@@ -27,9 +27,13 @@ construction, and the wire boundary rejects scalar type coercion.
 
 `SqlAlchemyV2UnitOfWork` advances a team/run runtime with one optimistic compare-and-swap and
 commits all three caller-ordered ledger tuples in the same transaction. Semantic replay is a stable
-no-op only for identical canonical content; conflicts and stale writers roll back the whole slice.
+no-op only for identical canonical content, including when a concurrent insert wins after lookup;
+conflicts and stale writers roll back the whole slice without leaking a raw database uniqueness
+error. Public drafts revalidate deterministic identity, canonical bytes/hash, type identifiers,
+versions, and aware instants on direct construction, replacement, and before a UOW opens a session.
 Each ledger pages by its own exclusive append-sequence cursor. Projection intents are transport
-neutral and remain `PENDING`; delivery adapters are deliberately outside this unit of work.
+neutral and remain `PENDING`; delivery adapters are deliberately outside this unit of work. Every
+public v2 persistence import order registers all seven v2 tables before schema creation.
 
 From `backend/`, run:
 

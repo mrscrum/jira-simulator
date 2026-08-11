@@ -169,4 +169,70 @@ imports of the public UOW/model interfaces could still re-enter additive `app.mo
 three subprocess cases were witnessed RED and then fixed with cycle-aware lazy v2 registration.
 The graph, public cold imports, migration round-trip, final focused/full suites, and final Ruff all
 pass. Earlier green full runs (`586` before the graph regression and `587` before the three cold-
-import cases) remain in the evidence; the final authoritative result is `590 passed` above.
+import cases) remain in the evidence; `590 passed` was the authoritative Task 2 result before the
+review fix. The current authoritative result is recorded below.
+
+## Review fix round 1 — enforce live-slice invariants
+
+The review-fix base was clean commit `ad687d1`. All new regressions were added before production
+edits. The four-file Task 2 command was then run and retained in `fix-round-1-red.txt`:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 INTEGRATION_TESTS=false ../.venv/bin/python -B -m pytest -p no:cacheprovider tests/v2/unit/test_live_slice.py tests/v2/integration/test_unit_of_work.py tests/v2/integration/test_projection_boundary.py tests/v2/integration/test_migration_014.py -q 2>&1 | tee ../evidence/v2/M1-T02/fix-round-1-red.txt
+```
+
+Pytest reported `81 failed, 29 passed in 3.80s`. The failures were the expected constructor and
+`dataclasses.replace` validation bypasses, mutable payload `|=` alias, UOW acceptance of forged
+drafts, raw `IntegrityError` semantic races, and incomplete cold-import registration. Because this
+first invocation did not enable `pipefail` in the shell, the surrounding pipeline status was zero;
+the retained pytest result itself was RED and was witnessed before any production edit. The two
+minor architecture regressions were run separately with `set -o pipefail` and exited one at
+`2 failed, 1 passed in 0.09s`, also appended to `fix-round-1-red.txt`.
+
+After implementation and refactor, the exact Task 2 command with `set -o pipefail` produced
+`110 passed in 2.90s`; output is in `fix-round-1-task2-focused.txt` (the earlier first-GREEN run,
+`110 passed in 2.67s`, remains in `fix-round-1-green.txt`). Current coverage proves:
+
+- all three public draft classes reject wrong derived IDs, empty semantic/schema/type identifiers,
+  invalid or noncanonical JSON, wrong digests, invalid aggregate IDs/versions/status, and naive
+  instants through both direct construction and `dataclasses.replace`;
+- a deliberately forged frozen draft is revalidated before the UOW session factory is called, with
+  runtime version zero and ledger counts `[0, 0, 0]` retained for every ledger class;
+- payload aliases reject `|=`, nested objects/lists reject mutation, source mutations do not leak,
+  and canonical bytes/digest remain stable;
+- first importing either model module, the UOW module, or package exports registers all seven v2
+  tables and `Base.metadata.create_all(sqlite://)` succeeds in a fresh process;
+- a controlled stale lookup followed by the real table-global unique constraint exercises all three
+  semantic insert races: identical content resolves to existing records without new rows, while
+  differing content raises `SemanticDeduplicationConflict` and rolls back runtime/all ledgers;
+- the exploding post-commit adapter regression reloads and compares ground truth as well as runtime,
+  activity, and projection state.
+
+### Supplemental migration-test effectiveness proof
+
+A detached disposable worktree at Task-1 base
+`ee48c5de9ecac3c5f8362da3422925db77df2ab5` received the exact committed
+`ad687d1:backend/tests/v2/integration/test_migration_014.py`; both blob hashes were
+`0211530fb7de61530d301c48ffdcdb7c90fd1160`. Running that test at the Task-1 base exited one with
+`2 failed in 0.61s`: the graph was `013 (head)` rather than `014 (head)`, and Alembic raised
+`No such revision or branch '014'`. This is supplemental effectiveness evidence, not a rewrite of
+the historical initial RED. Output is in `fix-round-1-supplemental-task1-base-red.txt`; the
+disposable worktree was removed afterward.
+
+### Review-fix verification
+
+- Task 1 focused command: `44 passed, 1 warning in 1.35s`
+  (`fix-round-1-task1-focused.txt`).
+- Task 2 focused command: `110 passed in 2.90s`
+  (`fix-round-1-task2-focused.txt`).
+- Full safe backend: `672 passed, 43 skipped, 15 warnings in 30.51s`
+  (`fix-round-1-full.txt`). The warning set remains the documented baseline.
+- Full Ruff: `All checks passed!` (`fix-round-1-ruff.txt`).
+- Alembic: sole `Rev: 014 (head)` with parent `013`; branch output empty
+  (`fix-round-1-alembic-graph.txt`).
+- Populated integration round-trip `013 -> 014 -> 013 -> 014`: `1 passed in 0.68s`
+  (`fix-round-1-populated-round-trip.txt`).
+- Exact touched/new Python scan: `Functions over 30 lines: []`
+  (`fix-round-1-function-scan.txt`).
+
+No Jira/OpenAI call, deployment, push, UAT, later engine work, or M1 completion occurred.

@@ -1,13 +1,17 @@
 """Immutable contracts for one atomically persisted v2 live slice."""
 
-import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Self
 from uuid import UUID
 
-from app.v2.domain.canonical_json import JsonValue, canonical_json, semantic_uuid
+from app.v2.domain.canonical_json import (
+    JsonValue,
+    canonical_json,
+    canonical_sha256,
+    semantic_uuid,
+)
 from app.v2.domain.team_runtime import TeamRuntime
 
 MAX_PAGE_SIZE = 100
@@ -26,6 +30,7 @@ class _FrozenJsonDict(dict):
     popitem = _reject
     setdefault = _reject
     update = _reject
+    __ior__ = _reject
 
 
 def _freeze_json(value: Any) -> JsonValue:
@@ -42,8 +47,20 @@ def _validated_json(value: Any) -> tuple[JsonValue, str, str]:
         copied = json.loads(encoded)
     except (TypeError, ValueError) as error:
         raise ValueError("payload must be valid JSON") from error
-    digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+    digest = canonical_sha256(copied)
     return _freeze_json(copied), encoded, digest
+
+
+def _canonical_document(encoded: object) -> JsonValue:
+    if not isinstance(encoded, str):
+        raise TypeError("canonical_payload must be a string")
+    try:
+        document = json.loads(encoded)
+    except (TypeError, ValueError) as error:
+        raise ValueError("canonical_payload must contain valid JSON") from error
+    if canonical_json(document) != encoded:
+        raise ValueError("canonical_payload must use canonical JSON encoding")
+    return document
 
 
 def _non_empty(value: object, field_name: str) -> str:
@@ -153,6 +170,20 @@ def _draft_identity(path: str, envelope: DraftEnvelope) -> tuple[UUID, str, str]
     return identifier, payload, digest
 
 
+def _validate_draft_envelope(draft: object, path: str) -> None:
+    identifier = _uuid(getattr(draft, "id"), "identifier")
+    semantic_key = _non_empty(getattr(draft, "semantic_key"), "semantic key")
+    _non_empty(getattr(draft, "schema_version"), "schema version")
+    occurred_at = _aware_utc(getattr(draft, "occurred_at"), "occurred_at")
+    object.__setattr__(draft, "occurred_at", occurred_at)
+    document = _canonical_document(getattr(draft, "canonical_payload"))
+    expected_digest = canonical_sha256(document)
+    if getattr(draft, "payload_sha256") != expected_digest:
+        raise ValueError("payload hash does not match canonical payload")
+    if identifier != semantic_uuid(f"{path}/{semantic_key}"):
+        raise ValueError("identifier does not match semantic key")
+
+
 @dataclass(frozen=True)
 class ActivityEventDraft:
     id: UUID
@@ -165,6 +196,18 @@ class ActivityEventDraft:
     aggregate_type: str
     aggregate_id: UUID
     aggregate_version: int
+
+    def __post_init__(self) -> None:
+        _validate_draft_envelope(self, "activity")
+        ActivityDetails(
+            self.event_type,
+            self.aggregate_type,
+            self.aggregate_id,
+            self.aggregate_version,
+        )
+
+    def validate(self) -> None:
+        self.__post_init__()
 
     @classmethod
     def create(cls, envelope: DraftEnvelope, details: ActivityDetails) -> Self:
@@ -206,6 +249,13 @@ class GroundTruthRecordDraft:
     record_type: str
     provenance_type: str
 
+    def __post_init__(self) -> None:
+        _validate_draft_envelope(self, "ground-truth")
+        GroundTruthDetails(self.record_type, self.provenance_type)
+
+    def validate(self) -> None:
+        self.__post_init__()
+
     @classmethod
     def create(cls, envelope: DraftEnvelope, details: GroundTruthDetails) -> Self:
         identifier, payload, digest = _draft_identity("ground-truth", envelope)
@@ -245,6 +295,19 @@ class ProjectionIntentDraft:
     aggregate_version: int
     status: str
 
+    def __post_init__(self) -> None:
+        _validate_draft_envelope(self, "projection")
+        ProjectionDetails(
+            self.target_kind,
+            self.operation_type,
+            self.aggregate_id,
+            self.aggregate_version,
+            self.status,
+        )
+
+    def validate(self) -> None:
+        self.__post_init__()
+
     @classmethod
     def create(cls, envelope: DraftEnvelope, details: ProjectionDetails) -> Self:
         identifier, payload, digest = _draft_identity("projection", envelope)
@@ -283,6 +346,9 @@ class RuntimeAdvance:
     next_wake_at: datetime | None
 
     def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
         object.__setattr__(self, "state", _non_empty(self.state, "runtime state"))
         object.__setattr__(
             self, "simulation_time", _aware_utc(self.simulation_time, "simulation_time")
@@ -298,6 +364,7 @@ def _validate_draft_tuple(items: object, item_type: type, field_name: str) -> tu
         raise TypeError(f"{field_name} must be a tuple of {item_type.__name__}")
     seen: dict[str, tuple[object, ...]] = {}
     for item in items:
+        item.validate()
         content = item.deduplication_content()
         if item.semantic_key in seen and seen[item.semantic_key] != content:
             raise ValueError(f"duplicate semantic key has conflicting {field_name} content")
@@ -318,12 +385,16 @@ class TickSliceCommit:
     recorded_at: datetime
 
     def __post_init__(self) -> None:
+        self.validate()
+
+    def validate(self) -> None:
         _uuid(self.commit_id, "commit_id")
         _uuid(self.team_id, "team_id")
         _uuid(self.run_id, "run_id")
         _non_negative(self.expected_runtime_version, "expected_runtime_version")
         if not isinstance(self.runtime_after, RuntimeAdvance):
             raise TypeError("runtime_after must be a RuntimeAdvance")
+        self.runtime_after.validate()
         _validate_draft_tuple(self.activity, ActivityEventDraft, "activity")
         _validate_draft_tuple(self.ground_truth, GroundTruthRecordDraft, "ground truth")
         _validate_draft_tuple(

@@ -37,12 +37,22 @@ tracked under `backlog/v2/`. Historical Stage 4/5 plans are not executable for v
 
 ## Most Recent Change
 
-On 2026-08-10, M1 Task 2 added revision 014 above the reviewed revision-013 team shell. Runtime
-rows now expose an explicit optimistic version, and `backend/app/v2/persistence/unit_of_work.py`
-uses one compare-and-swap plus one database transaction to advance runtime and append ordered
-activity, immutable ground truth, and generic pending projection intent. Deterministic semantic
-UUIDs, canonical payload hashes, deduplication conflicts/no-ops, stable append cursors, stale-writer
-rollback, disposed-engine restart, and post-commit adapter failure are covered by focused tests.
+On 2026-08-10, M1 Task 2 review fix round 1 hardened revision-014 contracts without changing its
+schema. Direct construction, `dataclasses.replace`, and the UOW boundary now revalidate semantic
+UUIDs, canonical JSON/digests, non-empty type fields, non-negative versions, pending status, and
+aware instants before opening a session. Semantic-key insert races recover through a savepoint:
+identical content resolves to the winner, while differing content raises the typed conflict and
+rolls back the runtime plus all ledgers. Deep payload aliases reject `|=` and nested mutation. Every
+fresh public v2 model/UOW import order registers all seven v2 tables and can create the SQLite
+schema. Adapter-failure coverage now reloads ground truth explicitly as well as runtime, activity,
+and projection state.
+
+M1 Task 2 originally added revision 014 above the reviewed revision-013 team shell. Runtime rows
+expose an explicit optimistic version, and `backend/app/v2/persistence/unit_of_work.py` uses one
+compare-and-swap plus one database transaction to advance runtime and append ordered activity,
+immutable ground truth, and generic pending projection intent. Deterministic semantic UUIDs,
+canonical payload hashes, stable append cursors, stale-writer rollback, disposed-engine restart,
+and post-commit adapter failure are covered by focused tests.
 `backend/alembic/versions/014_add_v2_live_slice_ledgers.py` backfills version zero without retaining
 a server default, owns all three new tables, and returns exactly to populated revision 013 on
 downgrade. V2 remains isolated from the legacy runtime and invokes no Jira/OpenAI adapter.
@@ -57,7 +67,7 @@ runtime changes were made.
 
 Local evidence:
 
-- Backend: 590 passed, 43 skipped, 15 baseline warnings.
+- Backend: 672 passed, 43 skipped, 15 baseline warnings.
 - Ruff: passed.
 - Frontend: 2 tests passed.
 - Frontend production build: passed with a bundle-size warning.

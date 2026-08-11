@@ -220,3 +220,17 @@
   cannot undo runtime, activity, evidence, or pending intent state.
 - Added fresh-process Alembic/public-import regressions, lazy persistence exports, and cycle-aware
   additive v2 model registration so commands cannot enter an `app.models`/v2 mapping import cycle.
+
+## [2026-08-10] M1 — Task 2 review fix round 1
+### Changed
+- Added strict public draft revalidation, deep payload immutability, pre-session UOW validation,
+  and deterministic semantic-key race coverage for all three v2 ledgers.
+- Made every public v2 model/UOW cold-import order register and create all seven v2 tables.
+- Strengthened post-commit adapter-failure evidence to reload ground truth and added a supplemental
+  Task-1-base proof that the committed revision-014 migration test fails when migration 014 is absent.
+### Fixed
+- Identical semantic insert races now resolve to the committed winner without duplicate rows;
+  conflicting races raise `SemanticDeduplicationConflict` and roll back the whole proposed slice.
+- Direct constructors and `dataclasses.replace` can no longer bypass semantic UUID, canonical
+  JSON/digest, identifier/type, version, projection-status, or aware-instant invariants.
+- Draft payload aliases can no longer mutate the canonical snapshot through `|=`.
