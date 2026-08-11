@@ -374,3 +374,15 @@
 
 - No assumptions made. The boundary, wake, DST cadence, and contiguous minimum-capacity policy were
   supplied by the review resolution.
+
+## [2026-08-11] M1 — Advance incremental Scrum ticks atomically
+
+- Treated sampled dwell as business time in the status, including ordinary queue time but excluding
+  explicitly paused service-clock time, because persistence stores queue/pause/touch separately and
+  has no independent accumulated-dwell column.
+- Used proficiency to select the strongest eligible owner while retaining an already eligible owner;
+  touch credit remains ordinary elapsed labor because no proficiency speed multiplier was specified.
+- Emitted pending Jira intents only for status transitions; ownership, capacity, queue, and touch
+  progress remain internal evidence because v2 handoffs are not Jira assignee changes.
+- Seeded only per-work-item visit counters during bootstrap. Sprint/item counters remain deferred to
+  the lifecycle slice because this task allocates neither a sprint nor a work item.

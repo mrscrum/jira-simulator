@@ -124,6 +124,22 @@ The retained round-2 verification records 252 focused tests, 1037 all-v2 tests w
 warning, and 1555 full-backend tests with 43 skipped and 15 baseline warnings. Ruff, static/shape
 checks, the Alembic sole-head/empty-branch/linear-history checks, and the no-migration diff are clean.
 
+## V2 incremental Scrum ticks
+
+The live v2 core can now advance one bounded Scrum interval from a coherent persisted snapshot and
+commit the result through the accepted Task 6 transaction. The pure calculation uses configured
+business time, responsibilities/proficiency, sticky eligible ownership, availability intervals and
+runtime overlays, daily capacity, max WIP, and simulator rank. It persists queue, pause, credited
+touch, and business-date consumption separately; a visit advances only after both authenticated
+dwell and touch are complete. Zero-touch route steps are crossed directly, while a later timed step
+gets exactly one new visit, authenticated sample, and explicit visit-counter claim.
+
+`TeamTickService` loads once per attempt and retries a stale runtime exactly once with a fresh load
+and recalculation. Runtime CAS, sparse Scrum after-images, counter claims, activity, causal ground
+truth, and pending Jira transition intents commit atomically; injected failures roll the complete
+transaction back. The cursor stops at the current fixed sprint end for the lifecycle slice to
+handle. This code performs no network call, evaluates no risk policy, and delivers no Jira intent.
+
 From `backend/`, run:
 
 ```bash
@@ -329,7 +345,7 @@ See `AGENTS.md` for the complete directory layout and domain model.
 - Manual changes made directly in Jira are not reliably ingested into internal simulation state.
 - Alerting requires AWS SES setup and is a no-op when unconfigured.
 - V2 currently provides persistent work/sprint/member/status-visit contracts, pure deterministic
-  decision/timing/calendar primitives, and an idempotent coherent initial Scrum bootstrap. It
-  honors the first fixed boundary, preserves local cadence through DST, and records no work before
-  activation. It has no incremental tick, lifecycle allocator, scheduler wiring, projection worker,
-  API routes, Jira/OpenAI adapter, or live-provider validation.
+  decision/timing/calendar primitives, an idempotent coherent initial Scrum bootstrap, and atomic
+  incremental Scrum ticks. It honors fixed sprint-end boundaries but does not yet perform the next
+  sprint lifecycle/carryover transition, own scheduler/restart execution, evaluate risk policies,
+  deliver projections, expose v2 API routes, call Jira/OpenAI, or validate a live provider.

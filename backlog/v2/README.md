@@ -19,9 +19,10 @@ UAT/load fixture only.
   reported CLEAN with no Critical or Important findings; Task 6 commit chain `4cfaa65` → `6bac956`
   → `47f9e55` is also technically accepted after independent Ultra review reported CLEAN with no
   Critical or Important findings in the completed [`m1-scrum-state.md`](m1-scrum-state.md) plan.
-  The coherent bootstrap/read slice is complete with first-boundary, DST cadence, and
-  minimum-capacity behavior; next work is the incremental Scrum tick, followed by
-  lifecycle/scheduler/restart, Jira delivery, then vertical proof and realism
+  The coherent bootstrap/read and incremental atomic Scrum-tick slices are complete with
+  first-boundary, DST cadence, ranked capacity/WIP allocation, direct zero-touch transitions, and
+  exactly one stale-runtime retry; next work is lifecycle/scheduler/restart, followed by Jira
+  delivery, then vertical proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT

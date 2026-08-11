@@ -541,3 +541,24 @@
 
 - Prevented early work activation, UTC-duration DST drift, and 33-point selection below a
   35-point configured minimum.
+
+## [2026-08-11] M1 — Advance incremental Scrum ticks atomically
+
+### Changed
+
+- Added a pure incremental Scrum tick that uses business elapsed time, sticky eligible ownership,
+  responsibility/proficiency ranking, runtime availability overlays, daily capacity, max WIP, and
+  separate queue/pause/touch clocks.
+- Added sparse authoritative commands with readable activity, causal ground truth, pending Jira
+  transition intents, fixed-sprint-end capping, and authenticated samples/visit claims only for
+  genuinely new timed visits.
+- Added `TeamTickService` with one coherent load per attempt and exactly one stale-runtime retry,
+  plus real SQLite atomic-success and injected whole-transaction rollback coverage.
+- Seeded each bootstrap work item's visit-ordinal counter at its actual next value so an initial
+  timed visit can atomically open a later timed route step through the accepted Task 6 command.
+
+### Fixed
+
+- Zero-touch forward steps transition directly without fabricated visits or timing samples.
+- Stale runtime races now reload and recalculate once; a second stale result propagates without a
+  third attempt. No migration, network call, risk evaluation, scheduler, or Jira delivery was added.

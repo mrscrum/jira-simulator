@@ -6,7 +6,12 @@ from datetime import UTC, datetime
 from app.v2.domain.canonical_json import canonical_json
 from app.v2.domain.draw_source import SeededDrawSource
 from app.v2.domain.scrum_bootstrap import build_initial_scrum_state
-from app.v2.domain.scrum_state import SprintLifecycle, StatusVisitLifecycle, WorkItemLifecycle
+from app.v2.domain.scrum_state import (
+    SemanticCounterKind,
+    SprintLifecycle,
+    StatusVisitLifecycle,
+    WorkItemLifecycle,
+)
 from tests.v2.live_slice_support import create_aggregate
 from tests.v2.scrum_state_support import BLUEPRINT_JSON
 
@@ -102,3 +107,23 @@ def test_bootstrap_continues_past_capacity_target_until_minimum_is_reached(
     scoped_ids = {scope.work_item_id for scope in state.sprint_scope}
     scoped_points = sum(item.story_points for item in state.work_items if item.id in scoped_ids)
     assert scoped_points >= 35
+
+
+def test_bootstrap_seeds_the_next_visit_ordinal_for_each_initial_work_item(
+    v2_session_factory,
+):
+    aggregate = create_aggregate(v2_session_factory, BLUEPRINT_JSON, FIRST_BOUNDARY)
+
+    state = build_initial_scrum_state(
+        aggregate, FIRST_BOUNDARY, SeededDrawSource(aggregate)
+    )
+
+    counters = {
+        counter.scope.scope_id: counter.next_value
+        for counter in state.semantic_counters
+        if counter.scope.kind is SemanticCounterKind.VISIT_ORDINAL
+    }
+    visit_ordinals = {visit.work_item_id: visit.ordinal for visit in state.status_visits}
+    assert counters == {
+        item.id: visit_ordinals.get(item.id, -1) + 1 for item in state.work_items
+    }

@@ -57,18 +57,22 @@ are not executable for v2.
 - A live-team store that reads the persisted runtime and authoritative Scrum state in one
   transaction, plus deterministic idempotent initial Scrum bootstrap with direct zero-touch
   transitions and authenticated samples only for timed visits.
+- A pure incremental Scrum tick and application service that enforce business-time availability,
+  capacity/WIP, ranked responsibility/proficiency allocation, sticky ownership, dwell/touch
+  completion, direct zero-touch transitions, fixed-sprint-end capping, and one stale retry while
+  committing sparse Scrum state and evidence atomically through Task 6.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
 
-On 2026-08-11, the first pragmatic v2 slice added coherent persisted live-team reads and an
-idempotent initial Scrum bootstrap. `SqlAlchemyLiveTeamStore` owns one short transaction, follows
-the persisted runtime `run_id`, and calls the Task 5 mapper with its caller-owned clean session.
-Before the first boundary it writes only the deterministic member/backlog state and `PLANNED`
-sprint, waking the runtime at that boundary. At/after it, bootstrap uses local DST-safe cadence and
-contiguous ranked work through the configured minimum before opening timed visits with Task 3
-samples. Runtime version remains unchanged. Focused tests pass 158/158; full v2 passes 1045 with
-one dependency warning. No migration, Task 6 change, Jira/OpenAI call, deployment, or UAT occurred.
+On 2026-08-11, the second pragmatic v2 slice added incremental Scrum advancement and atomic commit.
+`calculate_scrum_tick` advances ordinary business intervals with sticky eligible owners,
+responsibility/proficiency selection, overlays, capacity, max WIP, and separate queue/pause/touch
+clocks, then emits sparse Task 6 after-images and concise evidence/intents. `TeamTickService` performs
+one coherent load per attempt and exactly one stale-runtime retry. Bootstrap now seeds each initial
+work item's actual next visit ordinal so a completed initial timed visit can open a later timed visit
+with one authenticated sample and explicit claim. Real SQLite success/rollback coverage is included.
+No migration, network call, risk evaluation, scheduler, deployment, or UAT occurred.
 
 ## Accepted Task 1–6 History
 
@@ -303,7 +307,11 @@ Accepted Task 6 evidence:
 - `backend/app/v2/domain/draw_source.py` — bootstrap/tick-facing Task 3 draw protocol and persisted
   seed/runtime adapter.
 - `backend/app/v2/domain/scrum_bootstrap.py` — deterministic initial backlog, sprint scope, direct
-  zero-touch route transitions, and timed-visit/sample construction.
+  zero-touch route transitions, timed-visit/sample construction, and initial visit-counter seeds.
+- `backend/app/v2/domain/scrum_tick.py` — pure bounded Scrum progress, allocation, clocks, route
+  transitions, sparse authoritative command, evidence, and pending Jira intent construction.
+- `backend/app/v2/application/team_tick.py` — coherent-load/atomic-commit orchestration with exactly
+  one stale-runtime reload/recalculation retry.
 - `backend/app/v2/application/live_team.py` — detached coherent aggregate/Scrum read model.
 - `backend/app/v2/persistence/live_team_store.py` — one-session transactional read/bootstrap store.
 - `backend/app/v2/domain/authoritative_slice.py` — exact immutable Task 6 claim, authoritative
@@ -333,9 +341,9 @@ Accepted Task 6 evidence:
 
 ## Next Task
 
-Implement the next pragmatic v2 slice: an incremental Scrum tick that advances the persisted
-bootstrap state without revising the capacity-credit plan. Preserve the one-session live-team store,
-use strict RED -> GREEN -> REFACTOR, and keep the work free of Jira/OpenAI network calls.
+Implement the next pragmatic v2 slice: fixed sprint lifecycle/carryover plus scheduler ownership and
+restart semantics around the persisted tick boundary. Preserve the proportional business-time tick,
+accepted Task 6 command, one-session live-team store, and no-network calculation boundary.
 
 ## Active Decisions and External Gates
 

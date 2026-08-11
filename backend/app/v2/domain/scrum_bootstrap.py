@@ -19,6 +19,9 @@ from app.v2.domain.sampling import sample_touch, touch_bounds
 from app.v2.domain.scrum_state import (
     MemberIdentity,
     ScrumStateWriteSet,
+    SemanticCounter,
+    SemanticCounterKind,
+    SemanticCounterScope,
     SprintLifecycle,
     SprintScopeEntry,
     SprintState,
@@ -51,6 +54,7 @@ def build_initial_scrum_state(
             member_identities=members,
             work_items=work_items,
             sprints=(sprint,),
+            semantic_counters=_visit_counters(aggregate, work_items, ()),
         )
     selected_ids = _selected_scope_ids(aggregate, sprint.id, work_items, draws)
     active_work, visits, samples = _activate_selected_work(
@@ -64,6 +68,7 @@ def build_initial_scrum_state(
         sprint_scope=scope,
         status_visits=visits,
         status_visit_samples=samples,
+        semantic_counters=_visit_counters(aggregate, active_work, visits),
     )
 
 
@@ -346,6 +351,23 @@ def _scope_entries(
             None,
         )
         for item_id in sorted(selected_ids)
+    )
+
+
+def _visit_counters(
+    aggregate: PersistedTeamAggregate,
+    work_items: tuple[WorkItemState, ...],
+    visits: tuple[StatusVisitState, ...],
+) -> tuple[SemanticCounter, ...]:
+    next_by_item = {visit.work_item_id: visit.ordinal + 1 for visit in visits}
+    return tuple(
+        SemanticCounter(
+            aggregate.team.id,
+            aggregate.runtime.run_id,
+            SemanticCounterScope(SemanticCounterKind.VISIT_ORDINAL, item.id, "VISIT"),
+            next_by_item.get(item.id, 0),
+        )
+        for item in work_items
     )
 
 
