@@ -148,7 +148,8 @@ Revision 016 remains the sole migration head and Task 5 adds no migration.
 
 ## Commits
 
-- Implementation commit: `IMPLEMENTATION_COMMIT_SHA` (`feat: prove v2 live scrum loop`)
+- Implementation commit: `75b0f425acf3533add6b4dc2679c3d4fcf70df9b`
+  (`feat: prove v2 live scrum loop`)
 
 ## Concerns
 
