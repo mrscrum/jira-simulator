@@ -157,7 +157,9 @@ class JiraClientV2IntentAdapter:
         self, pending: PendingJiraIntent, payload: dict[str, object]
     ) -> tuple[JiraResourceMapping, ...]:
         sprint = self._required_mapping(pending, "SPRINT", _uuid(payload, "sprint_id"))
-        issue_ids = _uuid_list(payload.get("issue_ids", []), "issue_ids")
+        if "issue_ids" not in payload:
+            raise JiraDeliveryProviderError("issue_ids is required for SCOPE_SPRINT")
+        issue_ids = _uuid_list(payload["issue_ids"], "issue_ids")
         issues = [self._required_mapping(pending, "ISSUE", issue_id) for issue_id in issue_ids]
         existing = await self._client.get_sprint_issues(int(sprint.jira_id), max_results=100)
         existing_keys = {str(issue["key"]) for issue in existing}

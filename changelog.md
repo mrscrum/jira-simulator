@@ -630,3 +630,17 @@
   sprint creation: retries rediscover the stable Jira-visible marker before creating.
 - Jira 429 responses now persist `Retry-After` without sleeping inside the scheduler; other provider
   and transport failures remain visible and retryable with capped backoff.
+
+## [2026-08-11] Stage 2 — Jira delivery review fix round 1
+
+### Changed
+
+- Jira board-sprint lookup now follows public Agile pagination through every page and stops safely
+  on completion, total exhaustion, empty data, absent metadata, or a malformed stalled cursor.
+
+### Fixed
+
+- Incomplete `SCOPE_SPRINT` intents without `issue_ids` now remain retryable and cannot unblock
+  `START_SPRINT`.
+- Sprint preflight now discovers a stable v2 marker beyond Jira's first response page instead of
+  creating a duplicate sprint.

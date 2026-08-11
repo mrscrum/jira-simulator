@@ -1,11 +1,14 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.integrations.exceptions import JiraConnectionError, JiraRateLimitError
+from app.integrations.jira_client import JiraClient
 from app.integrations.v2_jira_intent_adapter import JiraClientV2IntentAdapter
 from app.v2.application.jira_delivery import (
     JiraDeliveryProviderError,
@@ -132,6 +135,51 @@ async def test_sprint_preflight_prevents_duplicate_after_local_commit_crash():
     assert first.mappings == second.mappings
     marker = f"sim-v2-{sprint_id}"
     assert marker in client.sprints[0]["name"]
+
+
+@pytest.mark.asyncio
+async def test_sprint_preflight_reuses_marker_from_later_jira_page():
+    sprint_id = semantic_uuid("delivery/sprint/later-page")
+    marker = f"sim-v2-{sprint_id}"
+    pending = _pending(
+        TEAM_ONE,
+        "later-page-sprint",
+        operation="CREATE_SPRINT",
+        aggregate_id=sprint_id,
+        payload={
+            "board_id": 7,
+            "depends_on": [],
+            "end_at": "2026-08-25T17:00:00+00:00",
+            "name": "Sprint 1",
+            "sprint_id": str(sprint_id),
+            "start_at": "2026-08-11T17:00:00+00:00",
+        },
+    )
+    client = JiraClient("https://test.atlassian.net", "user@test.com", "token")
+    pages = [
+        _jira_response(
+            {"values": [{"id": 201, "name": "Older"}], "isLast": False,
+             "startAt": 0, "maxResults": 1, "total": 2}
+        ),
+        _jira_response(
+            {"values": [{"id": 202, "name": f"Sprint 1 [{marker}]"}], "isLast": True,
+             "startAt": 1, "maxResults": 1, "total": 2}
+        ),
+    ]
+    try:
+        with (
+            patch.object(client._http, "request", new_callable=AsyncMock) as request,
+            patch.object(client, "create_sprint", new_callable=AsyncMock) as create,
+        ):
+            request.side_effect = pages
+            result = await JiraClientV2IntentAdapter(
+                client, _EmptyMappings(), lambda: NOW
+            ).deliver(pending)
+    finally:
+        await client.close()
+
+    assert create.await_count == 0
+    assert result.mappings[0].jira_id == "202"
 
 
 @pytest.mark.asyncio
@@ -289,3 +337,11 @@ def _pending(
         recorded_at=NOW,
     )
     return PendingJiraIntent(intent, (), 0)
+
+
+def _jira_response(document: dict[str, object]) -> httpx.Response:
+    return httpx.Response(
+        200,
+        json=document,
+        request=httpx.Request("GET", "https://test.atlassian.net"),
+    )

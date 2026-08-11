@@ -26,3 +26,5 @@ Status: IN PROGRESS
 - The pragmatic outbound foundation now has strict team FIFO/dependencies, retry receipts, semantic
   mappings, provider-visible create preflight, and one post-reconciliation delivery job. Live Jira
   acceptance, inbound reconciliation, and full provisioning breadth remain future work.
+- Review fix round 1 keeps incomplete scope intents retryable/dependency-blocking and makes sprint
+  marker preflight exhaustive across public Jira board-sprint pages.

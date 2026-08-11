@@ -6,7 +6,9 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import func, select
 
+from app.integrations.v2_jira_intent_adapter import JiraClientV2IntentAdapter
 from app.v2.application.create_team import CreateTeamCommand, CreateTeamService
+from app.v2.application.jira_delivery import JiraDeliveryProviderError, JiraDeliveryWorker
 from app.v2.domain.canonical_json import canonical_json, semantic_uuid
 from app.v2.domain.jira_delivery import (
     JiraDeliveryFailure,
@@ -151,6 +153,51 @@ def test_failure_receipt_does_not_mutate_projection_row(
         assert session.scalar(select(func.count()).select_from(V2ProjectionIntentModel)) == 1
 
 
+@pytest.mark.asyncio
+async def test_incomplete_scope_stays_retryable_and_does_not_release_start(
+    v2_session_factory, blueprint_document
+):
+    aggregate = _create_team(v2_session_factory, blueprint_document, "SCOPE")
+    sprint_id = semantic_uuid(f"delivery/{aggregate.team.id}/sprint")
+    created = _sprint_intent(aggregate.team.id, sprint_id, "create", "CREATE_SPRINT", [])
+    scoped = _sprint_intent(
+        aggregate.team.id,
+        sprint_id,
+        "scope",
+        "SCOPE_SPRINT",
+        [created.semantic_key],
+    )
+    started = _sprint_intent(
+        aggregate.team.id,
+        sprint_id,
+        "start",
+        "START_SPRINT",
+        [scoped.semantic_key],
+    )
+    _commit(v2_session_factory, aggregate, (created, scoped, started))
+    store = SqlAlchemyJiraDeliveryStore(v2_session_factory)
+    sprint_mapping = JiraResourceMapping(
+        aggregate.team.id, "SPRINT", sprint_id, "501", None
+    )
+    store.record_success(JiraDeliverySuccess(created.id, (sprint_mapping,), NOW))
+    pending = store.pending(NOW)[0]
+    adapter = JiraClientV2IntentAdapter(_ScopeClient(), store, lambda: NOW)
+
+    with pytest.raises(JiraDeliveryProviderError, match="issue_ids"):
+        await adapter.deliver(pending)
+    result = await JiraDeliveryWorker(store, adapter).drain_once(NOW)
+
+    assert result == result.__class__(attempted=1, delivered=0, deferred=0, failed=1)
+    with v2_session_factory() as session:
+        scope_receipt = session.get(V2JiraDeliveryReceiptModel, str(scoped.id))
+        start_receipt = session.get(V2JiraDeliveryReceiptModel, str(started.id))
+        assert scope_receipt is not None
+        assert scope_receipt.state == "RETRYABLE"
+        assert scope_receipt.delivered_at is None
+        assert start_receipt is None
+    assert store.pending(NOW + timedelta(seconds=10))[0].intent.id == scoped.id
+
+
 def _create_team(session_factory, blueprint_document, suffix: str):
     document = json.loads(json.dumps(blueprint_document))
     document["team"]["name"] = f"Team {suffix}"
@@ -179,6 +226,28 @@ def _intent(
     envelope = DraftEnvelope(f"delivery/{team_id}/{label}", "1.0", NOW, payload)
     details = ProjectionDetails("JIRA", operation, issue_id, 1, "PENDING")
     return ProjectionIntentDraft.create(envelope, details)
+
+
+def _sprint_intent(
+    team_id: UUID,
+    sprint_id: UUID,
+    label: str,
+    operation: str,
+    dependencies: list[str],
+) -> ProjectionIntentDraft:
+    payload = {"depends_on": dependencies, "sprint_id": str(sprint_id)}
+    envelope = DraftEnvelope(f"delivery/{team_id}/sprint/{label}", "1.0", NOW, payload)
+    details = ProjectionDetails("JIRA", operation, sprint_id, 1, "PENDING")
+    return ProjectionIntentDraft.create(envelope, details)
+
+
+class _ScopeClient:
+    async def get_sprint_issues(self, sprint_id: int, max_results: int = 50):
+        del sprint_id, max_results
+        return []
+
+    async def add_issues_to_sprint(self, sprint_id: int, issue_keys: list[str]):
+        raise AssertionError((sprint_id, issue_keys))
 
 
 def _commit(session_factory, aggregate, intents: tuple[ProjectionIntentDraft, ...]) -> None:

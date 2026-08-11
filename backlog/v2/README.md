@@ -27,7 +27,9 @@ UAT/load fixture only.
   authority, exclusive paging beyond 100, sequential failure isolation, and evidence-first
   zero-work restart boundaries. Revision 016 and retryable Jira delivery are complete with strict
   per-team FIFO/dependencies, cross-team continuation, provider-visible create preflight, persisted
-  pacing, and one post-reconciliation delivery job; next work is vertical proof and realism
+  pacing, and one post-reconciliation delivery job. Review fix round 1 keeps incomplete scope
+  retryable/blocking and exhausts public Jira sprint pages before create; next work is vertical
+  proof and realism
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT

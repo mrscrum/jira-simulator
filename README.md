@@ -188,7 +188,9 @@ other translated provider/transport failures remain retryable with capped backof
 `JiraClientV2IntentAdapter` is the only concrete transport adapter and remains outside `app.v2`.
 Create operations preflight stable provider-visible identities: project key, project-scoped board,
 `sim-v2-<work-item UUID>` issue label, and a sprint-name marker. Absolute sprint/status/scope
-operations read current Jira state before writing. APScheduler registers one async delivery poller
+operations read current Jira state before writing. Scope requires an explicit `issue_ids` list;
+incomplete scope intents remain retryable and block dependent start. Board-sprint preflight follows
+all Jira pages and stops on a non-advancing cursor. APScheduler registers one async delivery poller
 after v2 restart reconciliation. Fake-client tests cover provider-success/local-commit-crash reuse;
 no live Jira call, credential access, deployment, comments, or inbound reconciliation was performed.
 

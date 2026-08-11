@@ -81,8 +81,10 @@ outstanding intent per team only when canonical dependencies are delivered; one 
 team does not block another. The worker awaits the integration adapter outside database sessions,
 persists 429 `Retry-After` or capped provider retry, then atomically records mappings plus success.
 Provider-visible issue labels and sprint-name markers prevent duplicate creation after provider
-success/local-commit failure. Startup reconciles persisted v2 state before registering exactly one
-delivery job. No live Jira/network call, credential access, comments, deployment, inbound
+success/local-commit failure. Review fix round 1 requires `issue_ids` on scope so incomplete intents
+stay retryable/block start, and exhausts public Jira board-sprint pages before create preflight.
+Startup reconciles persisted v2 state before registering exactly one delivery job. No live
+Jira/network call, credential access, comments, deployment, inbound
 reconciliation, or UAT was performed.
 
 Task 3 review fix round 1 drains due runtimes through exclusive `team_id` keyset pages instead of

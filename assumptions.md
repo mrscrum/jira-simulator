@@ -413,8 +413,13 @@
 
 - Chose a 10-second exponential retry base capped at 300 seconds because the instruction required a
   modest capped schedule but did not prescribe exact non-429 intervals.
-- Kept a missing `issue_ids` list on `SCOPE_SPRINT` as an empty absolute scope operation because the
-  currently committed lifecycle payload contains only `sprint_id`; enriching lifecycle payloads is
-  deferred to the vertical-proof slice rather than reading or mutating authoritative state here.
+- Kept an explicitly present empty `issue_ids` list as a valid empty scope operation. A missing
+  `issue_ids` field is an incomplete intent that stays retryable and cannot release `START_SPRINT`;
+  enriching lifecycle payloads remains deferred to the vertical-proof slice.
 - Used a stable `sim-v2-<UUID>` issue label and sprint-name suffix for provider-visible preflight;
   project key and project-scoped board lookup are the corresponding stable project/board markers.
+
+## [2026-08-11] Stage 2 — Jira delivery review fix round 1
+
+- No assumptions made. Required incomplete-scope retry behavior and complete public Jira sprint
+  pagination were supplied explicitly by the review findings.
