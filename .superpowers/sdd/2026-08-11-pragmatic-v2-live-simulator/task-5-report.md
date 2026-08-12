@@ -321,3 +321,152 @@ cd backend && git diff --check
 
 - Implementation and living docs: `e736bb91e54e03dacd203c1451d48183b416c2e2`
   (`fix: close v2 live loop review gaps`)
+
+## Fix Round 2 — Dependency Continuation Evidence
+
+### Finding verification
+
+`_dependency_continuation` advanced both `queue_microseconds` and `pause_microseconds` for every
+continuation delta but returned an empty evidence tuple. The existing continuation unit test
+explicitly asserted that omission. Therefore, after two scheduler slices, authoritative state held
+one hour of pause while causal ground truth described only the initial 30-minute delta.
+
+### RED
+
+Exact command:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py::test_dependency_continuation_records_wait_without_redraw_or_another_start -q
+```
+
+Exact output:
+
+```text
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_dependency_continuation_records_wait_without_redraw_or_another_start ___
+
+        assert continued.pause_microseconds == ONE_HOUR_MICROSECONDS
+        assert second.activity == ()
+        assert second.projection_intents == ()
+>       assert len(second.ground_truth) == 1
+E       assert 0 == 1
+E        +  where 0 = len(())
+E        +    where () = RiskEvaluation(state=ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_co...on_evaluations=()), activity=(), ground_truth=(), projection_intents=(), counter_claims=(), natural_decision_claims=()).ground_truth
+
+tests/v2/unit/test_risks.py:259: AssertionError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_risks.py::test_dependency_continuation_records_wait_without_redraw_or_another_start
+1 failed in 0.35s
+```
+
+The assertion failed for the reviewed reason: the second 30-minute mechanical wait delta had no
+atomic causal ground-truth record.
+
+### Implementation
+
+- Kept continuation deterministic from persisted visit pause state and did not invoke the draw
+  source.
+- Added one `RISK_EVALUATION` ground-truth record for each non-zero committed continuation delta.
+  The record is keyed to the same visit plus the continuation cursor and records the wait delta,
+  zero progress delta, deterministic continuation outcome, and no Jira intent.
+- Used the existing evidence envelope and persistence protocol; no schema, counter, claim, activity,
+  projection, or duplicate `EXTERNAL_DEPENDENCY_STARTED` event was added.
+
+### GREEN and regression
+
+Focused GREEN:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py::test_dependency_continuation_records_wait_without_redraw_or_another_start -q
+.                                                                        [100%]
+1 passed in 0.63s
+```
+
+Risk unit regression:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py -q
+............                                                             [100%]
+12 passed in 1.50s
+```
+
+Focused Task 5 command:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py tests/v2/acceptance/test_live_scrum_fake_jira.py tests/v2/integration/test_live_scheduler.py -q
+.....................                                                    [100%]
+21 passed in 5.31s
+```
+
+Affected regression:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/integration/test_live_scheduler.py tests/v2/integration/test_team_tick.py tests/v2/unit/test_scrum_tick.py tests/v2/unit/test_v2_sprint_lifecycle.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py tests/v2/integration/test_live_team_store.py tests/v2/unit/test_risks.py tests/v2/acceptance/test_live_scrum_fake_jira.py -q
+.................................................................        [100%]
+65 passed in 7.08s
+```
+
+All-v2 regression:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2 -q
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 19%]
+........................................................................ [ 25%]
+........................................................................ [ 32%]
+........................................................................ [ 38%]
+........................................................................ [ 45%]
+........................................................................ [ 51%]
+........................................................................ [ 58%]
+........................................................................ [ 64%]
+........................................................................ [ 71%]
+........................................................................ [ 77%]
+........................................................................ [ 84%]
+........................................................................ [ 90%]
+........................................................................ [ 97%]
+.................................                                        [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1113 passed, 1 warning in 38.60s
+```
+
+### Ruff, Alembic, and no-migration evidence
+
+```text
+cd backend && ../.venv/bin/python -m ruff check app/v2 tests/v2
+All checks passed!
+
+cd backend && ../.venv/bin/python -m ruff check app/integrations/v2_jira_intent_adapter.py
+All checks passed!
+
+cd backend && ../.venv/bin/python -m alembic heads
+016 (head)
+
+git diff --name-only 0092aae0a1693997241a6d85d558cd0fbf836ea5 -- backend/alembic/versions
+[no output]
+
+git diff --check
+[no output]
+```
+
+### Documentation, self-review, and concerns
+
+- Updated current-state README/agent guidance, changelog, assumptions, milestone summary, and both
+  live/risk backlog outcomes to describe atomic continuation evidence.
+- The regression's rejecting draw source proves continuation still performs no redraw. Assertions
+  also prove no activity or projection, one visit-keyed truth record, and the exact second delta.
+- Sequential terminal precedence and entry no-repeat behavior are unchanged; the existing focused
+  and full-v2 regressions passed.
+- Revision 016 remains the sole head. Live Jira, deployment, push, and UAT remain intentionally
+  unperformed. The sole warning is the pre-existing Starlette/httpx deprecation warning.
+
+### Fix-round commit
+
+- Implementation and living docs: `dbeec099e98bc88849c9c782d7144b55c127a2a7`
+  (`fix: record dependency continuation evidence`)
