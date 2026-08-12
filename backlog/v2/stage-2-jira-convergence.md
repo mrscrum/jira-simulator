@@ -4,7 +4,7 @@
 Status: IN PROGRESS
 
 ## Tasks
-- [x] Revision 016 and retryable v2 Jira delivery — completed 2026-08-11
+- [x] Revision 016 and retryable v2 Jira delivery — completed 2026-08-11; active-bootstrap mapping corrected
 - [ ] V2-S2-T01 — Define typed Jira adapter and capability probe
 - [ ] V2-S2-T02 — Implement dependency-aware idempotent outbox writer
 - [ ] V2-S2-T03 — Provision and validate the company-managed project
@@ -28,3 +28,5 @@ Status: IN PROGRESS
   acceptance, inbound reconciliation, and full provisioning breadth remain future work.
 - Review fix round 1 keeps incomplete scope intents retryable/dependency-blocking and makes sprint
   marker preflight exhaustive across public Jira board-sprint pages.
+- Active bootstrap now atomically appends local-ID create/scope/start sprint intents after initial
+  project, board, and issue provisioning, so the first later completion has a durable mapping.

@@ -8,7 +8,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.v2.application.jira_provisioning import compose_jira_provisioning
+from app.v2.application.jira_provisioning import (
+    compose_initial_jira_provisioning,
+    compose_jira_provisioning,
+)
 from app.v2.application.live_team import LiveTeamState
 from app.v2.domain.draw_source import SeededDrawSource
 from app.v2.domain.scrum_bootstrap import build_initial_scrum_state
@@ -59,13 +62,15 @@ class SqlAlchemyLiveTeamStore:
             )
             if aggregate.runtime.state != "CREATED":
                 live_state = LiveTeamState(aggregate, scrum)
+                provisioning = compose_jira_provisioning
             else:
                 state = build_initial_scrum_state(aggregate, started, SeededDrawSource(aggregate))
                 snapshot = self._scrum_mapper.add(session, state)
                 runtime = _running_runtime(session, aggregate, started)
                 self._after_scrum_persisted(session, state)
                 live_state = LiveTeamState(replace(aggregate, runtime=runtime), snapshot)
-            append_projection_intents_in_session(session, compose_jira_provisioning(live_state))
+                provisioning = compose_initial_jira_provisioning
+            append_projection_intents_in_session(session, provisioning(live_state))
             return live_state
 
     def _after_scrum_persisted(self, session: Session, state: object) -> None:

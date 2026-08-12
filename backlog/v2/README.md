@@ -34,8 +34,11 @@ UAT/load fixture only.
   review fix round 1 moves provisioning behind production bootstrap and corrects false-decision
   evidence, dependency one-shot continuation, business-time aging, and terminal precedence; review
   fix round 2 adds causal evidence for each committed continuation wait delta without redraw or
-  duplicate visible output; next work is a focused inbound-observation, content, transcript, or API
-  slice
+  duplicate visible output. The final integration correction bounds every risk mutation/evidence to
+  the committed cursor, exposes due workday/status boundaries, selects the containing late-start
+  local/DST sprint cadence, provisions an initially active sprint before its later completion, and
+  excludes intrinsic service-clock pauses from dependency evaluation. Next work is a focused
+  inbound-observation, content, transcript, or API slice
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT

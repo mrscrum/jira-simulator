@@ -451,3 +451,12 @@
 
 - No assumptions made. The review specified ground-truth-only continuation evidence tied to the
   original entry decision/visit, with no redraw, duplicate activity, projection, schema, or protocol.
+
+## [2026-08-11] M1 — Close pragmatic v2 integration gaps
+
+- Chose the initial active `CREATE_SPRINT` intent to depend directly on the board plus every initial
+  issue semantic key because “after project/board/issues” did not prescribe the exact direct edge;
+  project delivery is already a transitive prerequisite of the board.
+- Made no other assumptions: cursor chronology, cadence containment, planned deferral, local-only
+  payload identity, intrinsic-pause exclusion, schema, migration, and verification constraints were
+  supplied explicitly by the final review.

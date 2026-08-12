@@ -128,6 +128,20 @@ class _LedgerItem:
     summary: str
 
 
+@dataclass(frozen=True)
+class _RiskAdvanceContext:
+    state: LiveTeamState
+    calendar: BusinessCalendar
+    draws: DrawSource
+
+
+@dataclass(frozen=True)
+class _RiskAdvance:
+    state: LiveTeamState
+    risks: RiskEvaluation
+    result: _TickResult
+
+
 def calculate_scrum_tick(
     state: LiveTeamState, request: TickRequest, draws: DrawSource
 ) -> AuthoritativeTickSliceCommit:
@@ -140,14 +154,19 @@ def calculate_scrum_tick(
     calendar = BusinessCalendar.from_blueprint(
         aggregate.blueprint.team.timezone, aggregate.blueprint.calendar
     )
-    cursor = aggregate.runtime.simulation_time
     effective_end = _effective_end(state, request.ends_at)
-    risks = evaluate_due_risks(state, effective_end, draws)
-    working = _with_write_set(state, risks.state)
-    segments = _business_segments(working, calendar, cursor, effective_end)
-    blocked = _risk_blocked_visits(state, risks)
-    result = _advance_visits(working, effective_end, segments, calendar, draws, blocked)
-    live_slice = _with_risk_ledgers(_live_slice(working, request, result.ends_at, result), risks)
+    advance = _risk_aware_advance(_RiskAdvanceContext(state, calendar, draws), effective_end)
+    return _finalize_tick(state, request, advance)
+
+
+def _finalize_tick(
+    state: LiveTeamState, request: TickRequest, advance: _RiskAdvance
+) -> AuthoritativeTickSliceCommit:
+    result = advance.result
+    risks = advance.risks
+    live_slice = _with_risk_ledgers(
+        _live_slice(advance.state, request, result.ends_at, result), risks
+    )
     progress = ScrumStateWriteSet(
         member_business_date_consumption=result.consumption,
         work_items=result.work_items,
@@ -161,6 +180,25 @@ def calculate_scrum_tick(
         (*risks.counter_claims, *result.claims),
         risks.natural_decision_claims,
     )
+
+
+def _risk_aware_advance(context: _RiskAdvanceContext, ends_at: datetime) -> _RiskAdvance:
+    advance = _advance_for_risks(context, ends_at)
+    while advance.result.ends_at < ends_at:
+        ends_at = advance.result.ends_at
+        advance = _advance_for_risks(context, ends_at)
+    return advance
+
+
+def _advance_for_risks(context: _RiskAdvanceContext, ends_at: datetime) -> _RiskAdvance:
+    state, calendar, draws = context.state, context.calendar, context.draws
+    risks = evaluate_due_risks(state, ends_at, draws)
+    working = _with_write_set(state, risks.state)
+    cursor = state.aggregate.runtime.simulation_time
+    segments = _business_segments(working, calendar, cursor, ends_at)
+    blocked = _risk_blocked_visits(state, risks)
+    result = _advance_visits(working, ends_at, segments, calendar, draws, blocked)
+    return _RiskAdvance(working, risks, result)
 
 
 def _lifecycle_commit(
@@ -201,20 +239,43 @@ def _validate_request(state: LiveTeamState, request: TickRequest) -> None:
 
 
 def _effective_end(state: LiveTeamState, requested_end: datetime) -> datetime:
+    cursor = state.aggregate.runtime.simulation_time
     planned = tuple(
         sprint
         for sprint in state.scrum.sprints
         if sprint.lifecycle is SprintLifecycle.PLANNED
-        and sprint.planned_start_at > state.aggregate.runtime.simulation_time
+        and sprint.planned_start_at > cursor
     )
     if planned:
-        return min(requested_end, planned[0].planned_start_at)
-    active = tuple(
-        sprint for sprint in state.scrum.sprints if sprint.lifecycle is SprintLifecycle.ACTIVE
+        bounded = min(requested_end, planned[0].planned_start_at)
+    else:
+        active = tuple(
+            sprint for sprint in state.scrum.sprints if sprint.lifecycle is SprintLifecycle.ACTIVE
+        )
+        bounded = requested_end if not active else min(requested_end, active[0].planned_end_at)
+    return _next_workday_risk_boundary(state, max(cursor, bounded))
+
+
+def _next_workday_risk_boundary(state: LiveTeamState, ends_at: datetime) -> datetime:
+    rules = state.aggregate.blueprint.risks.rules
+    has_trigger = any(rule.trigger == "WORKDAY_STARTED" for rule in rules)
+    has_active_work = any(
+        work.lifecycle is WorkItemLifecycle.ACTIVE for work in state.scrum.work_items
     )
-    if not active:
-        return requested_end
-    return min(requested_end, active[0].planned_end_at)
+    if not has_trigger or not has_active_work:
+        return ends_at
+    cursor = state.aggregate.runtime.simulation_time
+    calendar = BusinessCalendar.from_blueprint(
+        state.aggregate.blueprint.team.timezone, state.aggregate.blueprint.calendar
+    )
+    day = calendar.business_date(cursor)
+    final = calendar.business_date(ends_at)
+    while day <= final:
+        interval = calendar.working_interval(day)
+        if interval is not None and cursor < interval.start < ends_at:
+            return interval.start
+        day += timedelta(days=1)
+    return ends_at
 
 
 def _business_segments(

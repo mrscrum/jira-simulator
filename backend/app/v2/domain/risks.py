@@ -209,8 +209,9 @@ def _review_rejection(context: _RiskContext) -> _RiskRecords:
     for visit in state.scrum.status_visits:
         if not _review_due(state, visit, as_of):
             continue
+        due = replace(context, as_of=visit.closed_at)
         records = _merge_records(
-            records, _review_records(context, _work(state, visit.work_item_id), visit)
+            records, _review_records(due, _work(state, visit.work_item_id), visit)
         )
     return records
 
@@ -371,6 +372,8 @@ def _external_dependency(context: _RiskContext) -> _RiskRecords:
 
 def _dependency_records(context: _RiskContext, visit: StatusVisitState) -> _RiskRecords:
     state, as_of, rule = context.state, context.as_of, context.rule
+    if _intrinsically_paused(state, visit):
+        return _RiskRecords()
     total_wait = round(_number(rule, "wait_hours") * MICROSECONDS_PER_HOUR)
     remaining = max(0, total_wait - visit.pause_microseconds)
     cursor = state.aggregate.runtime.simulation_time
@@ -381,6 +384,13 @@ def _dependency_records(context: _RiskContext, visit: StatusVisitState) -> _Risk
     if visit.entered_at != cursor:
         return _RiskRecords()
     return _dependency_entry(context, visit, remaining)
+
+
+def _intrinsically_paused(state: LiveTeamState, visit: StatusVisitState) -> bool:
+    status = next(
+        item for item in state.aggregate.blueprint.workflow.statuses if item.key == visit.status_key
+    )
+    return status.pauses_service_clock
 
 
 def _dependency_entry(

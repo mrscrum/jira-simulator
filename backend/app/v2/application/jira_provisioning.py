@@ -13,7 +13,7 @@ from app.v2.domain.live_slice import (
     RuntimeAdvance,
     TickSliceCommit,
 )
-from app.v2.domain.scrum_state import WorkItemState
+from app.v2.domain.scrum_state import SprintLifecycle, SprintState, WorkItemState
 
 
 @dataclass(frozen=True)
@@ -32,9 +32,25 @@ class _IntentSpecification:
 
 def compose_jira_provisioning(state: LiveTeamState) -> TickSliceCommit:
     """Build the idempotent project, board, and initial-issue provisioning slice."""
+    context = _provisioning_context(state)
+    return _provisioning_commit(context, _provisioning_intents(context))
+
+
+def compose_initial_jira_provisioning(state: LiveTeamState) -> TickSliceCommit:
+    """Build bootstrap provisioning, including an initially active sprint."""
+    context = _provisioning_context(state)
+    return _provisioning_commit(context, _initial_provisioning_intents(context))
+
+
+def _provisioning_context(state: LiveTeamState) -> _ProvisioningContext:
+    return _ProvisioningContext(state, min(item.created_at for item in state.scrum.work_items))
+
+
+def _provisioning_commit(
+    context: _ProvisioningContext, intents: tuple[ProjectionIntentDraft, ...]
+) -> TickSliceCommit:
+    state = context.state
     runtime = state.aggregate.runtime
-    recorded_at = min(item.created_at for item in state.scrum.work_items)
-    context = _ProvisioningContext(state, recorded_at)
     return TickSliceCommit(
         semantic_uuid(f"jira-provisioning/{runtime.team_id}/{runtime.run_id}"),
         runtime.team_id,
@@ -43,8 +59,8 @@ def compose_jira_provisioning(state: LiveTeamState) -> TickSliceCommit:
         RuntimeAdvance(runtime.state, runtime.simulation_time, runtime.next_wake_at),
         (),
         (),
-        _provisioning_intents(context),
-        recorded_at,
+        intents,
+        context.recorded_at,
     )
 
 
@@ -57,6 +73,76 @@ def _provisioning_intents(
         _issue_intent(context, work, board.semantic_key) for work in context.state.scrum.work_items
     )
     return project, board, *issues
+
+
+def _initial_provisioning_intents(
+    context: _ProvisioningContext,
+) -> tuple[ProjectionIntentDraft, ...]:
+    basics = _provisioning_intents(context)
+    active = next(
+        (
+            sprint
+            for sprint in context.state.scrum.sprints
+            if sprint.lifecycle is SprintLifecycle.ACTIVE
+        ),
+        None,
+    )
+    if active is None:
+        return basics
+    return (*basics, *_active_sprint_intents(context, active, basics[1:]))
+
+
+def _active_sprint_intents(
+    context: _ProvisioningContext,
+    sprint: SprintState,
+    predecessors: tuple[ProjectionIntentDraft, ...],
+) -> tuple[ProjectionIntentDraft, ...]:
+    dependencies = [intent.semantic_key for intent in predecessors]
+    created = _create_sprint_intent(context, sprint, dependencies)
+    scoped = _scope_sprint_intent(context, sprint, created.semantic_key)
+    started = _start_sprint_intent(context, sprint, scoped.semantic_key)
+    return created, scoped, started
+
+
+def _create_sprint_intent(
+    context: _ProvisioningContext, sprint: SprintState, dependencies: list[str]
+) -> ProjectionIntentDraft:
+    blueprint = context.state.aggregate.blueprint
+    payload = {
+        "board_id": str(context.state.aggregate.team.id),
+        "depends_on": dependencies,
+        "end_at": sprint.planned_end_at.isoformat(),
+        "name": f"SIM-{blueprint.jira.project_key}-{sprint.id.hex[:12]}",
+        "sprint_id": str(sprint.id),
+        "start_at": sprint.planned_start_at.isoformat(),
+    }
+    spec = _IntentSpecification(f"sprint/{sprint.id}/create", "CREATE_SPRINT", sprint.id, payload)
+    return _intent(context, spec)
+
+
+def _scope_sprint_intent(
+    context: _ProvisioningContext, sprint: SprintState, dependency: str
+) -> ProjectionIntentDraft:
+    issue_ids = [
+        str(entry.work_item_id)
+        for entry in context.state.scrum.sprint_scope
+        if entry.sprint_id == sprint.id and entry.removed_at is None
+    ]
+    payload = {
+        "depends_on": [dependency],
+        "issue_ids": issue_ids,
+        "sprint_id": str(sprint.id),
+    }
+    spec = _IntentSpecification(f"sprint/{sprint.id}/scope", "SCOPE_SPRINT", sprint.id, payload)
+    return _intent(context, spec)
+
+
+def _start_sprint_intent(
+    context: _ProvisioningContext, sprint: SprintState, dependency: str
+) -> ProjectionIntentDraft:
+    payload = {"depends_on": [dependency], "sprint_id": str(sprint.id)}
+    spec = _IntentSpecification(f"sprint/{sprint.id}/start", "START_SPRINT", sprint.id, payload)
+    return _intent(context, spec)
 
 
 def _project_intent(context: _ProvisioningContext) -> ProjectionIntentDraft:

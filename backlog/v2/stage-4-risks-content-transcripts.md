@@ -4,7 +4,7 @@
 Status: NOT STARTED
 
 ## Tasks
-- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
+- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11; intrinsic-pause correction verified
 - [x] First realism and vertical acceptance review fix round 1 — completed 2026-08-11
 - [x] First realism continuation-evidence review fix round 2 — completed 2026-08-11
 - [ ] V2-S4-T01 — Add durable verified Jira webhook intake
@@ -47,3 +47,5 @@ Status: NOT STARTED
   when multiple configured risks share a tick.
 - Review fix round 2 gives every committed dependency continuation wait delta a ground-truth-only
   record while preserving no-redraw, no-repeat-start, no-projection, and terminal precedence.
+- Final review correction prevents external-dependency entry or continuation on workflow statuses
+  whose configured semantics already pause the service clock.

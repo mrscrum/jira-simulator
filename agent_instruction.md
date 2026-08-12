@@ -21,8 +21,11 @@ tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slic
 `backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
 two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is preserved planning history only.
 The retryable Jira-delivery slice at revision 016 and the first causal-risk/fake-Jira vertical are
-complete. Choose the next reviewable inbound-observation, content, transcript, or API slice from the
-approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for v2.
+complete. Their final integration corrections now bound risk chronology to the committed cursor,
+bootstrap late starts into the containing cadence window, provision initially active sprints, and
+exclude intrinsic service-clock pauses from dependency evaluation. Choose the next reviewable
+inbound-observation, content, transcript, or API slice from the approved pragmatic-v2 design.
+Historical Stage 4/5 plans are not executable for v2.
 
 ## Product Boundary
 
@@ -57,11 +60,13 @@ approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for 
   evidence, and pending projection intents without external delivery or revision 016.
 - A live-team store that reads the persisted runtime and authoritative Scrum state in one
   transaction, plus deterministic idempotent initial Scrum bootstrap with direct zero-touch
-  transitions and authenticated samples only for timed visits.
+  transitions, containing-window late-start cadence selection, and authenticated samples only for
+  timed visits.
 - A pure incremental Scrum tick and application service that enforce business-time availability,
   capacity/WIP, ranked responsibility/proficiency allocation, sticky ownership, dwell/touch
-  completion, direct zero-touch transitions, fixed-sprint-end capping, and one stale retry while
-  committing sparse Scrum state and evidence atomically through Task 6.
+  completion, direct zero-touch transitions, due risk/workday boundaries, recomputation at an early
+  committed visit boundary, fixed-sprint-end capping, and one stale retry while committing sparse
+  Scrum state and evidence atomically through Task 6.
 - Fixed local-cadence sprint activation/rollover with unchanged carryover, ranked backlog fill,
   explicit new-row claims, and dependency-ordered pending sprint projection intents.
 - Persisted sorted due-team discovery, one sequential failure-isolated scheduler path, and restart
@@ -69,16 +74,28 @@ approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for 
   preserves existing pending intents. APScheduler hosts one v2 poller job.
 - Revision 016 retry/delivery receipts and semantic Jira resource mappings, plus a short-transaction
   FIFO/dependency store, sequential retryable worker, provider-visible idempotent create preflight,
-  and one async delivery poller registered after restart reconciliation.
+  initial-active-sprint create/scope/start provisioning, and one async delivery poller registered
+  after restart reconciliation.
 - Versioned due-trigger risk evaluation for sampled long stay, configured review return,
   cancellation, deterministic external-dependency pause, and member-unavailability overlays, with
-  deterministic causal evidence and no language-model decision path.
+  deterministic causal evidence, intrinsic-pause exclusion, due-boundary review timestamps, and no
+  language-model decision path.
 - A fake-Jira multi-sprint acceptance through the production scheduler/UOW/outbox/store/worker/
   adapter seams, including restart, retained outage work, recovery drain, and idempotent
   provider-success/local-receipt retry.
 - Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
 
 ## Most Recent Change
+
+On 2026-08-11, the pragmatic v2 final integration correction made the runtime cursor the hard
+chronology boundary for every risk mutation and evidence row. A provisional early visit completion
+now causes risk evaluation to restart from the original state at the shorter end, while configured
+workday and review-status triggers surface at their due boundaries. Late bootstrap selects the
+containing fixed local/DST cadence and correct next ordinal; its first tick cannot rewind. An
+initially active sprint atomically appends local-ID create/scope/start intents after base
+provisioning so its mapping exists before completion, while planned bootstrap still defers them.
+Intrinsic service-clock pauses cannot start or continue dependency risk. Revision 016 remains the
+sole head; no migration, live Jira, deployment, push, or UAT occurred.
 
 On 2026-08-11, Task 5 review fix round 2 made every committed external-dependency
 continuation delta atomic with a ground-truth-only causal record. Continuations still use the
@@ -480,8 +497,9 @@ Jira from lifecycle/tick commits.
 - Domain Jira intents carry local semantic UUIDs only. Provider Jira IDs are resolved from
   `v2_jira_resource_mappings` inside the concrete adapter; never write provider IDs into lifecycle,
   risk, or tick payloads.
-- Initial Jira project/board/issue intents are owned by production live-team bootstrap. Acceptance
-  tests must not recreate this composition path or inject equivalent commands directly.
+- Initial Jira project/board/issue intents are owned by production live-team bootstrap. An active
+  initial sprint adds create/scope/start in the same transaction; a planned sprint defers them.
+  Acceptance tests must not recreate this composition path or inject equivalent commands directly.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
 - V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
   neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.

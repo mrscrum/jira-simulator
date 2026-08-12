@@ -4,11 +4,11 @@
 Status: IN PROGRESS
 
 ## Tasks
-- [x] Coherent live-team read and idempotent Scrum bootstrap — completed 2026-08-11
+- [x] Coherent live-team read and idempotent Scrum bootstrap — completed 2026-08-11; late-start cadence corrected
 - [x] Honor initial Scrum boundary, DST cadence, and minimum-capacity bootstrap policy — completed 2026-08-11
-- [x] Incrementally advance Scrum ticks and commit each slice atomically — completed 2026-08-11
+- [x] Incrementally advance Scrum ticks and commit each slice atomically — completed 2026-08-11; risk chronology corrected
 - [x] Fixed sprint lifecycle, persisted due-team scheduling, and restart without downtime replay — completed 2026-08-11
-- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
+- [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11; final integration gaps corrected
 - [x] First realism and vertical acceptance review fix round 1 — completed 2026-08-11
 - [x] First realism continuation-evidence review fix round 2 — completed 2026-08-11
 - [ ] V2-S1-T01 — Add isolated blueprint, calendar, policy, and runtime persistence
@@ -58,3 +58,6 @@ Status: IN PROGRESS
   acceptance now reaches provisioning exclusively through that supported path.
 - Review fix round 2 records each accepted external-dependency continuation wait delta atomically
   without redrawing or emitting duplicate activity/projection output.
+- Final review corrections recompute risk state at a shortened committed cursor, stop at due
+  workday boundaries, seed the fixed cadence containing a late start, provision an initially active
+  sprint before rollover, and exclude intrinsic service-clock pauses from dependency episodes.

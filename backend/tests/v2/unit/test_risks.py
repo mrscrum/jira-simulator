@@ -74,6 +74,28 @@ def test_review_rejection_returns_to_configured_earlier_step_and_retains_history
     }
 
 
+def test_review_rejection_is_timestamped_at_its_due_status_boundary(v2_session_factory):
+    rule = _rule(
+        "REVIEW_REJECTION",
+        "STATUS_EXITED",
+        mechanical_parameters={"return_status": "DEVELOPMENT"},
+    )
+    state = _review_completed_state(v2_session_factory, rule)
+    review = next(visit for visit in state.scrum.status_visits if visit.status_key == "CODE_REVIEW")
+
+    evaluation = evaluate_due_risks(
+        state,
+        review.closed_at + timedelta(hours=1),
+        SeededDrawSource(state.aggregate),
+    )
+
+    returned_work = evaluation.state.work_items[0]
+    returned_visit = evaluation.state.status_visits[0]
+    assert returned_work.updated_at == review.closed_at
+    assert returned_visit.entered_at == review.closed_at
+    assert evaluation.ground_truth[0].occurred_at == review.closed_at
+
+
 def test_cancellation_closes_work_and_releases_owner_at_workday_start(v2_session_factory):
     rule = _rule(
         "CANCELLATION",

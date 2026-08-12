@@ -43,6 +43,36 @@ def test_service_commits_runtime_scrum_state_and_ledgers_atomically(v2_session_f
         assert session.scalar(select(func.count()).select_from(V2ActivityEventModel)) > 0
 
 
+def test_late_bootstrap_uses_the_containing_dst_cadence_and_ticks_forward_after_reload(
+    v2_session_factory,
+):
+    document = json.loads(BLUEPRINT_JSON)
+    document["scrum"]["first_boundary"] = "2026-10-30T16:00:00Z"
+    late_start = datetime(2026, 11, 14, 17, tzinfo=UTC)
+    tick_end = late_start + timedelta(minutes=30)
+    aggregate = create_aggregate(v2_session_factory, canonical_json(document), late_start)
+    store = SqlAlchemyLiveTeamStore(v2_session_factory)
+
+    bootstrapped = store.ensure_bootstrapped(aggregate.team.id, late_start)
+    sprint = bootstrapped.scrum.sprints[0]
+    counter = next(
+        item
+        for item in bootstrapped.scrum.semantic_counters
+        if item.scope.kind is SemanticCounterKind.SPRINT_ORDINAL
+    )
+    committed = TeamTickService(store, SqlAlchemyV2UnitOfWork(v2_session_factory)).advance(
+        TickRequest(aggregate.team.id, tick_end, tick_end)
+    )
+    reloaded = SqlAlchemyLiveTeamStore(v2_session_factory).load(aggregate.team.id)
+
+    assert sprint.ordinal == 1
+    assert sprint.planned_start_at == datetime(2026, 11, 13, 17, tzinfo=UTC)
+    assert sprint.planned_end_at == datetime(2026, 11, 27, 17, tzinfo=UTC)
+    assert counter.next_value == 2
+    assert committed.live_slice.runtime.simulation_time == tick_end
+    assert reloaded.aggregate.runtime.simulation_time == tick_end
+
+
 def test_bootstrapped_item_atomically_opens_a_later_timed_route_step(v2_session_factory):
     blueprint_json = _two_timed_step_blueprint()
     aggregate = create_aggregate(v2_session_factory, blueprint_json, FIRST_BOUNDARY)

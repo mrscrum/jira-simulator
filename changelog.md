@@ -695,3 +695,24 @@
 
 - Authoritative pause/queue accumulation no longer outgrows its recorded causal wait evidence over
   multiple scheduler ticks; continuation still performs no redraw, activity, or Jira projection.
+
+## [2026-08-11] M1 — Close pragmatic v2 integration gaps
+
+### Changed
+
+- Made due workday/status triggers observable tick boundaries and re-evaluated causal risks from the
+  original state whenever visit completion shortens the committed slice.
+- Selected the containing fixed local/DST cadence for late bootstrap and seeded its sprint ordinal
+  and next counter consistently.
+- Appended an initially active sprint's local-ID create/scope/start Jira chain atomically after
+  project, board, and initial-issue provisioning; planned bootstrap still defers lifecycle intents.
+
+### Fixed
+
+- Prevented risk state, causal evidence, and returned-review timestamps from extending beyond the
+  committed runtime cursor or skipping multiple due workdays in one tick.
+- Prevented a late-start bootstrap and first reloaded tick from creating or rewinding into an
+  already-expired ordinal-zero sprint.
+- Prevented per-team Jira FIFO from blocking a later sprint-complete intent on a missing initial
+  active-sprint mapping.
+- Prevented intrinsic service-clock pause from being mistaken for prior external-dependency proof.

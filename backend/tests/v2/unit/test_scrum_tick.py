@@ -24,12 +24,19 @@ from app.v2.domain.scrum_state import (
     MemberIdentity,
     ScrumStateSnapshot,
     ScrumStateWriteSet,
+    SemanticCounter,
+    SemanticCounterKind,
+    SemanticCounterScope,
     StatusVisitLifecycle,
     StatusVisitState,
     WorkItemLifecycle,
 )
 from app.v2.domain.scrum_tick import TickRequest, calculate_scrum_tick
-from app.v2.domain.team_blueprint import AvailabilityInterval, Responsibility
+from app.v2.domain.team_blueprint import (
+    AvailabilityInterval,
+    ResolvedTeamBlueprint,
+    Responsibility,
+)
 from app.v2.domain.team_runtime import PersistedTeamAggregate, TeamRuntime, V2Run, V2Team
 from tests.v2.scrum_state_support import (
     BLUEPRINT,
@@ -408,6 +415,60 @@ def test_tick_stops_at_early_visit_completion_and_leaves_the_residual_interval()
     assert second.live_slice.runtime_after.simulation_time == requested_end
 
 
+def test_tick_recomputes_dependency_pause_at_the_early_completion_boundary():
+    state, blocked_visit = _early_completion_dependency_state()
+
+    command = calculate_scrum_tick(
+        state, _request(NOW + timedelta(hours=2)), SeededDrawSource(state.aggregate)
+    )
+
+    committed_at = command.live_slice.runtime_after.simulation_time
+    changed = next(visit for visit in command.state.status_visits if visit.id == blocked_visit.id)
+    truth = _risk_ground_truth(command)[0]
+    assert committed_at == NOW + timedelta(minutes=30)
+    assert changed.pause_microseconds == HALF_HOUR_MICROSECONDS
+    assert truth["wait_delta_microseconds"] == HALF_HOUR_MICROSECONDS
+    assert all(
+        record.occurred_at <= committed_at
+        for record in (
+            *command.live_slice.activity,
+            *command.live_slice.ground_truth,
+            *command.live_slice.projection_intents,
+        )
+    )
+
+
+def test_tick_stops_at_the_next_due_workday_boundary():
+    state = _workday_boundary_state()
+
+    command = calculate_scrum_tick(
+        state,
+        _request_for(state, DAY_START + timedelta(days=3)),
+        SeededDrawSource(state.aggregate),
+    )
+
+    assert command.live_slice.runtime_after.simulation_time == DAY_START + timedelta(days=1)
+    assert command.natural_decision_claims[0].business_date == DAY_START.date()
+
+
+def test_tick_never_evaluates_dependency_for_an_intrinsically_paused_status():
+    blueprint = _paused_blueprint_with_risk(_external_dependency_rule(0.0))
+    state = _live_state(blueprint=blueprint)
+
+    first = calculate_scrum_tick(state, _request(NOW + ONE_HOUR), SeededDrawSource(state.aggregate))
+    continued = _committed_state(state, first)
+    second = calculate_scrum_tick(
+        continued,
+        _request_for(continued, NOW + timedelta(hours=2)),
+        SeededDrawSource(continued.aggregate),
+    )
+
+    assert _risk_ground_truth(first) == ()
+    assert _risk_ground_truth(second) == ()
+    assert first.state.status_visits[0].pause_microseconds == ONE_HOUR_MICROSECONDS
+    assert second.state.status_visits[0].pause_microseconds == 2 * ONE_HOUR_MICROSECONDS
+
+
 def test_tick_is_deterministic_and_stops_at_the_visible_sprint_boundary():
     sprint = replace(make_sprint(), planned_end_at=NOW + timedelta(hours=4))
     state = _live_state(sprint=sprint)
@@ -593,6 +654,106 @@ def _long_visit(blueprint, entered_at):
     )
 
 
+def _external_dependency_rule(probability: float) -> dict[str, object]:
+    return {
+        "base_probability": probability,
+        "clamp": {"max": probability, "min": probability},
+        "coefficients": {},
+        "key": "EXTERNAL_DEPENDENCY",
+        "mechanical_parameters": {"wait_hours": 2},
+        "trigger": "STATUS_ENTERED",
+    }
+
+
+def _cancellation_rule() -> dict[str, object]:
+    return {
+        "base_probability": 0.0,
+        "clamp": {"max": 0.0, "min": 0.0},
+        "coefficients": {},
+        "key": "CANCELLATION",
+        "mechanical_parameters": {"target_status": "DONE"},
+        "trigger": "WORKDAY_STARTED",
+    }
+
+
+def _early_completion_dependency_state() -> tuple[LiveTeamState, StatusVisitState]:
+    finishing_work = make_work_item()
+    source = make_visit()
+    finishing_visit = replace(
+        source,
+        entered_at=NOW - timedelta(days=3),
+        elapsed_work_microseconds=source.required_work_microseconds - HALF_HOUR_MICROSECONDS,
+        remaining_work_microseconds=HALF_HOUR_MICROSECONDS,
+        credited_labor_microseconds=source.required_work_microseconds - HALF_HOUR_MICROSECONDS,
+    )
+    blocked_work = replace(
+        make_work_item(),
+        id=item_rng_id(TEAM_ID, CreationKind.INITIAL_BACKLOG, 1),
+        creation_sequence=1,
+        relative_rank=3,
+    )
+    blocked_visit = _unowned_visit(blocked_work)
+    state = _live_state(
+        blueprint=_blueprint_with_risk(_external_dependency_rule(1.0)),
+        work_items=(finishing_work, blocked_work),
+        visits=(finishing_visit, blocked_visit),
+    )
+    return state, blocked_visit
+
+
+def _workday_boundary_state() -> LiveTeamState:
+    blueprint = _paused_blueprint_with_risk(_cancellation_rule())
+    work = replace(make_work_item(), created_at=DAY_START, updated_at=DAY_START)
+    sprint = replace(
+        make_sprint(),
+        planned_start_at=DAY_START,
+        planned_end_at=DAY_START + timedelta(days=14),
+        observed_start_at=DAY_START,
+        created_at=DAY_START,
+        updated_at=DAY_START,
+    )
+    state = _live_state(
+        blueprint=blueprint,
+        work_items=(work,),
+        visits=(replace(make_visit(), entered_at=DAY_START),),
+        sprint=sprint,
+    )
+    started = _with_runtime_start(state, DAY_START)
+    counter = _natural_counter(work.id, DecisionType.RISK_CANCELLATION_OUTCOME)
+    return replace(started, scrum=replace(started.scrum, semantic_counters=(counter,)))
+
+
+def _natural_counter(entity_id, decision_type: DecisionType) -> SemanticCounter:
+    scope = SemanticCounterScope(
+        SemanticCounterKind.NATURAL_DECISION_OCCURRENCE, entity_id, decision_type.value
+    )
+    return SemanticCounter(TEAM_ID, RUN_ID, scope, 0)
+
+
+def _blueprint_with_risk(rule: dict[str, object]) -> ResolvedTeamBlueprint:
+    document = json.loads(BLUEPRINT.canonical_json())
+    document["risks"] = {
+        "algorithm_version": "TEST_V1",
+        "profile_name": "TICK_RISKS",
+        "profile_version": 1,
+        "rules": [rule],
+    }
+    parsed = ResolvedTeamBlueprint.from_canonical_json(canonical_json(document))
+    return BLUEPRINT.model_copy(update={"risks": parsed.risks})
+
+
+def _paused_blueprint_with_risk(rule: dict[str, object]) -> ResolvedTeamBlueprint:
+    blueprint = _blueprint_with_risk(rule)
+    statuses = tuple(
+        status.model_copy(update={"pauses_service_clock": True})
+        if status.key == "DEVELOPMENT"
+        else status
+        for status in blueprint.workflow.statuses
+    )
+    workflow = blueprint.workflow.model_copy(update={"statuses": statuses})
+    return blueprint.model_copy(update={"workflow": workflow})
+
+
 def _with_runtime_start(state: LiveTeamState, starts_at: datetime) -> LiveTeamState:
     runtime = replace(
         state.aggregate.runtime,
@@ -614,6 +775,14 @@ def _ground_truth(command, work_item_id=None):
     else:
         record = records[0]
     return json.loads(record.canonical_payload)
+
+
+def _risk_ground_truth(command) -> tuple[dict[str, object], ...]:
+    return tuple(
+        json.loads(record.canonical_payload)
+        for record in command.live_slice.ground_truth
+        if record.record_type == "RISK_EVALUATION"
+    )
 
 
 def _committed_state(state: LiveTeamState, command) -> LiveTeamState:

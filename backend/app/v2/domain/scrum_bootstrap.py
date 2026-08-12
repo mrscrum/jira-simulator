@@ -1,5 +1,6 @@
 """Deterministic construction of the first persisted Scrum runtime state."""
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -41,34 +42,74 @@ INITIAL_SPRINT_ORDINAL = 0
 INITIAL_VISIT_ORDINAL = 0
 
 
+@dataclass(frozen=True, slots=True)
+class _BootstrapContext:
+    aggregate: PersistedTeamAggregate
+    started_at: datetime
+    members: tuple[MemberIdentity, ...]
+    work_items: tuple[WorkItemState, ...]
+    sprint: SprintState
+
+
 def build_initial_scrum_state(
     aggregate: PersistedTeamAggregate, started_at: datetime, draws: DrawSource
 ) -> ScrumStateWriteSet:
     """Build the first complete deterministic state for one persisted team run."""
+    context = _bootstrap_context(aggregate, started_at, draws)
+    if context.sprint.lifecycle is SprintLifecycle.PLANNED:
+        return _planned_initial_state(context)
+    return _active_initial_state(context, draws)
+
+
+def _bootstrap_context(
+    aggregate: PersistedTeamAggregate, started_at: datetime, draws: DrawSource
+) -> _BootstrapContext:
     started = _utc(started_at)
-    members = _member_identities(aggregate)
-    work_items = _ranked_backlog(aggregate, started, draws)
-    sprint = _initial_sprint(aggregate, started)
-    if sprint.lifecycle is SprintLifecycle.PLANNED:
-        return ScrumStateWriteSet(
-            member_identities=members,
-            work_items=work_items,
-            sprints=(sprint,),
-            semantic_counters=_initial_counters(aggregate, work_items, ()),
-        )
-    selected_ids = _selected_scope_ids(aggregate, sprint.id, work_items, draws)
-    active_work, visits, samples = _activate_selected_work(
-        aggregate, started, members, work_items, selected_ids, draws
+    return _BootstrapContext(
+        aggregate,
+        started,
+        _member_identities(aggregate),
+        _ranked_backlog(aggregate, started, draws),
+        _initial_sprint(aggregate, started),
     )
-    scope = _scope_entries(aggregate, sprint.id, selected_ids, started)
+
+
+def _planned_initial_state(context: _BootstrapContext) -> ScrumStateWriteSet:
     return ScrumStateWriteSet(
-        member_identities=members,
+        member_identities=context.members,
+        work_items=context.work_items,
+        sprints=(context.sprint,),
+        semantic_counters=(
+            _sprint_counter(context.aggregate, context.sprint),
+            *_initial_counters(context.aggregate, context.work_items, ()),
+        ),
+    )
+
+
+def _active_initial_state(context: _BootstrapContext, draws: DrawSource) -> ScrumStateWriteSet:
+    selected_ids = _selected_scope_ids(
+        context.aggregate, context.sprint.id, context.work_items, draws
+    )
+    active_work, visits, samples = _activate_selected_work(
+        context.aggregate,
+        context.started_at,
+        context.members,
+        context.work_items,
+        selected_ids,
+        draws,
+    )
+    scope = _scope_entries(context.aggregate, context.sprint.id, selected_ids, context.started_at)
+    return ScrumStateWriteSet(
+        member_identities=context.members,
         work_items=active_work,
-        sprints=(sprint,),
+        sprints=(context.sprint,),
         sprint_scope=scope,
         status_visits=visits,
         status_visit_samples=samples,
-        semantic_counters=_initial_counters(aggregate, active_work, visits),
+        semantic_counters=(
+            _sprint_counter(context.aggregate, context.sprint),
+            *_initial_counters(context.aggregate, active_work, visits),
+        ),
     )
 
 
@@ -151,15 +192,16 @@ def _initial_sprint(aggregate: PersistedTeamAggregate, started_at: datetime) -> 
     scrum = blueprint.scrum
     calendar = BusinessCalendar.from_blueprint(blueprint.team.timezone, blueprint.calendar)
     cadence = CadenceRule(scrum.first_boundary, scrum.cadence_days)
-    planned_start = cadence_boundary(calendar, cadence, INITIAL_SPRINT_ORDINAL)
-    planned_end = cadence_boundary(calendar, cadence, INITIAL_SPRINT_ORDINAL + 1)
+    ordinal = _containing_sprint_ordinal(calendar, cadence, started_at)
+    planned_start = cadence_boundary(calendar, cadence, ordinal)
+    planned_end = cadence_boundary(calendar, cadence, ordinal + 1)
     lifecycle = SprintLifecycle.ACTIVE if started_at >= planned_start else SprintLifecycle.PLANNED
     observed_start = started_at if lifecycle is SprintLifecycle.ACTIVE else None
     return SprintState(
-        sprint_rng_id(aggregate.team.id, INITIAL_SPRINT_ORDINAL),
+        sprint_rng_id(aggregate.team.id, ordinal),
         aggregate.team.id,
         aggregate.runtime.run_id,
-        INITIAL_SPRINT_ORDINAL,
+        ordinal,
         lifecycle,
         planned_start,
         planned_end,
@@ -168,6 +210,17 @@ def _initial_sprint(aggregate: PersistedTeamAggregate, started_at: datetime) -> 
         started_at,
         started_at,
     )
+
+
+def _containing_sprint_ordinal(
+    calendar: BusinessCalendar, cadence: CadenceRule, started_at: datetime
+) -> int:
+    if started_at < cadence.anchor:
+        return INITIAL_SPRINT_ORDINAL
+    ordinal = INITIAL_SPRINT_ORDINAL
+    while cadence_boundary(calendar, cadence, ordinal + 1) <= started_at:
+        ordinal += 1
+    return ordinal
 
 
 def _selected_scope_ids(
@@ -359,14 +412,31 @@ def _initial_counters(
     work_items: tuple[WorkItemState, ...],
     visits: tuple[StatusVisitState, ...],
 ) -> tuple[SemanticCounter, ...]:
-    next_by_item = {visit.work_item_id: visit.ordinal + 1 for visit in visits}
-    sprint_counter = SemanticCounter(
+    work_item_ids = tuple(item.id for item in work_items)
+    member_ids = tuple(member.id for member in _member_identities(aggregate))
+    return (
+        *_visit_counters(aggregate, work_items, visits),
+        *_natural_counters(aggregate, work_item_ids, DecisionType.RISK_CANCELLATION_OUTCOME),
+        *_natural_counters(aggregate, member_ids, DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME),
+    )
+
+
+def _sprint_counter(aggregate: PersistedTeamAggregate, sprint: SprintState) -> SemanticCounter:
+    return SemanticCounter(
         aggregate.team.id,
         aggregate.runtime.run_id,
         SemanticCounterScope(SemanticCounterKind.SPRINT_ORDINAL, aggregate.team.id, "SCRUM"),
-        INITIAL_SPRINT_ORDINAL + 1,
+        sprint.ordinal + 1,
     )
-    visit_counters = tuple(
+
+
+def _visit_counters(
+    aggregate: PersistedTeamAggregate,
+    work_items: tuple[WorkItemState, ...],
+    visits: tuple[StatusVisitState, ...],
+) -> tuple[SemanticCounter, ...]:
+    next_by_item = {visit.work_item_id: visit.ordinal + 1 for visit in visits}
+    return tuple(
         SemanticCounter(
             aggregate.team.id,
             aggregate.runtime.run_id,
@@ -375,37 +445,25 @@ def _initial_counters(
         )
         for item in work_items
     )
-    cancellation_counters = tuple(
+
+
+def _natural_counters(
+    aggregate: PersistedTeamAggregate,
+    entity_ids: tuple[UUID, ...],
+    decision_type: DecisionType,
+) -> tuple[SemanticCounter, ...]:
+    return tuple(
         SemanticCounter(
             aggregate.team.id,
             aggregate.runtime.run_id,
             SemanticCounterScope(
                 SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
-                item.id,
-                DecisionType.RISK_CANCELLATION_OUTCOME.value,
+                entity_id,
+                decision_type.value,
             ),
             0,
         )
-        for item in work_items
-    )
-    unavailability_counters = tuple(
-        SemanticCounter(
-            aggregate.team.id,
-            aggregate.runtime.run_id,
-            SemanticCounterScope(
-                SemanticCounterKind.NATURAL_DECISION_OCCURRENCE,
-                member.id,
-                DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME.value,
-            ),
-            0,
-        )
-        for member in _member_identities(aggregate)
-    )
-    return (
-        sprint_counter,
-        *visit_counters,
-        *cancellation_counters,
-        *unavailability_counters,
+        for entity_id in entity_ids
     )
 
 

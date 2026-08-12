@@ -12,8 +12,9 @@ additive v2 live simulator are in [docs/v2/high-level-plan.md](docs/v2/high-leve
 milestone status under [backlog/v2/](backlog/v2/README.md). The local v2 implementation now includes
 the persistence/deterministic kernel, coherent Scrum bootstrap, incremental ticks, fixed sprint
 lifecycle, persisted scheduler/restart path, and retryable outbound Jira delivery described below.
-The first causal-risk policy and fake-Jira multi-sprint acceptance are also implemented. Codex
-control, Jira-side manual-intervention ingestion, and live-provider acceptance are not implemented.
+The first causal-risk policy and fake-Jira multi-sprint acceptance are also implemented, including
+cursor-bounded risk evaluation and active-bootstrap sprint provisioning. Codex control, Jira-side
+manual-intervention ingestion, and live-provider acceptance are not implemented.
 
 ## V2 persistence spine
 
@@ -143,9 +144,12 @@ and recalculation. Runtime CAS, sparse Scrum after-images, counter claims, activ
 truth, and pending Jira transition intents commit atomically; injected failures roll the complete
 transaction back. The cursor stops at the current fixed sprint end for the lifecycle slice to
 handle, or at the earliest meaningful visit completion so the next tick retains the residual
-request interval. Ground truth includes human-readable causal reasons and clock/timing/config
-context. Versioned due risks are evaluated before ordinary progress and remain network-free; Jira
-intents are only persisted here for later delivery.
+request interval. When provisional visit advancement finds an earlier boundary, risks are
+re-evaluated from the original state at that committed boundary, so no mutation or evidence can
+outgrow the runtime cursor. A configured workday-start risk also makes the next due workday a tick
+boundary. Ground truth includes human-readable causal reasons and clock/timing/config context.
+Versioned due risks are evaluated before ordinary progress and remain network-free; Jira intents
+are only persisted here for later delivery. Every effective end is at least the persisted cursor.
 
 ## V2 fixed sprint lifecycle and scheduler
 
@@ -156,6 +160,11 @@ unfinished items first without changing status, owner, visit/sample, or progress
 remaining sampled capacity from existing ranked backlog. It does not generate backlog. Pending
 Jira sprint complete/create/scope/start intents carry explicit semantic payload dependencies and
 remain network-free inside the authoritative transaction.
+
+Bootstrap started after the configured anchor selects the half-open fixed-cadence window that
+contains the runtime cursor, preserving the configured local wall-clock cadence across DST. Its
+sprint ordinal and next-sprint counter match that window, so the first tick cannot rewind into an
+expired sprint.
 
 `SqlAlchemyDueTeamStore` selects sorted `RUNNING` runtimes whose persisted `next_wake_at` is due,
 using exclusive team-ID keyset pages so one poll drains every configured due team beyond the
@@ -186,6 +195,11 @@ the external await after the query session closes and atomically records resourc
 success receipt afterward. Jira 429 `Retry-After` values are persisted without scheduler sleep;
 other translated provider/transport failures remain retryable with capped backoff.
 
+When bootstrap starts with an active sprint, its transaction appends a dependency-ordered local-ID
+`CREATE_SPRINT` → `SCOPE_SPRINT` → `START_SPRINT` chain after project, board, and initial-issue
+provisioning. Planned bootstrap continues to defer that chain until lifecycle activation, and the
+active sprint mapping is therefore available before a later `COMPLETE_SPRINT` reaches the FIFO.
+
 `JiraClientV2IntentAdapter` is the only concrete transport adapter and remains outside `app.v2`.
 Create operations preflight stable provider-visible identities: project key, project-scoped board,
 `sim-v2-<work-item UUID>` issue label, and a sprint-name marker. Absolute sprint/status/scope
@@ -210,9 +224,11 @@ Every due stochastic branch records causal ground truth, including false outcome
 create no visible activity, Jira intent, or mechanical state change. External dependency is decided
 once at the persisted visit-entry cursor. An accepted pause continues from the visit pause clock
 without another outcome draw or duplicate start event; every committed continuation delta has a
-ground-truth-only causal record. Risk handlers consume accumulated same-tick state so terminal
-cancellation cannot be reopened by a later rule. Long-stay thresholds use team business-service
-elapsed time rather than wall time, excluding nights, weekends, and explicit pause.
+ground-truth-only causal record. Statuses that intrinsically pause their service clock never enter
+or continue external-dependency evaluation. Review rejection is timestamped at its due closed-visit
+boundary rather than a later candidate horizon. Risk handlers consume accumulated same-tick state
+so terminal cancellation cannot be reopened by a later rule. Long-stay thresholds use team
+business-service elapsed time rather than wall time, excluding nights, weekends, and explicit pause.
 
 Lifecycle and status-transition payloads contain local semantic UUID dependencies plus logical Jira
 fields. The concrete adapter resolves board, sprint, and issue mappings at delivery time, so provider
@@ -224,8 +240,10 @@ proves provider-success/local-receipt replay does not duplicate resources. This 
 acceptance only; no live Jira, deployment, push, or UAT was performed.
 
 Production live-team bootstrap now composes the dependency-ordered project, board, and initial-issue
-intents and appends them atomically in its existing transaction. The acceptance reaches provisioning
-through that supported path and contains no test-only production command composer.
+intents and appends them atomically in its existing transaction. An initially active sprint extends
+that same transaction with its create/scope/start chain; an initially planned sprint does not. The
+acceptance reaches provisioning through that supported path and contains no test-only production
+command composer.
 
 From `backend/`, run:
 
@@ -422,7 +440,8 @@ See `AGENTS.md` for the complete directory layout and domain model.
 ## Current Limitations
 
 - Precomputed issue outcomes are not reduced back into persistent internal issue state.
-- Newly created Jira sprint IDs are not available when add/start/complete events are generated.
+- V1 scheduled events can still lack a newly created Jira sprint ID; v2 active bootstrap persists a
+  local-to-provider sprint mapping before its later complete intent is eligible.
 - Event dispatch does not enforce sprint activation or per-team pause/deactivation.
 - The advertised simulation acceleration controls do not scale the active scheduled-event path.
 - V1 dysfunction and cross-team dependency effects remain configuration/data only; v2 implements

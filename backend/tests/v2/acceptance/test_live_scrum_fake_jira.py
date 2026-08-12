@@ -11,6 +11,7 @@ from app.v2.application.jira_delivery import JiraDeliveryWorker
 from app.v2.application.live_scheduler import LiveScheduler, SchedulerDependencies
 from app.v2.application.team_tick import TeamTickService
 from app.v2.domain.canonical_json import canonical_json
+from app.v2.domain.scrum_tick import TickRequest
 from app.v2.persistence.due_team_store import SqlAlchemyDueTeamStore
 from app.v2.persistence.jira_delivery_store import SqlAlchemyJiraDeliveryStore
 from app.v2.persistence.live_team_store import SqlAlchemyLiveTeamStore
@@ -84,6 +85,37 @@ async def test_live_scrum_converges_after_restart_outage_and_receipt_retry(
     assert any(issue["fields"]["status"]["name"] == "Done" for issue in jira.issues.values())
 
 
+@pytest.mark.asyncio
+async def test_active_bootstrap_maps_its_sprint_before_later_completion(
+    v2_session_factory, blueprint_document
+):
+    aggregate = _create_active_team(v2_session_factory, blueprint_document)
+    live_store = SqlAlchemyLiveTeamStore(v2_session_factory)
+    state = live_store.ensure_bootstrapped(aggregate.team.id, FIRST_BOUNDARY)
+    sprint = state.scrum.sprints[0]
+    delivery_store = SqlAlchemyJiraDeliveryStore(v2_session_factory)
+    jira = FakeJiraClient()
+    adapter = JiraClientV2IntentAdapter(jira, delivery_store, lambda: FIRST_BOUNDARY)
+    worker = JiraDeliveryWorker(delivery_store, adapter)
+
+    bootstrap_delivery = await worker.drain_once(FIRST_BOUNDARY, limit=50)
+    mapping = delivery_store.find_mapping(aggregate.team.id, "SPRINT", sprint.id)
+
+    assert bootstrap_delivery.failed == 0
+    assert mapping is not None
+    assert jira.sprints[int(mapping.jira_id)]["state"] == "active"
+
+    service = TeamTickService(live_store, SqlAlchemyV2UnitOfWork(v2_session_factory))
+    request = TickRequest(aggregate.team.id, sprint.planned_end_at, sprint.planned_end_at)
+    service.advance(request)
+    service.advance(request)
+    rollover_delivery = await worker.drain_once(sprint.planned_end_at, limit=50)
+
+    assert rollover_delivery.failed == 0
+    assert jira.sprints[int(mapping.jira_id)]["state"] == "closed"
+    assert delivery_store.pending(sprint.planned_end_at) == ()
+
+
 def _create_team(session_factory, blueprint_document):
     document = json.loads(json.dumps(blueprint_document))
     rule = document["risks"]["rules"][0]
@@ -92,6 +124,26 @@ def _create_team(session_factory, blueprint_document):
     blueprint = canonical_json(document)
     service = CreateTeamService(SqlAlchemyV2TeamRepository(session_factory))
     return service.create(CreateTeamCommand("acceptance-live-loop", blueprint, STARTED_AT))
+
+
+def _create_active_team(session_factory, blueprint_document):
+    document = json.loads(json.dumps(blueprint_document))
+    document["team"]["name"] = "Active Bootstrap Team"
+    document["jira"]["project_key"] = "SIMACT"
+    document["backlog"]["target_depth"] = 1
+    document["scrum"]["capacity_min_points"] = 3
+    document["scrum"]["capacity_max_points"] = 3
+    for rule in document["risks"]["rules"]:
+        rule["base_probability"] = 0.0
+        rule["clamp"] = {"max": 0.0, "min": 0.0}
+    for entry in document["timing"]["entries"]:
+        for key in ("min", "p25", "p50", "p99", "max", "touch_min", "touch_max"):
+            entry[key] = 100.0
+    blueprint = canonical_json(document)
+    repository = SqlAlchemyV2TeamRepository(session_factory)
+    return CreateTeamService(repository).create(
+        CreateTeamCommand("active-bootstrap-live-loop", blueprint, FIRST_BOUNDARY)
+    )
 
 
 def _scheduler(session_factory, live_store) -> LiveScheduler:
