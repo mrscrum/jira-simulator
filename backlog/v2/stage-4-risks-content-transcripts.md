@@ -5,6 +5,7 @@ Status: NOT STARTED
 
 ## Tasks
 - [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
+- [x] First realism and vertical acceptance review fix round 1 — completed 2026-08-11
 - [ ] V2-S4-T01 — Add durable verified Jira webhook intake
 - [ ] V2-S4-T02 — Register webhooks and normalize/deduplicate Jira interventions
 - [ ] V2-S4-T03 — Adopt manual sprint topology and scope membership
@@ -40,3 +41,6 @@ Status: NOT STARTED
   text without calling a language model.
 - The remaining detailed Stage 4 task list is still non-active reference scope; inbound Jira,
   generated content, transcripts, APIs, and named scenario breadth remain later slices.
+- Review fix round 1 records due false outcomes, makes dependency entry decisions one-shot with
+  state-only continuation, uses business-service long-stay aging, and enforces terminal precedence
+  when multiple configured risks share a tick.

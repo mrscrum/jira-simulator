@@ -139,9 +139,7 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
         session.flush()
         return CommittedAuthoritativeTickSlice(live_slice, state, counters, evaluations)
 
-    def _commit_in_session(
-        self, session: Session, commit: TickSliceCommit
-    ) -> CommittedTickSlice:
+    def _commit_in_session(self, session: Session, commit: TickSliceCommit) -> CommittedTickSlice:
         runtime = self._advance_runtime(session, commit)
         return self._persist_ledgers(session, commit, runtime)
 
@@ -203,9 +201,7 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
         return _map_runtime(model)
 
     @staticmethod
-    def _persist_activity(
-        session: Session, commit: TickSliceCommit
-    ) -> tuple[ActivityEvent, ...]:
+    def _persist_activity(session: Session, commit: TickSliceCommit) -> tuple[ActivityEvent, ...]:
         records = [
             _resolve_activity(session, commit, (position, draft))
             for position, draft in enumerate(commit.activity)
@@ -231,6 +227,16 @@ class SqlAlchemyV2UnitOfWork(V2UnitOfWork):
             for position, draft in enumerate(commit.projection_intents)
         ]
         return tuple(records)
+
+
+def append_projection_intents_in_session(
+    session: Session, commit: TickSliceCommit
+) -> tuple[ProjectionIntent, ...]:
+    """Append a projection-only slice inside an existing bootstrap transaction."""
+    commit.validate()
+    if commit.activity or commit.ground_truth:
+        raise ValueError("bootstrap projection slice must contain only projection intents")
+    return SqlAlchemyV2UnitOfWork._persist_projection(session, commit)
 
 
 def _raise_authoritative_error(error: Exception) -> NoReturn:

@@ -10,14 +10,7 @@ from app.v2.application.create_team import CreateTeamCommand, CreateTeamService
 from app.v2.application.jira_delivery import JiraDeliveryWorker
 from app.v2.application.live_scheduler import LiveScheduler, SchedulerDependencies
 from app.v2.application.team_tick import TeamTickService
-from app.v2.domain.canonical_json import canonical_json, semantic_uuid
-from app.v2.domain.live_slice import (
-    DraftEnvelope,
-    ProjectionDetails,
-    ProjectionIntentDraft,
-    RuntimeAdvance,
-    TickSliceCommit,
-)
+from app.v2.domain.canonical_json import canonical_json
 from app.v2.persistence.due_team_store import SqlAlchemyDueTeamStore
 from app.v2.persistence.jira_delivery_store import SqlAlchemyJiraDeliveryStore
 from app.v2.persistence.live_team_store import SqlAlchemyLiveTeamStore
@@ -36,7 +29,6 @@ async def test_live_scrum_converges_after_restart_outage_and_receipt_retry(
     aggregate = _create_team(v2_session_factory, blueprint_document)
     live_store = SqlAlchemyLiveTeamStore(v2_session_factory)
     state = live_store.ensure_bootstrapped(aggregate.team.id, STARTED_AT)
-    _commit_provisioning(v2_session_factory, state)
     delivery_store = SqlAlchemyJiraDeliveryStore(v2_session_factory)
     jira = FakeJiraClient()
     adapter = JiraClientV2IntentAdapter(jira, delivery_store, lambda: STARTED_AT)
@@ -100,66 +92,6 @@ def _create_team(session_factory, blueprint_document):
     blueprint = canonical_json(document)
     service = CreateTeamService(SqlAlchemyV2TeamRepository(session_factory))
     return service.create(CreateTeamCommand("acceptance-live-loop", blueprint, STARTED_AT))
-
-
-def _commit_provisioning(session_factory, state) -> None:
-    runtime = state.aggregate.runtime
-    intents = _provisioning_intents(state)
-    command = TickSliceCommit(
-        semantic_uuid(f"acceptance/provision/{runtime.team_id}"),
-        runtime.team_id,
-        runtime.run_id,
-        runtime.version,
-        RuntimeAdvance(runtime.state, runtime.simulation_time, runtime.next_wake_at),
-        (),
-        (),
-        intents,
-        STARTED_AT,
-    )
-    SqlAlchemyV2UnitOfWork(session_factory).commit_tick_slice(command)
-
-
-def _provisioning_intents(state) -> tuple[ProjectionIntentDraft, ...]:
-    blueprint = state.aggregate.blueprint
-    team_id = state.aggregate.team.id
-    records: list[ProjectionIntentDraft] = []
-    project = {
-        "board_type": "SCRUM",
-        "depends_on": [],
-        "name": blueprint.jira.project_name,
-        "project_key": blueprint.jira.project_key,
-    }
-    records.append(_intent(state, "project", "CREATE_PROJECT", team_id, project))
-    board = {
-        "board_type": "SCRUM",
-        "depends_on": [records[-1].semantic_key],
-        "project_key": blueprint.jira.project_key,
-        "project_name": blueprint.jira.project_name,
-    }
-    records.append(_intent(state, "board", "CREATE_BOARD", team_id, board))
-    board_dependency = records[-1].semantic_key
-    for work in state.scrum.work_items:
-        issue = {
-            "depends_on": [board_dependency],
-            "fields": {},
-            "issue_id": str(work.id),
-            "issue_type": work.issue_type.title(),
-            "project_key": blueprint.jira.project_key,
-            "summary": f"Simulated {work.issue_type.title()} {work.creation_sequence + 1}",
-        }
-        records.append(_intent(state, f"issue/{work.id}", "CREATE_ISSUE", work.id, issue))
-    return tuple(records)
-
-
-def _intent(state, suffix, operation, aggregate_id, payload) -> ProjectionIntentDraft:
-    envelope = DraftEnvelope(
-        f"acceptance/provision/{state.aggregate.team.id}/{suffix}",
-        "1.0",
-        STARTED_AT,
-        payload,
-    )
-    details = ProjectionDetails("JIRA", operation, aggregate_id, 1, "PENDING")
-    return ProjectionIntentDraft.create(envelope, details)
 
 
 def _scheduler(session_factory, live_store) -> LiveScheduler:

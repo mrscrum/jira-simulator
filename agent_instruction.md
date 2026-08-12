@@ -80,6 +80,15 @@ approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for 
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 1 moved Jira project/board/initial-issue intent composition
+into production live-team bootstrap and removed the acceptance-only command builder. Bootstrap
+appends the logical semantic-ID payloads in its existing transaction and replays idempotently.
+Every due stochastic false outcome now persists causal ground truth without activity or mechanics.
+External dependency decides only at the persisted visit-entry cursor, continues accepted pause from
+visit state without redraw/duplicate start, and cannot reopen a same-tick cancellation because risk
+handlers consume accumulated state. Long-stay crossing uses business-service elapsed time rather
+than wall time. Revision 016 remains the sole head; no live Jira, deployment, push, or UAT occurred.
+
 On 2026-08-11, the fifth pragmatic v2 slice completed the first live-loop vertical. The tick kernel
 now evaluates configured risk rules only at their persisted trigger and applies five representative
 mechanical outcomes through accepted Scrum state and Task 6 claims. Ground truth records policy
@@ -466,6 +475,8 @@ Jira from lifecycle/tick commits.
 - Domain Jira intents carry local semantic UUIDs only. Provider Jira IDs are resolved from
   `v2_jira_resource_mappings` inside the concrete adapter; never write provider IDs into lifecycle,
   risk, or tick payloads.
+- Initial Jira project/board/issue intents are owned by production live-team bootstrap. Acceptance
+  tests must not recreate this composition path or inject equivalent commands directly.
 - Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
 - V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
   neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.

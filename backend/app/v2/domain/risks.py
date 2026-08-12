@@ -11,7 +11,7 @@ from app.v2.domain.authoritative_slice import (
     EligibleNaturalDecisionClaim,
     SemanticCounterClaim,
 )
-from app.v2.domain.business_calendar import BusinessCalendar
+from app.v2.domain.business_calendar import BusinessCalendar, UtcInterval
 from app.v2.domain.canonical_json import canonical_json, canonical_sha256, semantic_uuid
 from app.v2.domain.deterministic_rng import DecisionOccurrence, DecisionType, visit_rng_id
 from app.v2.domain.draw_source import DrawSource
@@ -28,6 +28,7 @@ from app.v2.domain.sampling import sample_touch, touch_bounds
 from app.v2.domain.scrum_state import (
     FactorKind,
     MemberAvailabilityOverlay,
+    MemberBusinessDateConsumption,
     ScrumStateWriteSet,
     SemanticCounterKind,
     StatusVisitLifecycle,
@@ -105,6 +106,37 @@ class _NaturalDecisionRequest:
     business_date: date
 
 
+@dataclass(frozen=True)
+class _ReviewDecision:
+    evidence: _DecisionEvidence
+    target: str
+    projection: ProjectionIntentDraft | None
+
+
+@dataclass(frozen=True)
+class _CancellationDecision:
+    evidence: _DecisionEvidence
+    target: str
+    projection: ProjectionIntentDraft | None
+    claim: SemanticCounterClaim
+    eligible: EligibleNaturalDecisionClaim
+    visit: StatusVisitState
+
+
+@dataclass(frozen=True)
+class _UnavailabilityDecision:
+    evidence: _DecisionEvidence
+    overlay: MemberAvailabilityOverlay | None
+    claim: SemanticCounterClaim
+    eligible: EligibleNaturalDecisionClaim
+
+
+@dataclass(frozen=True)
+class _DependencyDecision:
+    evidence: _DecisionEvidence
+    delta: int
+
+
 def evaluate_due_risks(state: LiveTeamState, as_of: datetime, draws: DrawSource) -> RiskEvaluation:
     """Evaluate only configured rules whose persisted trigger is due."""
     instant = _utc(as_of)
@@ -116,10 +148,13 @@ def evaluate_due_risks(state: LiveTeamState, as_of: datetime, draws: DrawSource)
         "EXTERNAL_DEPENDENCY": _external_dependency,
         "MEMBER_UNAVAILABLE": _member_unavailability,
     }
+    working = state
     for rule in state.aggregate.blueprint.risks.rules:
         handler = handlers.get(rule.key)
         if handler is not None:
-            records = _merge_records(records, handler(_RiskContext(state, instant, draws, rule)))
+            outcome = handler(_RiskContext(working, instant, draws, rule))
+            records = _merge_records(records, outcome)
+            working = _with_write_set(working, outcome.state)
     return RiskEvaluation(
         records.state,
         records.activity,
@@ -131,36 +166,39 @@ def evaluate_due_risks(state: LiveTeamState, as_of: datetime, draws: DrawSource)
 
 
 def _long_stay(context: _RiskContext) -> _RiskRecords:
-    state, as_of, rule = context.state, context.as_of, context.rule
-    if rule.trigger != "STATUS_AGED":
+    state = context.state
+    if context.rule.trigger != "STATUS_AGED":
         return _RiskRecords()
     samples = {sample.visit_id: sample for sample in state.scrum.status_visit_samples}
     records = _RiskRecords()
     for visit in _open_visits(state):
-        sample = samples[visit.id]
-        multiplier = _number(rule, "threshold_multiplier", 1.0)
-        threshold = round(sample.dwell_sampled_hours * multiplier * MICROSECONDS_PER_HOUR)
-        if not _threshold_crossed(context, visit, threshold):
-            continue
-        evidence = _DecisionEvidence(
-            rule,
-            visit.work_item_id,
-            as_of,
-            {},
-            1.0,
-            None,
-            True,
-            _eligible_people(state, visit),
-            0,
-            0,
-            "sampled dwell threshold crossed",
-            None,
-        )
-        records = _merge_records(
-            records,
-            _evidence_records(state, _EvidenceBatch(evidence, "LONG_STAY_DETECTED")),
-        )
+        records = _merge_records(records, _long_stay_record(context, visit, samples[visit.id]))
     return records
+
+
+def _long_stay_record(
+    context: _RiskContext, visit: StatusVisitState, sample: StatusVisitSample
+) -> _RiskRecords:
+    multiplier = _number(context.rule, "threshold_multiplier", 1.0)
+    threshold = round(sample.dwell_sampled_hours * multiplier * MICROSECONDS_PER_HOUR)
+    if not _threshold_crossed(context, visit, threshold):
+        return _RiskRecords()
+    evidence = _DecisionEvidence(
+        context.rule,
+        visit.work_item_id,
+        context.as_of,
+        {},
+        1.0,
+        None,
+        True,
+        _eligible_people(context.state, visit),
+        0,
+        0,
+        "sampled dwell threshold crossed",
+        None,
+    )
+    batch = _EvidenceBatch(evidence, "LONG_STAY_DETECTED")
+    return _evidence_records(context.state, batch)
 
 
 def _review_rejection(context: _RiskContext) -> _RiskRecords:
@@ -180,6 +218,31 @@ def _review_rejection(context: _RiskContext) -> _RiskRecords:
 def _review_records(
     context: _RiskContext, work: WorkItemState, review: StatusVisitState
 ) -> _RiskRecords:
+    decision = _review_decision(context, work, review)
+    if not decision.evidence.outcome:
+        batch = _EvidenceBatch(decision.evidence, "RISK_EVALUATED")
+        return _evidence_records(context.state, batch)
+    returned_work = replace(
+        work,
+        lifecycle=WorkItemLifecycle.ACTIVE,
+        current_status_key=decision.target,
+        updated_at=context.as_of,
+    )
+    returned_visit, sample, claim = _returned_visit(context, returned_work)
+    risk_state = ScrumStateWriteSet(
+        work_items=(returned_work,),
+        status_visits=(returned_visit,),
+        status_visit_samples=(sample,),
+    )
+    batch = _EvidenceBatch(
+        decision.evidence, "REVIEW_REJECTED", decision.projection, risk_state, (claim,)
+    )
+    return _evidence_records(context.state, batch)
+
+
+def _review_decision(
+    context: _RiskContext, work: WorkItemState, review: StatusVisitState
+) -> _ReviewDecision:
     state, as_of, draws, rule = context.state, context.as_of, context.draws, context.rule
     draw = draws.draw(DecisionOccurrence(review.id, DecisionType.RISK_REVIEW_REJECTION_OUTCOME, 0))
     factors = _factors(state, work, review)
@@ -203,22 +266,7 @@ def _review_records(
         "configured review rejection decision",
         _intent_payload(projection),
     )
-    if not outcome:
-        return _RiskRecords()
-    returned_work = replace(
-        work,
-        lifecycle=WorkItemLifecycle.ACTIVE,
-        current_status_key=target,
-        updated_at=as_of,
-    )
-    returned_visit, sample, claim = _returned_visit(context, returned_work)
-    risk_state = ScrumStateWriteSet(
-        work_items=(returned_work,),
-        status_visits=(returned_visit,),
-        status_visit_samples=(sample,),
-    )
-    batch = _EvidenceBatch(evidence, "REVIEW_REJECTED", projection, risk_state, (claim,))
-    return _evidence_records(state, batch)
+    return _ReviewDecision(evidence, target, projection)
 
 
 def _cancellation(context: _RiskContext) -> _RiskRecords:
@@ -226,20 +274,41 @@ def _cancellation(context: _RiskContext) -> _RiskRecords:
     boundary = _workday_boundary(state, as_of)
     if rule.trigger != "WORKDAY_STARTED" or boundary is None:
         return _RiskRecords()
+    due = replace(context, as_of=boundary)
     records = _RiskRecords()
     for work in state.scrum.work_items:
         if work.lifecycle is not WorkItemLifecycle.ACTIVE:
             continue
-        records = _merge_records(records, _cancellation_records(context, work, boundary))
+        records = _merge_records(records, _cancellation_records(due, work))
     return records
 
 
-def _cancellation_records(
-    context: _RiskContext,
-    work: WorkItemState,
-    boundary: datetime,
-) -> _RiskRecords:
+def _cancellation_records(context: _RiskContext, work: WorkItemState) -> _RiskRecords:
+    state = context.state
+    decision = _cancellation_decision(context, work)
+    if not decision.evidence.outcome:
+        batch = _EvidenceBatch(
+            decision.evidence,
+            "RISK_EVALUATED",
+            counter_claims=(decision.claim,),
+            natural_claims=(decision.eligible,),
+        )
+        return _evidence_records(state, batch)
+    risk_state = _cancelled_state(context, work, decision)
+    batch = _EvidenceBatch(
+        decision.evidence,
+        "ISSUE_CANCELLED",
+        decision.projection,
+        risk_state,
+        (decision.claim,),
+        (decision.eligible,),
+    )
+    return _evidence_records(state, batch)
+
+
+def _cancellation_decision(context: _RiskContext, work: WorkItemState) -> _CancellationDecision:
     state, draws, rule = context.state, context.draws, context.rule
+    boundary = context.as_of
     claim, eligible = _natural_claim(
         _NaturalDecisionRequest(
             state, work.id, DecisionType.RISK_CANCELLATION_OUTCOME, boundary.date()
@@ -251,9 +320,7 @@ def _cancellation_records(
     probability = _probability(rule, factors)
     outcome = draw.unit_value < probability
     target = _text(rule, "target_status")
-    projection = (
-        _transition_intent(replace(context, as_of=boundary), work.id, target) if outcome else None
-    )
+    projection = _transition_intent(context, work.id, target) if outcome else None
     evidence = _DecisionEvidence(
         rule,
         work.id,
@@ -268,35 +335,27 @@ def _cancellation_records(
         "workday cancellation decision",
         _intent_payload(projection),
     )
-    risk_state = ScrumStateWriteSet()
-    if not outcome:
-        return _RiskRecords(counter_claims=(claim,), natural_decision_claims=(eligible,))
+    return _CancellationDecision(evidence, target, projection, claim, eligible, visit)
+
+
+def _cancelled_state(
+    context: _RiskContext, work: WorkItemState, decision: _CancellationDecision
+) -> ScrumStateWriteSet:
     cancelled = replace(
         work,
         lifecycle=WorkItemLifecycle.CANCELLED,
-        current_status_key=target,
-        updated_at=boundary,
+        current_status_key=decision.target,
+        updated_at=context.as_of,
     )
     closed = replace(
-        visit,
+        decision.visit,
         lifecycle=StatusVisitLifecycle.CLOSED,
         member_id=None,
-        closed_at=boundary,
-        elapsed_work_microseconds=visit.required_work_microseconds,
+        closed_at=context.as_of,
+        elapsed_work_microseconds=decision.visit.required_work_microseconds,
         remaining_work_microseconds=0,
     )
-    risk_state = ScrumStateWriteSet(work_items=(cancelled,), status_visits=(closed,))
-    return _evidence_records(
-        state,
-        _EvidenceBatch(
-            evidence,
-            "ISSUE_CANCELLED",
-            projection,
-            risk_state,
-            (claim,),
-            (eligible,),
-        ),
-    )
+    return ScrumStateWriteSet(work_items=(cancelled,), status_visits=(closed,))
 
 
 def _external_dependency(context: _RiskContext) -> _RiskRecords:
@@ -311,30 +370,49 @@ def _external_dependency(context: _RiskContext) -> _RiskRecords:
 
 
 def _dependency_records(context: _RiskContext, visit: StatusVisitState) -> _RiskRecords:
-    state, as_of, draws, rule = context.state, context.as_of, context.draws, context.rule
+    state, as_of, rule = context.state, context.as_of, context.rule
     total_wait = round(_number(rule, "wait_hours") * MICROSECONDS_PER_HOUR)
     remaining = max(0, total_wait - visit.pause_microseconds)
     cursor = state.aggregate.runtime.simulation_time
-    if visit.entered_at > cursor or remaining == 0 or as_of <= cursor:
+    if remaining == 0 or as_of <= cursor:
         return _RiskRecords()
-    draw = draws.draw(
+    if visit.pause_microseconds:
+        return _dependency_continuation(context, visit, remaining)
+    if visit.entered_at != cursor:
+        return _RiskRecords()
+    return _dependency_entry(context, visit, remaining)
+
+
+def _dependency_entry(
+    context: _RiskContext, visit: StatusVisitState, remaining: int
+) -> _RiskRecords:
+    decision = _dependency_decision(context, visit, remaining)
+    if not decision.evidence.outcome or decision.delta == 0:
+        batch = _EvidenceBatch(decision.evidence, "RISK_EVALUATED")
+        return _evidence_records(context.state, batch)
+    blocked = _paused_visit(visit, decision.delta)
+    batch = _EvidenceBatch(
+        decision.evidence,
+        "EXTERNAL_DEPENDENCY_STARTED",
+        state=ScrumStateWriteSet(status_visits=(blocked,)),
+    )
+    return _evidence_records(context.state, batch)
+
+
+def _dependency_decision(
+    context: _RiskContext, visit: StatusVisitState, remaining: int
+) -> _DependencyDecision:
+    state, cursor = context.state, context.state.aggregate.runtime.simulation_time
+    draw = context.draws.draw(
         DecisionOccurrence(visit.id, DecisionType.RISK_EXTERNAL_DEPENDENCY_OUTCOME, 0)
     )
     work = _work(state, visit.work_item_id)
     factors = _factors(state, work, visit)
-    probability = _probability(rule, factors)
+    probability = _probability(context.rule, factors)
     outcome = draw.unit_value < probability
-    delta = min(remaining, _microseconds(as_of - cursor)) if outcome else 0
-    if not outcome or delta == 0:
-        return _RiskRecords()
-    blocked = replace(
-        visit,
-        member_id=None,
-        queue_microseconds=visit.queue_microseconds + delta,
-        pause_microseconds=visit.pause_microseconds + delta,
-    )
+    delta = min(remaining, _microseconds(context.as_of - cursor)) if outcome else 0
     evidence = _DecisionEvidence(
-        rule,
+        context.rule,
         visit.id,
         cursor,
         factors,
@@ -347,9 +425,27 @@ def _dependency_records(context: _RiskContext, visit: StatusVisitState) -> _Risk
         "external dependency paused visit progress",
         None,
     )
-    risk_state = ScrumStateWriteSet(status_visits=(blocked,)) if outcome else ScrumStateWriteSet()
-    batch = _EvidenceBatch(evidence, "EXTERNAL_DEPENDENCY_STARTED", state=risk_state)
-    return _evidence_records(state, batch)
+    return _DependencyDecision(evidence, delta)
+
+
+def _dependency_continuation(
+    context: _RiskContext, visit: StatusVisitState, remaining: int
+) -> _RiskRecords:
+    cursor = context.state.aggregate.runtime.simulation_time
+    delta = min(remaining, _microseconds(context.as_of - cursor))
+    if delta == 0:
+        return _RiskRecords()
+    blocked = _paused_visit(visit, delta)
+    return _RiskRecords(state=ScrumStateWriteSet(status_visits=(blocked,)))
+
+
+def _paused_visit(visit: StatusVisitState, delta: int) -> StatusVisitState:
+    return replace(
+        visit,
+        member_id=None,
+        queue_microseconds=visit.queue_microseconds + delta,
+        pause_microseconds=visit.pause_microseconds + delta,
+    )
 
 
 def _member_unavailability(context: _RiskContext) -> _RiskRecords:
@@ -357,6 +453,7 @@ def _member_unavailability(context: _RiskContext) -> _RiskRecords:
     boundary = _workday_boundary(state, as_of)
     if rule.trigger != "WORKDAY_STARTED" or boundary is None:
         return _RiskRecords()
+    due = replace(context, as_of=boundary)
     member_ids = tuple(
         sorted(
             {visit.member_id for visit in _open_visits(state) if visit.member_id is not None},
@@ -365,17 +462,32 @@ def _member_unavailability(context: _RiskContext) -> _RiskRecords:
     )
     records = _RiskRecords()
     for member_id in member_ids:
-        outcome = _unavailability_records(context, member_id, boundary)
+        outcome = _unavailability_records(due, member_id)
         records = _merge_records(records, outcome)
     return records
 
 
-def _unavailability_records(
-    context: _RiskContext,
-    member_id: UUID,
-    boundary: datetime,
-) -> _RiskRecords:
+def _unavailability_records(context: _RiskContext, member_id: UUID) -> _RiskRecords:
+    decision = _unavailability_decision(context, member_id)
+    risk_state = (
+        ScrumStateWriteSet(member_availability_overlays=(decision.overlay,))
+        if decision.overlay is not None
+        else ScrumStateWriteSet()
+    )
+    event_type = "MEMBER_BECAME_UNAVAILABLE" if decision.evidence.outcome else "RISK_EVALUATED"
+    batch = _EvidenceBatch(
+        decision.evidence,
+        event_type,
+        state=risk_state,
+        counter_claims=(decision.claim,),
+        natural_claims=(decision.eligible,),
+    )
+    return _evidence_records(context.state, batch)
+
+
+def _unavailability_decision(context: _RiskContext, member_id: UUID) -> _UnavailabilityDecision:
     state, draws, rule = context.state, context.draws, context.rule
+    boundary = context.as_of
     claim, eligible = _natural_claim(
         _NaturalDecisionRequest(
             state, member_id, DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME, boundary.date()
@@ -386,11 +498,7 @@ def _unavailability_records(
     probability = _probability(rule, factors)
     outcome = draw.unit_value < probability
     duration = _duration_days(context, member_id, eligible.decision.occurrence)
-    overlay = (
-        _unavailability_overlay(replace(context, as_of=boundary), member_id, duration)
-        if outcome
-        else None
-    )
+    overlay = _unavailability_overlay(context, member_id, duration) if outcome else None
     evidence = _DecisionEvidence(
         rule,
         member_id,
@@ -405,23 +513,7 @@ def _unavailability_records(
         "member availability decision",
         None,
     )
-    risk_state = (
-        ScrumStateWriteSet(member_availability_overlays=(overlay,))
-        if overlay is not None
-        else ScrumStateWriteSet()
-    )
-    if not outcome:
-        return _RiskRecords(counter_claims=(claim,), natural_decision_claims=(eligible,))
-    return _evidence_records(
-        state,
-        _EvidenceBatch(
-            evidence,
-            "MEMBER_BECAME_UNAVAILABLE",
-            state=risk_state,
-            counter_claims=(claim,),
-            natural_claims=(eligible,),
-        ),
-    )
+    return _UnavailabilityDecision(evidence, overlay, claim, eligible)
 
 
 def _evidence_records(state: LiveTeamState, batch: _EvidenceBatch) -> _RiskRecords:
@@ -500,7 +592,18 @@ def _merge_write_sets(left: ScrumStateWriteSet, right: ScrumStateWriteSet) -> Sc
     return ScrumStateWriteSet(**values)
 
 
+def _with_write_set(state: LiveTeamState, write_set: ScrumStateWriteSet) -> LiveTeamState:
+    values = {}
+    for name in state.scrum.__dataclass_fields__:
+        records = {_identity(item): item for item in getattr(state.scrum, name)}
+        records.update({_identity(item): item for item in getattr(write_set, name)})
+        values[name] = tuple(records.values())
+    return LiveTeamState(state.aggregate, type(state.scrum)(**values))
+
+
 def _identity(value: object) -> object:
+    if isinstance(value, MemberBusinessDateConsumption):
+        return value.member_id, value.business_date
     if hasattr(value, "id"):
         return value.id
     if hasattr(value, "visit_id"):
@@ -641,14 +744,22 @@ def _fallback_summary(evidence: _DecisionEvidence) -> str:
     return f"{evidence.rule.key.replace('_', ' ').title()} {result}: {evidence.cause}."
 
 
-def _threshold_crossed(
-    context: _RiskContext, visit: StatusVisitState, threshold: int
-) -> bool:
+def _threshold_crossed(context: _RiskContext, visit: StatusVisitState, threshold: int) -> bool:
     state, as_of = context.state, context.as_of
     cursor = state.aggregate.runtime.simulation_time
-    before = max(0, _microseconds(cursor - visit.entered_at) - visit.pause_microseconds)
-    after = max(0, _microseconds(as_of - visit.entered_at) - visit.pause_microseconds)
+    calendar = BusinessCalendar.from_blueprint(
+        state.aggregate.blueprint.team.timezone, state.aggregate.blueprint.calendar
+    )
+    before = _business_elapsed(calendar, visit, cursor)
+    after = _business_elapsed(calendar, visit, as_of)
     return before < threshold <= after
+
+
+def _business_elapsed(calendar: BusinessCalendar, visit: StatusVisitState, end: datetime) -> int:
+    if end <= visit.entered_at:
+        return 0
+    elapsed = calendar.elapsed(UtcInterval(visit.entered_at, end)).business
+    return max(0, _microseconds(elapsed) - visit.pause_microseconds)
 
 
 def _review_due(state: LiveTeamState, visit: StatusVisitState, as_of: datetime) -> bool:

@@ -1,13 +1,16 @@
 """Integration coverage for the coherent live-team store."""
 
+import json
 from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import func, select
 
+from app.v2.domain.live_slice import ProjectionPageQuery
 from app.v2.persistence.live_team_store import SqlAlchemyLiveTeamStore
 from app.v2.persistence.scrum_state_models import V2SprintModel, V2WorkItemModel
 from app.v2.persistence.team_models import V2TeamRuntimeModel
+from app.v2.persistence.unit_of_work import SqlAlchemyV2UnitOfWork
 from tests.v2.live_slice_support import create_aggregate
 from tests.v2.scrum_state_support import BLUEPRINT_JSON
 
@@ -64,3 +67,25 @@ def test_store_bootstrap_before_boundary_wakes_for_the_planned_sprint(v2_session
     assert not state.scrum.sprint_scope
     assert not state.scrum.status_visits
     assert not state.scrum.status_visit_samples
+
+
+def test_store_bootstrap_enqueues_dependency_ordered_jira_provisioning(v2_session_factory):
+    aggregate = create_aggregate(v2_session_factory, BLUEPRINT_JSON, STARTED_AT)
+    store = SqlAlchemyLiveTeamStore(v2_session_factory)
+
+    state = store.ensure_bootstrapped(aggregate.team.id, STARTED_AT)
+    store.ensure_bootstrapped(aggregate.team.id, STARTED_AT)
+
+    page = SqlAlchemyV2UnitOfWork(v2_session_factory).page_projection(
+        ProjectionPageQuery(aggregate.team.id, aggregate.run.id, None, 100)
+    )
+    operations = [intent.operation_type for intent in page.items]
+    assert operations[:2] == ["CREATE_PROJECT", "CREATE_BOARD"]
+    assert operations[2:] == ["CREATE_ISSUE"] * len(state.scrum.work_items)
+    project, board, *issues = page.items
+    assert json.loads(project.canonical_payload)["depends_on"] == []
+    assert json.loads(board.canonical_payload)["depends_on"] == [project.semantic_key]
+    assert all(
+        json.loads(issue.canonical_payload)["depends_on"] == [board.semantic_key]
+        for issue in issues
+    )

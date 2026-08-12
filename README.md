@@ -206,6 +206,13 @@ natural-decision state. Causal ground truth retains the exact policy/profile, fa
 draw, eligible people, wait/progress deltas, cause, and logical Jira intent. Deterministic fallback
 text describes committed mechanics; no language model participates in decisions.
 
+Every due stochastic branch records causal ground truth, including false outcomes; false evaluations
+create no visible activity, Jira intent, or mechanical state change. External dependency is decided
+once at the persisted visit-entry cursor. An accepted pause continues from the visit pause clock
+without another outcome draw or duplicate start event. Risk handlers consume accumulated same-tick
+state so terminal cancellation cannot be reopened by a later rule. Long-stay thresholds use team
+business-service elapsed time rather than wall time, excluding nights, weekends, and explicit pause.
+
 Lifecycle and status-transition payloads contain local semantic UUID dependencies plus logical Jira
 fields. The concrete adapter resolves board, sprint, and issue mappings at delivery time, so provider
 IDs do not leak into domain intents. A public-surface fake Jira acceptance exercises the production
@@ -214,6 +221,10 @@ board, issue, sprint, scope, start, complete, and transition delivery. It crosse
 restarts without catch-up work, retains intents during a provider outage, drains after recovery, and
 proves provider-success/local-receipt replay does not duplicate resources. This is local fake
 acceptance only; no live Jira, deployment, push, or UAT was performed.
+
+Production live-team bootstrap now composes the dependency-ordered project, board, and initial-issue
+intents and appends them atomically in its existing transaction. The acceptance reaches provisioning
+through that supported path and contains no test-only production command composer.
 
 From `backend/`, run:
 

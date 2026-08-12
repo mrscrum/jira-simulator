@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.v2.application.jira_provisioning import compose_jira_provisioning
 from app.v2.application.live_team import LiveTeamState
 from app.v2.domain.draw_source import SeededDrawSource
 from app.v2.domain.scrum_bootstrap import build_initial_scrum_state
@@ -21,6 +22,7 @@ from app.v2.persistence.team_models import (
     V2TeamModel,
     V2TeamRuntimeModel,
 )
+from app.v2.persistence.unit_of_work import append_projection_intents_in_session
 
 
 class LiveTeamStore(Protocol):
@@ -56,12 +58,15 @@ class SqlAlchemyLiveTeamStore:
                 session, ScrumStateQuery(team_id, aggregate.runtime.run_id)
             )
             if aggregate.runtime.state != "CREATED":
-                return LiveTeamState(aggregate, scrum)
-            state = build_initial_scrum_state(aggregate, started, SeededDrawSource(aggregate))
-            snapshot = self._scrum_mapper.add(session, state)
-            runtime = _running_runtime(session, aggregate, started)
-            self._after_scrum_persisted(session, state)
-            return LiveTeamState(replace(aggregate, runtime=runtime), snapshot)
+                live_state = LiveTeamState(aggregate, scrum)
+            else:
+                state = build_initial_scrum_state(aggregate, started, SeededDrawSource(aggregate))
+                snapshot = self._scrum_mapper.add(session, state)
+                runtime = _running_runtime(session, aggregate, started)
+                self._after_scrum_persisted(session, state)
+                live_state = LiveTeamState(replace(aggregate, runtime=runtime), snapshot)
+            append_projection_intents_in_session(session, compose_jira_provisioning(live_state))
+            return live_state
 
     def _after_scrum_persisted(self, session: Session, state: object) -> None:
         """Provide a narrow failure seam while preserving one transaction boundary."""

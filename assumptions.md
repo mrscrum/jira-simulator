@@ -435,3 +435,14 @@
   bootstrap; no separate proof/counter protocol or migration was introduced.
 - Built provisioning intents in the acceptance fixture through the public immutable intent and real
   unit-of-work boundaries because production team creation does not yet own Jira provisioning.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 1
+
+- Superseded the acceptance-only provisioning assumption: production live-team bootstrap now owns
+  idempotent project/board/initial-issue intent composition and appends it in the existing bootstrap
+  transaction.
+- Kept visit-triggered external dependency on its approved visit UUID and fixed occurrence zero.
+  Accepted Task 6 natural-decision tables and owner checks support only cancellation and member
+  unavailability without a migration, so dependency exactly-once persistence uses its immutable
+  ground-truth record plus the persisted runtime entry cursor; accepted continuation uses the visit
+  pause clock and performs no redraw.

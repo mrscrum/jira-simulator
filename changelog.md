@@ -664,3 +664,22 @@
   without duplicating projects, issues, or sprints.
 - Risk pauses exclude only their selected visit from progress, while unrelated work continues; Jira
   payloads retain semantic UUID dependencies and never embed provider resource IDs.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 1
+
+### Changed
+
+- Moved project, board, and initial-issue provisioning into the supported production bootstrap
+  transaction using a small logical-intent composer; the fake-Jira acceptance no longer constructs
+  its own provisioning commands.
+- Persisted causal ground truth for every due false stochastic risk evaluation without visible
+  activity, projection intents, or mechanical state changes.
+- Evaluated risk handlers sequentially against accumulated state and continued accepted dependency
+  pauses from persisted visit clocks without another outcome draw or start record.
+
+### Fixed
+
+- Prevented external-dependency decisions from being redrawn after their status-entry cursor and
+  prevented a later dependency handler from reopening a visit cancelled in the same tick.
+- Long-stay thresholds now use team business-service elapsed time, so nights and weekends do not
+  age a visit toward its sampled dwell threshold.

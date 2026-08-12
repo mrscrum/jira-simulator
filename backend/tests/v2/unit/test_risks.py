@@ -147,6 +147,161 @@ def test_member_unavailability_persists_zero_capacity_overlay(v2_session_factory
     )
 
 
+def test_due_false_review_rejection_persists_evaluation_without_activity(v2_session_factory):
+    rule = _rule(
+        "REVIEW_REJECTION",
+        "STATUS_EXITED",
+        probability=0.0,
+        mechanical_parameters={"return_status": "DEVELOPMENT"},
+    )
+    state = _review_completed_state(v2_session_factory, rule)
+    review = next(visit for visit in state.scrum.status_visits if visit.status_key == "CODE_REVIEW")
+
+    evaluation = evaluate_due_risks(state, review.closed_at, SeededDrawSource(state.aggregate))
+
+    assert evaluation.activity == ()
+    assert evaluation.state == _empty_write_set()
+    assert json.loads(evaluation.ground_truth[0].canonical_payload)["outcome"] is False
+
+
+def test_due_false_cancellation_persists_evaluation_without_activity(v2_session_factory):
+    rule = _rule(
+        "CANCELLATION",
+        "WORKDAY_STARTED",
+        probability=0.0,
+        mechanical_parameters={"target_status": "CANCELLED"},
+    )
+    state = _state(v2_session_factory, [rule], cancelled=True)
+
+    evaluation = evaluate_due_risks(
+        state, BOUNDARY + timedelta(hours=1), SeededDrawSource(state.aggregate)
+    )
+
+    assert evaluation.activity == ()
+    assert evaluation.state == _empty_write_set()
+    assert json.loads(evaluation.ground_truth[0].canonical_payload)["outcome"] is False
+    active_count = sum(
+        item.lifecycle is WorkItemLifecycle.ACTIVE for item in state.scrum.work_items
+    )
+    assert len(evaluation.natural_decision_claims) == active_count
+    assert len(evaluation.ground_truth) == active_count
+
+
+def test_due_false_dependency_is_recorded_once_for_the_entry(v2_session_factory):
+    rule = _rule(
+        "EXTERNAL_DEPENDENCY",
+        "STATUS_ENTERED",
+        probability=0.0,
+        mechanical_parameters={"wait_hours": 1},
+    )
+    state = _state(v2_session_factory, [rule])
+    first = evaluate_due_risks(
+        state, BOUNDARY + timedelta(minutes=30), SeededDrawSource(state.aggregate)
+    )
+    resumed = _at_cursor(state, BOUNDARY + timedelta(minutes=30))
+    second = evaluate_due_risks(
+        resumed,
+        BOUNDARY + timedelta(hours=1),
+        _RejectDependencyDraws(state.aggregate),
+    )
+
+    assert first.activity == ()
+    assert json.loads(first.ground_truth[0].canonical_payload)["outcome"] is False
+    assert second.ground_truth == ()
+
+
+def test_due_false_unavailability_persists_evaluation_without_activity(v2_session_factory):
+    rule = _rule(
+        "MEMBER_UNAVAILABLE",
+        "WORKDAY_STARTED",
+        probability=0.0,
+        mechanical_parameters={"duration_days": 2},
+    )
+    state = _state(v2_session_factory, [rule])
+
+    evaluation = evaluate_due_risks(
+        state, BOUNDARY + timedelta(hours=1), SeededDrawSource(state.aggregate)
+    )
+
+    assert evaluation.activity == ()
+    assert evaluation.state == _empty_write_set()
+    assert json.loads(evaluation.ground_truth[0].canonical_payload)["outcome"] is False
+    assert len(evaluation.natural_decision_claims) == 1
+
+
+def test_dependency_continuation_does_not_redraw_or_emit_another_start(v2_session_factory):
+    rule = _rule(
+        "EXTERNAL_DEPENDENCY",
+        "STATUS_ENTERED",
+        mechanical_parameters={"wait_hours": 1},
+    )
+    state = _state(v2_session_factory, [rule])
+    visit = _active_visit(state)
+    first = evaluate_due_risks(
+        state, BOUNDARY + timedelta(minutes=30), SeededDrawSource(state.aggregate)
+    )
+    blocked = first.state.status_visits[0]
+    resumed = _with_visit(state, blocked, BOUNDARY + timedelta(minutes=30))
+
+    second = evaluate_due_risks(
+        resumed,
+        BOUNDARY + timedelta(hours=1),
+        _RejectDependencyDraws(state.aggregate),
+    )
+
+    continued = second.state.status_visits[0]
+    assert continued.id == visit.id
+    assert continued.pause_microseconds == ONE_HOUR_MICROSECONDS
+    assert second.activity == ()
+    assert second.ground_truth == ()
+
+
+def test_long_stay_does_not_cross_during_non_business_weekend_time(v2_session_factory):
+    rule = _rule(
+        "LONG_STAY",
+        "STATUS_AGED",
+        mechanical_parameters={"threshold_multiplier": 10.0},
+    )
+    state = _state(v2_session_factory, [rule])
+    visit = max(
+        (item for item in state.scrum.status_visits if item.lifecycle is StatusVisitLifecycle.OPEN),
+        key=lambda item: _sample(state, item.id).dwell_sampled_hours,
+    )
+    friday_start = BOUNDARY + timedelta(days=1)
+    monday_start = BOUNDARY + timedelta(days=4)
+    state = _at_cursor(state, friday_start)
+
+    evaluation = evaluate_due_risks(state, monday_start, SeededDrawSource(state.aggregate))
+
+    assert all(event.aggregate_id != visit.work_item_id for event in evaluation.activity)
+
+
+def test_cancellation_has_terminal_precedence_over_same_tick_dependency(v2_session_factory):
+    rules = [
+        _rule(
+            "CANCELLATION",
+            "WORKDAY_STARTED",
+            mechanical_parameters={"target_status": "CANCELLED"},
+        ),
+        _rule(
+            "EXTERNAL_DEPENDENCY",
+            "STATUS_ENTERED",
+            mechanical_parameters={"wait_hours": 1},
+        ),
+    ]
+    state = _state(v2_session_factory, rules, cancelled=True)
+    visit = _active_visit(state)
+
+    evaluation = evaluate_due_risks(
+        state, BOUNDARY + timedelta(hours=1), SeededDrawSource(state.aggregate)
+    )
+
+    final_visit = next(item for item in evaluation.state.status_visits if item.id == visit.id)
+    assert final_visit.lifecycle is StatusVisitLifecycle.CLOSED
+    assert final_visit.member_id is None
+    assert final_visit.pause_microseconds == visit.pause_microseconds
+
+
 def _state(v2_session_factory, rules: list[dict], *, cancelled: bool = False) -> LiveTeamState:
     document = json.loads(BLUEPRINT_JSON)
     document["risks"] = {
@@ -341,6 +496,27 @@ def _at_cursor(state: LiveTeamState, cursor: datetime) -> LiveTeamState:
     return replace(state, aggregate=replace(state.aggregate, runtime=runtime))
 
 
+def _with_visit(state: LiveTeamState, changed: StatusVisitState, cursor: datetime) -> LiveTeamState:
+    visits = tuple(changed if item.id == changed.id else item for item in state.scrum.status_visits)
+    return _at_cursor(replace(state, scrum=replace(state.scrum, status_visits=visits)), cursor)
+
+
+def _empty_write_set():
+    from app.v2.domain.scrum_state import ScrumStateWriteSet
+
+    return ScrumStateWriteSet()
+
+
+class _RejectDependencyDraws:
+    def __init__(self, aggregate) -> None:
+        self._delegate = SeededDrawSource(aggregate)
+
+    def draw(self, decision, draw_index=0):
+        if decision.decision_type is DecisionType.RISK_EXTERNAL_DEPENDENCY_OUTCOME:
+            raise AssertionError("dependency outcome was redrawn")
+        return self._delegate.draw(decision, draw_index)
+
+
 def _active_visit(state: LiveTeamState) -> StatusVisitState:
     return next(
         visit for visit in state.scrum.status_visits if visit.lifecycle is StatusVisitLifecycle.OPEN
@@ -357,11 +533,12 @@ def _rule(
     key: str,
     trigger: str,
     *,
+    probability: float = 1.0,
     mechanical_parameters: dict | None = None,
 ) -> dict:
     return {
-        "base_probability": 1.0,
-        "clamp": {"max": 1.0, "min": 1.0},
+        "base_probability": probability,
+        "clamp": {"max": probability, "min": probability},
         "coefficients": {
             "complexity": 0.2,
             "poor_description": 0.2,

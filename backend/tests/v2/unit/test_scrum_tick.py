@@ -102,9 +102,7 @@ def test_tick_explains_queue_when_no_member_has_the_required_responsibility():
     developer = BLUEPRINT.members[1].model_copy(
         update={"responsibilities": (Responsibility(activity="analysis", proficiency=1.0),)}
     )
-    blueprint = BLUEPRINT.model_copy(
-        update={"members": (BLUEPRINT.members[0], developer)}
-    )
+    blueprint = BLUEPRINT.model_copy(update={"members": (BLUEPRINT.members[0], developer)})
     state = _live_state(blueprint=blueprint)
 
     command = calculate_scrum_tick(
@@ -190,13 +188,9 @@ def test_tick_uses_minimum_overlapping_availability_fraction_once():
 
 def test_tick_applies_fraction_once_after_the_prefraction_daily_cap():
     interval = _availability(DAY_START, DAY_START + timedelta(hours=8), 0.5, 6.0)
-    blueprint = _long_touch_blueprint(
-        _blueprint_with_developer_availability((interval,))
-    )
+    blueprint = _long_touch_blueprint(_blueprint_with_developer_availability((interval,)))
     visit = _long_visit(blueprint, DAY_START)
-    state = _with_runtime_start(
-        _live_state(blueprint=blueprint, visits=(visit,)), DAY_START
-    )
+    state = _with_runtime_start(_live_state(blueprint=blueprint, visits=(visit,)), DAY_START)
 
     command = calculate_scrum_tick(
         state,
@@ -221,12 +215,8 @@ def test_tick_applies_fraction_once_after_the_prefraction_daily_cap():
 def test_tick_classifies_the_constraint_that_limits_partial_allocation(
     availability_fraction, starting_consumption, expected_reason
 ):
-    interval = _availability(
-        DAY_START, DAY_START + ONE_HOUR, availability_fraction, 6.0
-    )
-    blueprint = _long_touch_blueprint(
-        _blueprint_with_developer_availability((interval,))
-    )
+    interval = _availability(DAY_START, DAY_START + ONE_HOUR, availability_fraction, 6.0)
+    blueprint = _long_touch_blueprint(_blueprint_with_developer_availability((interval,)))
     visit = _long_visit(blueprint, DAY_START)
     consumption = (
         MemberBusinessDateConsumption(
@@ -260,9 +250,7 @@ def test_tick_classifies_the_constraint_that_limits_partial_allocation(
 
 
 def test_tick_reallocates_at_configured_and_runtime_availability_boundaries():
-    unavailable_first_hour = _availability(
-        DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0
-    )
+    unavailable_first_hour = _availability(DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0)
     backup_id = member_rng_id(TEAM_ID, 2)
     blueprint = _long_touch_blueprint(_blueprint_with_backup(unavailable_first_hour))
     backup_overlay = replace(
@@ -302,16 +290,12 @@ def test_tick_reallocates_at_configured_and_runtime_availability_boundaries():
 
 
 def test_tick_retains_early_unavailable_queue_cause_when_work_progresses_later():
-    unavailable_first_hour = _availability(
-        DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0
-    )
+    unavailable_first_hour = _availability(DAY_START, DAY_START + ONE_HOUR, 0.0, 6.0)
     blueprint = _long_touch_blueprint(
         _blueprint_with_developer_availability((unavailable_first_hour,))
     )
     visit = _long_visit(blueprint, DAY_START)
-    state = _with_runtime_start(
-        _live_state(blueprint=blueprint, visits=(visit,)), DAY_START
-    )
+    state = _with_runtime_start(_live_state(blueprint=blueprint, visits=(visit,)), DAY_START)
 
     command = calculate_scrum_tick(
         state,
@@ -341,9 +325,7 @@ def test_tick_shares_one_members_labor_across_concurrent_wip():
         relative_rank=3,
     )
     second_visit = replace(_unowned_visit(second_work), member_id=MEMBER_ID)
-    state = _live_state(
-        work_items=(first_work, second_work), visits=(first_visit, second_visit)
-    )
+    state = _live_state(work_items=(first_work, second_work), visits=(first_visit, second_visit))
 
     command = calculate_scrum_tick(
         state, _request(NOW + ONE_HOUR), SeededDrawSource(state.aggregate)
@@ -394,11 +376,14 @@ def test_tick_completes_forward_route_without_fabricating_a_zero_touch_visit():
     assert not command.state.status_visit_samples
     assert not command.counter_claims
     assert len(command.live_slice.activity) == 1
-    assert len(command.live_slice.ground_truth) == 1
+    assert [record.record_type for record in command.live_slice.ground_truth] == [
+        "ISSUE_STATE",
+        "RISK_EVALUATION",
+    ]
     assert len(command.live_slice.projection_intents) == 1
-    assert "moved to Done" in json.loads(
-        command.live_slice.activity[0].canonical_payload
-    )["summary"]
+    assert (
+        "moved to Done" in json.loads(command.live_slice.activity[0].canonical_payload)["summary"]
+    )
     payload = _ground_truth(command)
     assert payload["reason"] == "TRANSITIONED"
     assert payload["business_delta_microseconds"] < 4.5 * ONE_HOUR_MICROSECONDS
@@ -409,9 +394,7 @@ def test_tick_stops_at_early_visit_completion_and_leaves_the_residual_interval()
     state = _live_state()
     requested_end = NOW + timedelta(hours=4, minutes=30)
 
-    first = calculate_scrum_tick(
-        state, _request(requested_end), SeededDrawSource(state.aggregate)
-    )
+    first = calculate_scrum_tick(state, _request(requested_end), SeededDrawSource(state.aggregate))
     continued_state = _committed_state(state, first)
     second = calculate_scrum_tick(
         continued_state,
@@ -525,8 +508,7 @@ def _unowned_visit(work_item) -> StatusVisitState:
         == ("DEVELOPMENT", work_item.issue_type, work_item.story_points)
     )
     required = round(
-        sample_touch(touch_bounds(entry), draw.unit_value).sampled_hours
-        * ONE_HOUR_MICROSECONDS
+        sample_touch(touch_bounds(entry), draw.unit_value).sampled_hours * ONE_HOUR_MICROSECONDS
     )
     visit = replace(
         source,
@@ -565,9 +547,7 @@ def _availability(
 
 def _blueprint_with_developer_availability(intervals):
     developer = BLUEPRINT.members[1].model_copy(update={"availability": intervals})
-    return BLUEPRINT.model_copy(
-        update={"members": (BLUEPRINT.members[0], developer)}
-    )
+    return BLUEPRINT.model_copy(update={"members": (BLUEPRINT.members[0], developer)})
 
 
 def _blueprint_with_backup(primary_interval):
@@ -575,16 +555,13 @@ def _blueprint_with_backup(primary_interval):
     backup = BLUEPRINT.members[1].model_copy(
         update={"name": "Backup Developer", "availability": ()}
     )
-    return BLUEPRINT.model_copy(
-        update={"members": (BLUEPRINT.members[0], primary, backup)}
-    )
+    return BLUEPRINT.model_copy(update={"members": (BLUEPRINT.members[0], primary, backup)})
 
 
 def _long_touch_blueprint(blueprint):
     entries = tuple(
         entry.model_copy(update={"touch_min": 10.0, "touch_max": 10.0})
-        if (entry.status_key, entry.issue_type, entry.story_points)
-        == ("DEVELOPMENT", "STORY", 3)
+        if (entry.status_key, entry.issue_type, entry.story_points) == ("DEVELOPMENT", "STORY", 3)
         else entry
         for entry in blueprint.timing.entries
     )
@@ -600,12 +577,10 @@ def _long_visit(blueprint, entered_at):
     entry = next(
         item
         for item in blueprint.timing.entries
-        if (item.status_key, item.issue_type, item.story_points)
-        == ("DEVELOPMENT", "STORY", 3)
+        if (item.status_key, item.issue_type, item.story_points) == ("DEVELOPMENT", "STORY", 3)
     )
     required = round(
-        sample_touch(touch_bounds(entry), draw.unit_value).sampled_hours
-        * ONE_HOUR_MICROSECONDS
+        sample_touch(touch_bounds(entry), draw.unit_value).sampled_hours * ONE_HOUR_MICROSECONDS
     )
     return replace(
         source,
