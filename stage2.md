@@ -1,5 +1,8 @@
 # Stage 2 — Configuration UI Spec
 
+> **Historical v1 stage specification — do not execute for v2.** Start with
+> [`docs/v2/README.md`](docs/v2/README.md).
+
 ## Overview
 
 A React + Tailwind CSS single-page application served by Nginx from the EC2 instance. All configuration is persisted via the Stage 1 FastAPI backend. No simulation logic lives in the frontend — it is purely config and control.

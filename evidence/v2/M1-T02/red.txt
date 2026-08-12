@@ -1,0 +1,38 @@
+
+==================================== ERRORS ====================================
+______________ ERROR collecting tests/v2/unit/test_live_slice.py _______________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_live_slice.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_live_slice.py:6: in <module>
+    from app.v2.domain.live_slice import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.live_slice'
+__________ ERROR collecting tests/v2/integration/test_unit_of_work.py __________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/integration/test_unit_of_work.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/integration/test_unit_of_work.py:5: in <module>
+    from app.v2.domain.live_slice import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.live_slice'
+______ ERROR collecting tests/v2/integration/test_projection_boundary.py _______
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/integration/test_projection_boundary.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/integration/test_projection_boundary.py:6: in <module>
+    from app.v2.domain.live_slice import LedgerPageQuery, ProjectionIntent, ProjectionPageQuery
+E   ModuleNotFoundError: No module named 'app.v2.domain.live_slice'
+=========================== short test summary info ============================
+ERROR tests/v2/unit/test_live_slice.py
+ERROR tests/v2/integration/test_unit_of_work.py
+ERROR tests/v2/integration/test_projection_boundary.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+3 errors in 0.16s

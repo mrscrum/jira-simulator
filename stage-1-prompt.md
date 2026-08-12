@@ -1,5 +1,8 @@
 # Stage 1 — Data Model & Database Layer
 
+> **Historical v1 stage prompt — do not execute for v2.** Start with
+> [`docs/v2/README.md`](docs/v2/README.md).
+
 You are continuing the Jira Team Simulator project. Read AGENTS.md first for full
 project context. Read agent_instruction.md for current state and handoff notes.
 

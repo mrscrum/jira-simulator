@@ -14,6 +14,7 @@ from app.integrations.exceptions import (
 logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 30
+JIRA_PAGE_SIZE = 50
 
 
 class JiraClient:
@@ -434,13 +435,40 @@ class JiraClient:
     async def get_board_sprints(
         self, board_id: int, state: str | None = None
     ) -> list[dict]:
-        """Get sprints for a board, optionally filtered by state."""
-        params = {}
-        if state:
-            params["state"] = state
-        response = await self._request(
-            "GET",
-            f"/rest/agile/1.0/board/{board_id}/sprint",
-            params=params,
-        )
-        return response.json().get("values", [])
+        """Get every sprint page for a board, optionally filtered by state."""
+        sprints = []
+        start_at = 0
+        while True:
+            params = {"startAt": start_at, "maxResults": JIRA_PAGE_SIZE}
+            if state:
+                params["state"] = state
+            response = await self._request(
+                "GET",
+                f"/rest/agile/1.0/board/{board_id}/sprint",
+                params=params,
+            )
+            document = response.json()
+            values = document.get("values", [])
+            sprints.extend(values)
+            next_start = _next_page_start(document, start_at, bool(values))
+            if next_start is None:
+                return sprints
+            start_at = next_start
+
+
+def _next_page_start(document: dict, current_start: int, has_values: bool) -> int | None:
+    if document.get("isLast") is True or not has_values:
+        return None
+    pagination_keys = {"isLast", "startAt", "maxResults", "total"}
+    if pagination_keys.isdisjoint(document):
+        return None
+    page_start = document.get("startAt", current_start)
+    page_size = document.get("maxResults", JIRA_PAGE_SIZE)
+    if not isinstance(page_start, int) or not isinstance(page_size, int):
+        return None
+    next_start = page_start + page_size
+    total = document.get("total")
+    reached_total = isinstance(total, int) and next_start >= total
+    if next_start <= current_start or reached_total:
+        return None
+    return next_start

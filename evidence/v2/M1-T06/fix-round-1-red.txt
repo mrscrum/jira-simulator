@@ -1,0 +1,869 @@
+....................................FF..........FFFFFFFFFFFFF......FF.FF [ 31%]
+......FFF.........................FF...FFFFFFF.......F.................. [ 62%]
+........................................................................ [ 93%]
+...............                                                          [100%]
+=================================== FAILURES ===================================
+_ test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind[RISK_CANCELLATION_OUTCOME-state0] _
+
+decision_type = <DecisionType.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>
+state = ScrumStateWriteSet(member_identities=(MemberIdentity(id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), team_id=UUID('30...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+
+    @pytest.mark.parametrize(
+        "decision_type,state",
+        [
+            (
+                DecisionType.RISK_CANCELLATION_OUTCOME,
+                ScrumStateWriteSet(member_identities=(make_member(),)),
+            ),
+            (
+                DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME,
+                ScrumStateWriteSet(work_items=(make_work_item(),)),
+            ),
+        ],
+    )
+    def test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind(decision_type, state):
+        owner = state.member_identities[0] if state.member_identities else state.work_items[0]
+        counter, eligible = _natural_pair(decision_type, owner.id)
+
+>       with pytest.raises(ValueError, match="owner"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:435: Failed
+_ test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind[RISK_MEMBER_UNAVAILABLE_OUTCOME-state1] _
+
+decision_type = <DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+
+    @pytest.mark.parametrize(
+        "decision_type,state",
+        [
+            (
+                DecisionType.RISK_CANCELLATION_OUTCOME,
+                ScrumStateWriteSet(member_identities=(make_member(),)),
+            ),
+            (
+                DecisionType.RISK_MEMBER_UNAVAILABLE_OUTCOME,
+                ScrumStateWriteSet(work_items=(make_work_item(),)),
+            ),
+        ],
+    )
+    def test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind(decision_type, state):
+        owner = state.member_identities[0] if state.member_identities else state.work_items[0]
+        counter, eligible = _natural_pair(decision_type, owner.id)
+
+>       with pytest.raises(ValueError, match="owner"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:435: Failed
+_ test_committed_result_deeply_revalidates_runtime_and_ledger_elements[runtime] _
+
+case = 'runtime'
+
+    @pytest.mark.parametrize("case", ["runtime", "activity", "ground_truth", "projection"])
+    def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
+        valid = _committed_result()
+        malformed = _malformed_committed_live(case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_authoritative_slice.py:561: Failed
+_ test_committed_result_deeply_revalidates_runtime_and_ledger_elements[activity] _
+
+case = 'activity'
+
+    @pytest.mark.parametrize("case", ["runtime", "activity", "ground_truth", "projection"])
+    def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
+        valid = _committed_result()
+        malformed = _malformed_committed_live(case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_authoritative_slice.py:561: Failed
+_ test_committed_result_deeply_revalidates_runtime_and_ledger_elements[ground_truth] _
+
+case = 'ground_truth'
+
+    @pytest.mark.parametrize("case", ["runtime", "activity", "ground_truth", "projection"])
+    def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
+        valid = _committed_result()
+        malformed = _malformed_committed_live(case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_authoritative_slice.py:561: Failed
+_ test_committed_result_deeply_revalidates_runtime_and_ledger_elements[projection] _
+
+case = 'projection'
+
+    @pytest.mark.parametrize("case", ["runtime", "activity", "ground_truth", "projection"])
+    def test_committed_result_deeply_revalidates_runtime_and_ledger_elements(case):
+        valid = _committed_result()
+        malformed = _malformed_committed_live(case)
+
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_authoritative_slice.py:561: Failed
+_____ test_committed_result_requires_exact_ledger_element_types[activity] ______
+
+collection_name = 'activity'
+
+    @pytest.mark.parametrize(
+        "collection_name",
+        ["activity", "ground_truth", "projection_intents"],
+    )
+    def test_committed_result_requires_exact_ledger_element_types(collection_name):
+        valid = _committed_result()
+        malformed = replace(
+            valid.live_slice,
+            **{collection_name: (object(),)},
+        )
+
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_authoritative_slice.py:583: Failed
+___ test_committed_result_requires_exact_ledger_element_types[ground_truth] ____
+
+collection_name = 'ground_truth'
+
+    @pytest.mark.parametrize(
+        "collection_name",
+        ["activity", "ground_truth", "projection_intents"],
+    )
+    def test_committed_result_requires_exact_ledger_element_types(collection_name):
+        valid = _committed_result()
+        malformed = replace(
+            valid.live_slice,
+            **{collection_name: (object(),)},
+        )
+
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_authoritative_slice.py:583: Failed
+_ test_committed_result_requires_exact_ledger_element_types[projection_intents] _
+
+collection_name = 'projection_intents'
+
+    @pytest.mark.parametrize(
+        "collection_name",
+        ["activity", "ground_truth", "projection_intents"],
+    )
+    def test_committed_result_requires_exact_ledger_element_types(collection_name):
+        valid = _committed_result()
+        malformed = replace(
+            valid.live_slice,
+            **{collection_name: (object(),)},
+        )
+
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_authoritative_slice.py:583: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[counter_absent] _
+
+case = 'counter_absent'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[counter_divergent] _
+
+case = 'counter_divergent'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[counter_duplicate] _
+
+case = 'counter_duplicate'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_absent] _
+
+case = 'evaluation_absent'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_divergent] _
+
+case = 'evaluation_divergent'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_duplicate] _
+
+case = 'evaluation_duplicate'
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "counter_absent",
+            "counter_divergent",
+            "counter_duplicate",
+            "evaluation_absent",
+            "evaluation_divergent",
+            "evaluation_duplicate",
+        ],
+    )
+    def test_committed_result_claims_are_unique_exact_snapshot_members(case):
+        valid = _committed_result()
+        changes = _result_membership_change(case)
+        values = {
+            "live_slice": valid.live_slice,
+            "state": valid.state,
+            "counters": valid.counters,
+            "natural_decision_evaluations": valid.natural_decision_evaluations,
+        }
+
+>       with pytest.raises(ValueError, match="snapshot"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:631: Failed
+_ test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[overlay] _
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'overlay'
+
+    @pytest.mark.parametrize("case", ["overlay", "work", "sprint", "scope", "visit"])
+    def test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"forbidden-{case}")
+        command = AuthoritativeTickSliceCommit(live, _forbidden_after_image(case), (), ())
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:380: Failed
+__ test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[work] __
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'work'
+
+    @pytest.mark.parametrize("case", ["overlay", "work", "sprint", "scope", "visit"])
+    def test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"forbidden-{case}")
+        command = AuthoritativeTickSliceCommit(live, _forbidden_after_image(case), (), ())
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:380: Failed
+_ test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[scope] __
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'scope'
+
+    @pytest.mark.parametrize("case", ["overlay", "work", "sprint", "scope", "visit"])
+    def test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"forbidden-{case}")
+        command = AuthoritativeTickSliceCommit(live, _forbidden_after_image(case), (), ())
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:380: Failed
+_ test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[visit] __
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'visit'
+
+    @pytest.mark.parametrize("case", ["overlay", "work", "sprint", "scope", "visit"])
+    def test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"forbidden-{case}")
+        command = AuthoritativeTickSliceCommit(live, _forbidden_after_image(case), (), ())
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:380: Failed
+________ test_consumption_identity_coordinates_are_explicitly_immutable ________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_consumption_identity_coordinates_are_explicitly_immutable(atomic_context):
+        SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+            atomic_context.command
+        )
+        original = make_consumption()
+        changed = replace(original, business_date=original.business_date + timedelta(days=1))
+        identity = (str(TEAM_ID), str(RUN_ID), str(original.member_id), original.business_date)
+        with atomic_context.session_factory() as session:
+            model = session.get(V2MemberBusinessDateConsumptionModel, identity)
+            assert model is not None
+>           with pytest.raises(ScrumStateConflictError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ScrumStateConflictError
+
+tests/v2/integration/test_authoritative_unit_of_work.py:411: Failed
+_________ test_global_overlay_id_cannot_steal_a_row_from_another_team __________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+resolved_blueprint_json = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+requested_at = datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)
+
+    def test_global_overlay_id_cannot_steal_a_row_from_another_team(
+        atomic_context, resolved_blueprint_json, requested_at
+    ):
+        document = json.loads(resolved_blueprint_json)
+        document["team"]["name"] = "Authoritative collision team"
+        other = create_aggregate(
+            atomic_context.session_factory,
+            canonical_json(document),
+            requested_at,
+        )
+        other_state = _other_team_overlay_state(other)
+        mapper = SqlAlchemyScrumStateMapper()
+        with atomic_context.session_factory.begin() as session:
+            assert session.scalar(text("PRAGMA foreign_keys")) == 1
+            mapper.add(session, other_state)
+        with atomic_context.session_factory() as session:
+            other_before = mapper.load(session, ScrumStateQuery(other.team.id, other.run.id))
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 0, "cross-team-overlay")
+        state = ScrumStateWriteSet(member_availability_overlays=(make_overlay(),))
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:455: Failed
+______________ test_global_work_id_cannot_move_a_row_between_runs ______________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_global_work_id_cannot_move_a_row_between_runs(atomic_context):
+        second_run_id, item = _seed_cross_run_item(atomic_context)
+        mapper = SqlAlchemyScrumStateMapper()
+        with atomic_context.session_factory() as session:
+            other_before = mapper.load(session, ScrumStateQuery(TEAM_ID, second_run_id))
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 0, "cross-run-work")
+        state = ScrumStateWriteSet(work_items=(replace(item, run_id=RUN_ID),))
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:495: Failed
+_ test_visible_wrong_natural_owner_rejects_before_requesting_session[cancellation-member] _
+
+self = <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10b828080>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('234e775c-b359-50a4-809e-e44c15424c8a'), team_i...pe.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        if type(commit) is not AuthoritativeTickSliceCommit:
+            raise TypeError("commit must be an AuthoritativeTickSliceCommit")
+        commit.validate()
+        with self._session_factory() as session:
+            try:
+>               committed = self._commit_authoritative_in_session(session, commit)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/v2/persistence/unit_of_work.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:132: in _commit_authoritative_in_session
+    counters = mapper.apply_counter_claims(session, commit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/persistence/scrum_state_mapper.py:181: in apply_counter_claims
+    counters = tuple(
+app/v2/persistence/scrum_state_mapper.py:182: in <genexpr>
+    _apply_counter_claim(session, commit, claim)
+app/v2/persistence/scrum_state_mapper.py:393: in _apply_counter_claim
+    current = _require_counter(session, commit, claim)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session = <sqlalchemy.orm.session.Session object at 0x10b828b90>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('234e775c-b359-50a4-809e-e44c15424c8a'), team_i...pe.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.NATURAL_DECISION_OCCURRENCE: 'NATURAL_DECISI...cope_id=UUID('e3410d9a-7955-59cf-9ef8-4b3b858ff9e8'), scope_key='RISK_CANCELLATION_OUTCOME'), expected_next=0, count=1)
+
+    def _require_counter(
+        session: Session,
+        commit: AuthoritativeTickSliceCommit,
+        claim: SemanticCounterClaim,
+    ) -> SemanticCounter:
+        counter = _load_counter(session, commit, claim)
+        if counter is None:
+>           raise CounterClaimStaleError("semantic counter row is missing")
+E           app.v2.persistence.scrum_state_mapper.CounterClaimStaleError: semantic counter row is missing
+
+app/v2/persistence/scrum_state_mapper.py:475: CounterClaimStaleError
+
+The above exception was the direct cause of the following exception:
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'cancellation-member'
+
+    @pytest.mark.parametrize("case", ["cancellation-member", "unavailable-work"])
+    def test_visible_wrong_natural_owner_rejects_before_requesting_session(
+        atomic_context, case
+    ):
+        command = _crossbound_natural_command(atomic_context, case)
+        wrong_state = (
+            ScrumStateWriteSet(member_identities=(make_member(),))
+            if case == "cancellation-member"
+            else ScrumStateWriteSet(work_items=(make_work_item(),))
+        )
+        object.__setattr__(command, "state", wrong_state)
+        counting = CountingSessionFactory(atomic_context.session_factory)
+
+        with pytest.raises(ValueError, match="owner"):
+>           SqlAlchemyV2UnitOfWork(counting).commit_authoritative_slice(command)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:659:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:122: in commit_authoritative_slice
+    _raise_authoritative_error(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+error = CounterClaimStaleError('semantic counter row is missing')
+
+    def _raise_authoritative_error(error: Exception) -> NoReturn:
+        if isinstance(error, CounterClaimStaleError):
+>           raise StaleSemanticCounter(str(error)) from error
+E           app.v2.persistence.unit_of_work.StaleSemanticCounter: semantic counter row is missing
+
+app/v2/persistence/unit_of_work.py:236: StaleSemanticCounter
+_ test_visible_wrong_natural_owner_rejects_before_requesting_session[unavailable-work] _
+
+self = <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10bb36300>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('73e65127-d8fc-5137-b854-2f9ae854cf64'), team_i...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        if type(commit) is not AuthoritativeTickSliceCommit:
+            raise TypeError("commit must be an AuthoritativeTickSliceCommit")
+        commit.validate()
+        with self._session_factory() as session:
+            try:
+>               committed = self._commit_authoritative_in_session(session, commit)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/v2/persistence/unit_of_work.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:132: in _commit_authoritative_in_session
+    counters = mapper.apply_counter_claims(session, commit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/persistence/scrum_state_mapper.py:181: in apply_counter_claims
+    counters = tuple(
+app/v2/persistence/scrum_state_mapper.py:182: in <genexpr>
+    _apply_counter_claim(session, commit, claim)
+app/v2/persistence/scrum_state_mapper.py:393: in _apply_counter_claim
+    current = _require_counter(session, commit, claim)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session = <sqlalchemy.orm.session.Session object at 0x10bb37050>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('73e65127-d8fc-5137-b854-2f9ae854cf64'), team_i...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.NATURAL_DECISION_OCCURRENCE: 'NATURAL_DECISI...d=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), scope_key='RISK_MEMBER_UNAVAILABLE_OUTCOME'), expected_next=0, count=1)
+
+    def _require_counter(
+        session: Session,
+        commit: AuthoritativeTickSliceCommit,
+        claim: SemanticCounterClaim,
+    ) -> SemanticCounter:
+        counter = _load_counter(session, commit, claim)
+        if counter is None:
+>           raise CounterClaimStaleError("semantic counter row is missing")
+E           app.v2.persistence.scrum_state_mapper.CounterClaimStaleError: semantic counter row is missing
+
+app/v2/persistence/scrum_state_mapper.py:475: CounterClaimStaleError
+
+The above exception was the direct cause of the following exception:
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'unavailable-work'
+
+    @pytest.mark.parametrize("case", ["cancellation-member", "unavailable-work"])
+    def test_visible_wrong_natural_owner_rejects_before_requesting_session(
+        atomic_context, case
+    ):
+        command = _crossbound_natural_command(atomic_context, case)
+        wrong_state = (
+            ScrumStateWriteSet(member_identities=(make_member(),))
+            if case == "cancellation-member"
+            else ScrumStateWriteSet(work_items=(make_work_item(),))
+        )
+        object.__setattr__(command, "state", wrong_state)
+        counting = CountingSessionFactory(atomic_context.session_factory)
+
+        with pytest.raises(ValueError, match="owner"):
+>           SqlAlchemyV2UnitOfWork(counting).commit_authoritative_slice(command)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:659:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:122: in commit_authoritative_slice
+    _raise_authoritative_error(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+error = CounterClaimStaleError('semantic counter row is missing')
+
+    def _raise_authoritative_error(error: Exception) -> NoReturn:
+        if isinstance(error, CounterClaimStaleError):
+>           raise StaleSemanticCounter(str(error)) from error
+E           app.v2.persistence.unit_of_work.StaleSemanticCounter: semantic counter row is missing
+
+app/v2/persistence/unit_of_work.py:236: StaleSemanticCounter
+_ test_advanced_allocation_replay_requires_exact_persisted_after_image[sprint] _
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'sprint'
+
+    @pytest.mark.parametrize("case", ["sprint", "item", "visit"])
+    def test_advanced_allocation_replay_requires_exact_persisted_after_image(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        state, claim = _claimed_replay(case)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"changed-{case}-replay")
+        command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+>       with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (SemanticDeduplicationConflict, StaleSemanticCounter)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:758: Failed
+__ test_advanced_allocation_replay_requires_exact_persisted_after_image[item] __
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'item'
+
+    @pytest.mark.parametrize("case", ["sprint", "item", "visit"])
+    def test_advanced_allocation_replay_requires_exact_persisted_after_image(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        state, claim = _claimed_replay(case)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"changed-{case}-replay")
+        command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+>       with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (SemanticDeduplicationConflict, StaleSemanticCounter)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:758: Failed
+_ test_advanced_allocation_replay_requires_exact_persisted_after_image[visit] __
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+case = 'visit'
+
+    @pytest.mark.parametrize("case", ["sprint", "item", "visit"])
+    def test_advanced_allocation_replay_requires_exact_persisted_after_image(
+        atomic_context, case
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        state, claim = _claimed_replay(case)
+        live = make_tick_commit(atomic_context.aggregate, 1, f"changed-{case}-replay")
+        command = AuthoritativeTickSliceCommit(live, state, (claim,), ())
+
+>       with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (SemanticDeduplicationConflict, StaleSemanticCounter)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:758: Failed
+_____ test_advanced_allocation_replay_rejects_an_unrelated_state_mutation ______
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_advanced_allocation_replay_rejects_an_unrelated_state_mutation(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        state = ScrumStateWriteSet(
+            sprints=(make_sprint(),),
+            member_availability_overlays=(
+                replace(make_overlay(), availability_fraction=0.5),
+            ),
+        )
+        live = make_tick_commit(atomic_context.aggregate, 1, "unrelated-replay-mutation")
+        command = AuthoritativeTickSliceCommit(live, state, (sprint_claim(),), ())
+
+>       with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (SemanticDeduplicationConflict, StaleSemanticCounter)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:777: Failed
+______ test_advanced_allocation_replay_rejects_fresh_ledger_semantic_keys ______
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_advanced_allocation_replay_rejects_fresh_ledger_semantic_keys(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        live = make_tick_commit(atomic_context.aggregate, 1, "fresh-ledger-replay")
+        state = ScrumStateWriteSet(sprints=(make_sprint(),))
+        command = AuthoritativeTickSliceCommit(live, state, (sprint_claim(),), ())
+
+>       with pytest.raises((SemanticDeduplicationConflict, StaleSemanticCounter)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (SemanticDeduplicationConflict, StaleSemanticCounter)
+
+tests/v2/integration/test_authoritative_unit_of_work.py:791: Failed
+__________ test_advanced_replay_cannot_mix_a_current_allocation_claim __________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_advanced_replay_cannot_mix_a_current_allocation_claim(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        state = ScrumStateWriteSet(
+            sprints=(make_sprint(),),
+            work_items=(_sequence_two_item(),),
+        )
+        live = make_tick_commit(atomic_context.aggregate, 1, "mixed-replay-allocation")
+        command = AuthoritativeTickSliceCommit(
+            live,
+            state,
+            (sprint_claim(), item_claim(2)),
+            (),
+        )
+
+>       with pytest.raises(StaleSemanticCounter):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE StaleSemanticCounter
+
+tests/v2/integration/test_authoritative_unit_of_work.py:813: Failed
+________ test_advanced_replay_cannot_consume_a_fresh_natural_occurrence ________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_advanced_replay_cannot_consume_a_fresh_natural_occurrence(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        before = _stored_view(atomic_context)
+        next_date = BUSINESS_DATE + timedelta(days=1)
+        natural = replace(eligible_claim(1), business_date=next_date)
+        live = make_tick_commit(atomic_context.aggregate, 1, "mixed-replay-natural")
+        command = AuthoritativeTickSliceCommit(
+            live,
+            ScrumStateWriteSet(sprints=(make_sprint(),)),
+            (sprint_claim(), natural_counter_claim(1)),
+            (natural,),
+        )
+
+>       with pytest.raises(StaleSemanticCounter):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE StaleSemanticCounter
+
+tests/v2/integration/test_authoritative_unit_of_work.py:833: Failed
+________ test_deleted_established_member_and_counter_are_not_recreated _________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_deleted_established_member_and_counter_are_not_recreated(atomic_context):
+        with atomic_context.session_factory.begin() as session:
+            result = session.execute(
+                delete(V2MemberIdentityModel).where(
+                    V2MemberIdentityModel.id == str(make_member().id)
+                )
+            )
+            assert result.rowcount == 1
+        before = _stored_view(atomic_context)
+
+>       with pytest.raises(SemanticDeduplicationConflict):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE SemanticDeduplicationConflict
+
+tests/v2/integration/test_authoritative_unit_of_work.py:1116: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_authoritative_slice.py::test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind[RISK_CANCELLATION_OUTCOME-state0]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_natural_claim_rejects_a_visible_owner_of_the_wrong_kind[RISK_MEMBER_UNAVAILABLE_OUTCOME-state1]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_deeply_revalidates_runtime_and_ledger_elements[runtime]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_deeply_revalidates_runtime_and_ledger_elements[activity]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_deeply_revalidates_runtime_and_ledger_elements[ground_truth]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_deeply_revalidates_runtime_and_ledger_elements[projection]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_requires_exact_ledger_element_types[activity]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_requires_exact_ledger_element_types[ground_truth]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_requires_exact_ledger_element_types[projection_intents]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[counter_absent]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[counter_divergent]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[counter_duplicate]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_absent]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_divergent]
+FAILED tests/v2/unit/test_authoritative_slice.py::test_committed_result_claims_are_unique_exact_snapshot_members[evaluation_duplicate]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[overlay]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[work]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[scope]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_forbidden_after_image_coordinate_is_typed_and_fully_rolled_back[visit]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_consumption_identity_coordinates_are_explicitly_immutable
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_global_overlay_id_cannot_steal_a_row_from_another_team
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_global_work_id_cannot_move_a_row_between_runs
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_visible_wrong_natural_owner_rejects_before_requesting_session[cancellation-member]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_visible_wrong_natural_owner_rejects_before_requesting_session[unavailable-work]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_allocation_replay_requires_exact_persisted_after_image[sprint]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_allocation_replay_requires_exact_persisted_after_image[item]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_allocation_replay_requires_exact_persisted_after_image[visit]
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_allocation_replay_rejects_an_unrelated_state_mutation
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_allocation_replay_rejects_fresh_ledger_semantic_keys
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_replay_cannot_mix_a_current_allocation_claim
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_advanced_replay_cannot_consume_a_fresh_natural_occurrence
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_deleted_established_member_and_counter_are_not_recreated
+32 failed, 199 passed in 21.04s

@@ -1,0 +1,393 @@
+..........................................                               [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+42 passed, 1 warning in 1.16s
+..........................                                               [100%]
+26 passed in 1.10s
+sssssssssssssssssssssssssssssssssssssssssss............................. [ 11%]
+........................................................................ [ 22%]
+........................................................................ [ 34%]
+........................................................................ [ 45%]
+........................................................................ [ 57%]
+........................................................................ [ 68%]
+........................................................................ [ 80%]
+........................................................................ [ 91%]
+.....................................................                    [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/unit/test_jira_bootstrapper.py: 13 warnings
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/integrations/jira_bootstrapper.py:57: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await self._ensure_custom_fields(session, team)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_models_jira.py::TestJiraConfig::test_key_is_primary_key
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/unit/test_models_jira.py:55: SAWarning: New instance <JiraConfig at 0x1135d3260> with identity key (<class 'app.models.jira_config.JiraConfig'>, ('test_key',), None) conflicts with persistent instance <JiraConfig at 0x11362ecf0>
+    session.commit()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+586 passed, 43 skipped, 15 warnings in 28.66s
+All checks passed!
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/__main__.py", line 4, in <module>
+    main(prog="alembic")
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1039, in main
+    CommandLine(prog=prog).main(argv=argv)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1029, in main
+    self.run_cmd(cfg, options)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 963, in run_cmd
+    fn(
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/command.py", line 649, in heads
+    heads = script.get_revisions(script.get_heads())
+                                 ^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 378, in get_heads
+    return list(self.revision_map.heads)
+                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1122, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 150, in heads
+    self._revision_map
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1122, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 204, in _revision_map
+    for revision in self._generator():
+                    ^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 149, in _load_revisions
+    script = Script._from_path(self, real_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 1039, in _from_path
+    module = util.load_python_file(dir_, filename)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 114, in load_python_file
+    module = load_module_py(module_id, path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 132, in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/013_add_v2_team_spine.py", line 12, in <module>
+    from app.v2.persistence.utc_datetime import UTCDateTime
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/__init__.py", line 3, in <module>
+    from app.v2.persistence.live_models import (
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py", line 8, in <module>
+    from app.models.base import Base
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/models/__init__.py", line 28, in <module>
+    from app.v2.persistence.live_models import (
+ImportError: cannot import name 'V2ActivityEventModel' from partially initialized module 'app.v2.persistence.live_models' (most likely due to a circular import) (/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/__main__.py", line 4, in <module>
+    main(prog="alembic")
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1039, in main
+    CommandLine(prog=prog).main(argv=argv)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1029, in main
+    self.run_cmd(cfg, options)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 963, in run_cmd
+    fn(
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/command.py", line 668, in branches
+    for sc in script.walk_revisions():
+              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 257, in walk_revisions
+    for rev in self.revision_map.iterate_revisions(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 807, in iterate_revisions
+    revisions, heads = fn(
+                       ^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 1440, in _collect_upgrade_revisions
+    for rev in self._parse_upgrade_target(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 1227, in _parse_upgrade_target
+    return self.get_revisions(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 537, in get_revisions
+    resolved_id, branch_label = self._resolve_revision_number(id_)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 761, in _resolve_revision_number
+    self._revision_map
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1122, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 204, in _revision_map
+    for revision in self._generator():
+                    ^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 149, in _load_revisions
+    script = Script._from_path(self, real_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 1039, in _from_path
+    module = util.load_python_file(dir_, filename)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 114, in load_python_file
+    module = load_module_py(module_id, path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 132, in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/013_add_v2_team_spine.py", line 12, in <module>
+    from app.v2.persistence.utc_datetime import UTCDateTime
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/__init__.py", line 3, in <module>
+    from app.v2.persistence.live_models import (
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py", line 8, in <module>
+    from app.models.base import Base
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/models/__init__.py", line 28, in <module>
+    from app.v2.persistence.live_models import (
+ImportError: cannot import name 'V2ActivityEventModel' from partially initialized module 'app.v2.persistence.live_models' (most likely due to a circular import) (/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/__main__.py", line 4, in <module>
+    main(prog="alembic")
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1039, in main
+    CommandLine(prog=prog).main(argv=argv)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 1029, in main
+    self.run_cmd(cfg, options)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/config.py", line 963, in run_cmd
+    fn(
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/command.py", line 629, in history
+    _display_history(config, script, base, head)
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/command.py", line 598, in _display_history
+    for sc in script.walk_revisions(
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 257, in walk_revisions
+    for rev in self.revision_map.iterate_revisions(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 807, in iterate_revisions
+    revisions, heads = fn(
+                       ^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 1440, in _collect_upgrade_revisions
+    for rev in self._parse_upgrade_target(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 1227, in _parse_upgrade_target
+    return self.get_revisions(target)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 537, in get_revisions
+    resolved_id, branch_label = self._resolve_revision_number(id_)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 761, in _resolve_revision_number
+    self._revision_map
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 1122, in __get__
+    obj.__dict__[self.__name__] = result = self.fget(obj)
+                                           ^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/revision.py", line 204, in _revision_map
+    for revision in self._generator():
+                    ^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 149, in _load_revisions
+    script = Script._from_path(self, real_path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/script/base.py", line 1039, in _from_path
+    module = util.load_python_file(dir_, filename)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 114, in load_python_file
+    module = load_module_py(module_id, path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/alembic/util/pyfiles.py", line 132, in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/013_add_v2_team_spine.py", line 12, in <module>
+    from app.v2.persistence.utc_datetime import UTCDateTime
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/__init__.py", line 3, in <module>
+    from app.v2.persistence.live_models import (
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py", line 8, in <module>
+    from app.models.base import Base
+  File "/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/models/__init__.py", line 28, in <module>
+    from app.v2.persistence.live_models import (
+ImportError: cannot import name 'V2ActivityEventModel' from partially initialized module 'app.v2.persistence.live_models' (most likely due to a circular import) (/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/persistence/live_models.py)
+Rev: 014 (head)
+Parent: 013
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/014_add_v2_live_slice_ledgers.py
+
+    Add atomic v2 live-slice ledgers and runtime versioning.
+
+    Revision ID: 014
+    Revises: 013
+
+013 -> 014 (head), Add atomic v2 live-slice ledgers and runtime versioning.
+012 -> 013, Add isolated v2 team persistence spine.
+011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+010 -> 011, Add timing templates and status_category
+009 -> 010, Add story_points column to move_left_config
+008 -> 009, Engine rewrite — new columns for distribution-based simulation
+007 -> 008, Stage 4 schema — simulation engine tables and column additions
+006 -> 007, Create jira_issue_links table
+005 -> 006, Create jira_issue_map table
+004 -> 005, Create jira_write_queue table
+003 -> 004, Create jira_config table
+002 -> 003, Add jira bootstrap fields to teams
+001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+<base> -> 001, initial schema
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001, initial schema
+INFO  [alembic.runtime.migration] Running upgrade 001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+INFO  [alembic.runtime.migration] Running upgrade 002 -> 003, Add jira bootstrap fields to teams
+INFO  [alembic.runtime.migration] Running upgrade 003 -> 004, Create jira_config table
+INFO  [alembic.runtime.migration] Running upgrade 004 -> 005, Create jira_write_queue table
+INFO  [alembic.runtime.migration] Running upgrade 005 -> 006, Create jira_issue_map table
+INFO  [alembic.runtime.migration] Running upgrade 006 -> 007, Create jira_issue_links table
+INFO  [alembic.runtime.migration] Running upgrade 007 -> 008, Stage 4 schema — simulation engine tables and column additions
+INFO  [alembic.runtime.migration] Running upgrade 008 -> 009, Engine rewrite — new columns for distribution-based simulation
+INFO  [alembic.runtime.migration] Running upgrade 009 -> 010, Add story_points column to move_left_config
+INFO  [alembic.runtime.migration] Running upgrade 010 -> 011, Add timing templates and status_category
+INFO  [alembic.runtime.migration] Running upgrade 011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+INFO  [alembic.runtime.migration] Running upgrade 012 -> 013, Add isolated v2 team persistence spine.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+Current revision(s) for sqlite:////tmp/jira-simulator-m1-t02.VQyRFu/simulator.db:
+Rev: 014 (head)
+Parent: 013
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/014_add_v2_live_slice_ledgers.py
+
+    Add atomic v2 live-slice ledgers and runtime versioning.
+
+    Revision ID: 014
+    Revises: 013
+
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running downgrade 014 -> 013, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+Current revision(s) for sqlite:////tmp/jira-simulator-m1-t02.VQyRFu/simulator.db:
+Rev: 013
+Parent: 012
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/013_add_v2_team_spine.py
+
+    Add isolated v2 team persistence spine.
+
+    Revision ID: 013
+    Revises: 012
+
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+Current revision(s) for sqlite:////tmp/jira-simulator-m1-t02.VQyRFu/simulator.db:
+Rev: 014 (head)
+Parent: 013
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/014_add_v2_live_slice_ledgers.py
+
+    Add atomic v2 live-slice ledgers and runtime versioning.
+
+    Revision ID: 014
+    Revises: 013
+
+Functions over 30 lines: []
+Python 3.12.13
+SQLAlchemy 2.0.51
+Alembic 1.19.1
+SQLite 3.50.4
+...........................                                              [100%]
+27 passed in 1.30s
+sssssssssssssssssssssssssssssssssssssssssss............................. [ 11%]
+........................................................................ [ 22%]
+........................................................................ [ 34%]
+........................................................................ [ 45%]
+........................................................................ [ 57%]
+........................................................................ [ 68%]
+........................................................................ [ 80%]
+........................................................................ [ 91%]
+......................................................                   [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/unit/test_jira_bootstrapper.py: 13 warnings
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/integrations/jira_bootstrapper.py:57: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await self._ensure_custom_fields(session, team)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_models_jira.py::TestJiraConfig::test_key_is_primary_key
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/unit/test_models_jira.py:55: SAWarning: New instance <JiraConfig at 0x1115d3f20> with identity key (<class 'app.models.jira_config.JiraConfig'>, ('test_key',), None) conflicts with persistent instance <JiraConfig at 0x111663c80>
+    session.commit()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+587 passed, 43 skipped, 15 warnings in 29.06s
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/v2/integration/test_migration_014.py:1:1
+   |
+ 1 | / from pathlib import Path
+ 2 | | import subprocess
+ 3 | | import sys
+ 4 | |
+ 5 | | import sqlalchemy as sa
+ 6 | | from sqlalchemy import MetaData, create_engine, inspect, select
+ 7 | |
+ 8 | | from alembic import command
+ 9 | | from tests.v2.integration.test_migration_013 import (
+10 | |     V2_TABLES,
+11 | |     _alembic_config,
+12 | |     _seed_every_legacy_table,
+13 | |     _snapshot,
+14 | |     _table_metadata,
+15 | |     _table_rows,
+16 | | )
+   | |_^
+17 |
+18 |   LIVE_TABLES = {
+   |
+help: Organize imports
+  |
+  - from pathlib import Path
+1 | import subprocess
+2 | import sys
+3 + from pathlib import Path
+4 |
+  |
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
+..                                                                       [100%]
+2 passed in 0.78s
+All checks passed!
+sssssssssssssssssssssssssssssssssssssssssss............................. [ 11%]
+........................................................................ [ 22%]
+........................................................................ [ 34%]
+........................................................................ [ 45%]
+........................................................................ [ 56%]
+........................................................................ [ 68%]
+........................................................................ [ 79%]
+........................................................................ [ 90%]
+.........................................................                [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/unit/test_jira_bootstrapper.py: 13 warnings
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/integrations/jira_bootstrapper.py:57: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await self._ensure_custom_fields(session, team)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_models_jira.py::TestJiraConfig::test_key_is_primary_key
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/unit/test_models_jira.py:55: SAWarning: New instance <JiraConfig at 0x10fa180b0> with identity key (<class 'app.models.jira_config.JiraConfig'>, ('test_key',), None) conflicts with persistent instance <JiraConfig at 0x10f947b30>
+    session.commit()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+590 passed, 43 skipped, 15 warnings in 29.74s
+..............................                                           [100%]
+30 passed in 1.90s
+All checks passed!
+Functions over 30 lines: []

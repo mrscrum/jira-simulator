@@ -1,0 +1,8 @@
+Rev: 015 (head)
+Parent: 014
+Path: /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/alembic/versions/015_add_v2_authoritative_scrum_state.py
+
+    Add authoritative v2 Scrum state.
+
+    Revision ID: 015
+    Revises: 014

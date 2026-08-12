@@ -49,3 +49,414 @@
 ## [2026-03-15] Stage 0 — Swap LLM provider from Anthropic to OpenAI
 - Assumed the `ai_content.py` integration module (listed in AGENTS.md repo structure) will use OpenAI SDK instead of Anthropic SDK — user confirmed OpenAI as the provider
 - Assumed `httpx` remains in the stack for Jira API calls; OpenAI calls may use the `openai` Python SDK directly — to be confirmed during Stage 1 implementation
+
+## [2026-08-10] Stage 7 — Current implementation assessment
+- No product assumptions made. The latest user instruction was treated as authoritative: one
+  `mrscrum` Jira instance with multiple independently configured team/projects.
+- The assessment is limited to local repository evidence at `main` commit `b65b133`; the live Jira
+  instance and EC2 deployment were not accessed.
+
+## [2026-08-10] V2 Stage 0 — Approved durable implementation plan
+- Chose an additive v2 runtime beside frozen v1 until the five-team soak passes, because the user
+  approved the recommended selective fork/branch approach and the current runtime has unsafe
+  precompute/state-synchronization behavior.
+- Chose monotone `log1p(hours)` inverse-CDF interpolation through minimum, p25, p50, p99, and maximum
+  anchors as the exact bounded sampler because the interpolation rule was delegated.
+- Chose Monday–Friday 09:00–17:00 local time and the initial deployment's US federal holiday calendar
+  only when a prompt/locale supplies no calendar; all calendar values remain explicit per team.
+- Chose Task and 3 story points as explicit defaults for an otherwise importable unknown Jira card;
+  unmapped status or unsupported points quarantine only that item.
+- Pavel explicitly required simulator-managed projects to survive manual Jira sprint/card changes.
+  Chose human-wins after idempotent ingestion for supported lifecycle/membership/status/points/rank/
+  content changes; simulator identity/provenance fields remain protected.
+- Chose to preserve completed work and scale only remaining current-status touch demand by the story
+  point ratio after manual re-estimation; future visits use the new size.
+- Chose webhook-first observation with periodic changelog/read-back polling, echo suppression, and
+  per-item/per-lifecycle quarantine rather than globally stopping or blindly overwriting Jira.
+- Chose a dedicated private scoped client secret for the first MCP integration; a public OAuth
+  provider remains deferred.
+- Chose one OpenAI retry, a 45-second timeout, 1,200 output tokens per content job, and five jobs per
+  worker cycle as configurable safe initial limits.
+- Chose indefinite MVP ground-truth retention and explicit five-team/14-team soak thresholds so an
+  implementation agent has measurable gates without inventing completion criteria.
+- Chose the numeric `SCRUM_BALANCED_V1` timing/risk/role/backlog defaults because Pavel delegated
+  unanswered choices to the recommended option; the catalog labels them as starter assumptions, not
+  learned calibration.
+- Chose `HMAC_SHA256_U53_V1` with RFC 8785 canonical JSON and fixed 53-bit conversion so replay does
+  not depend on Python process state, ordering, or database-generated IDs.
+- Chose labor-hour capacity consumption with proficiency multiplying only effective touch credit;
+  dwell readiness remains independent.
+- Chose one current-window successor after a long restart and no materialized empty missed sprints,
+  because ordinary downtime catch-up was explicitly excluded.
+- Chose accelerated semantic-time live-Jira boundary acceptance with normal wall-clock Jira pacing,
+  followed by a 60-minute/five-team real-time smoke, so two fixed sprint boundaries do not delay the
+  MVP by roughly four calendar weeks.
+- Chose initial operational defaults of five-minute ticks/polls, one Jira request per second, 2,000
+  pending commands per team, 7,500 globally, and a 50% recovery low-water mark; all remain
+  configurable and must be revisited from soak evidence.
+- Chose an initial-create Jira issue property `jira-simulator.item-id` for timeout-safe issue
+  idempotency, avoiding a third user-visible custom field beyond `sim_assignee`/`sim_reporter`.
+- Chose `America/Los_Angeles`, `en-US`, a 32-byte CSPRNG seed encoded as lower-case hex, a first
+  sprint boundary at least 48 hours after draft generation, and the frozen ten-year
+  `US_FEDERAL_V1` horizon/extension rules when a request omits those values.
+- Chose Unicode-scalar truncation for 80-character Jira names and deterministic base-36 project-key
+  collision probing so a fresh agent does not invent tenant-dependent naming behavior.
+- Chose the exact eight-person `Platform product team` starter profiles, empty configured
+  availability meaning full baseline availability, and all four causal risks enabled because Pavel
+  delegated unanswered team defaults to the recommended option.
+- Chose restrictive availability overlays: runtime sources may overlap and compose using minimum
+  active fraction/cap, while confirmed schedule intervals remain non-overlapping. Natural absence
+  duration is persisted scheduled business time and consumes no pause/restart downtime.
+- Chose `KANBAN_BALANCED_V1` shifted-exponential arrivals, explicit class priority/weights,
+  `STANDARD` manual-import class, status WIP limits, blocked-against-suspended-WIP, and exact
+  business-hour SLE targets because Kanban policy details were delegated.
+- Chose `OFFICIAL_PROJECT_SCOPED_V1`: public Jira APIs create the project, dedicated issue-type and
+  workflow schemes, then the board. Because the public board API has configuration read-back but no
+  supported column-write operation, added a target-tenant Gate G0 proof and prohibited private API/
+  UI-automation fallback.
+- Chose a two-minute/three-complete-scan settlement window and explicit operator decision for an
+  ambiguously created sprint because Jira does not provide a unique idempotency key for sprint
+  creation; one empty read is not safe evidence for an automatic retry.
+- Chose lease-token/delivery-epoch compare-and-swap for outbox results and `FREEZING → FROZEN`
+  behavior for an in-flight sync freeze so a late Jira result cannot overwrite reconciler state.
+- Chose held command semantics during team pause: accept/audit explicit commands immediately, apply
+  mechanics once after resume/reconciliation, and continue to ingest supported Jira external truth
+  with zero time credit.
+- Chose `simv2_` 256-bit opaque private credentials, a 24-hour rotation overlap, separate API/MCP/
+  dashboard client kinds, and an 8-hour-idle/24-hour-absolute same-origin dashboard session with
+  strict Origin and session-bound CSRF protection.
+- Chose a deterministic two-entry ZIP ground-truth export, private authenticated HTTP/MCP-resource
+  retrieval, and 24-hour derived-artifact expiry while retaining source rows and export metadata.
+- Chose exact semantic UUID/hash/decision enums, linear bounded touch sampling, p50/p99 event-time
+  boundaries, and boundary-slice transaction semantics so cross-process replay and crash behavior do
+  not depend on implementation guesses.
+
+## [2026-08-10] V2 Stage 0 — Simplify to high-level plan
+- Pavel explicitly said the prior plan was too detailed and that a capable model will implement it.
+- Made `docs/v2/high-level-plan.md` the active authority and retained the detailed schemas,
+  algorithms, and 96-task decomposition only as optional reference rather than binding choices.
+- Left detailed implementation choices to the model working on each milestone, provided it preserves
+  the confirmed product requirements and records any new assumptions under this project process.
+
+## [2026-08-10] V2 Stage 0 — Independent implementation prompt
+- Interpreted Pavel's request for a long minimally supervised run as authorization for routine local
+  dependency setup, safe local commits, and continued local development across intermediate
+  milestones without repeated confirmation.
+- Did not interpret it as authorization to push, deploy, approve Pavel's UAT, expose secrets, or
+  mutate a live Jira tenant; the prompt directs the agent to use fakes when those gates are absent.
+
+## [2026-08-10] M1 — Persistence spine planning
+- Chose a separate `v2_teams` aggregate root and exclusively `v2_*` runtime tables so v2 does not
+  require a discriminator on, or runtime coupling to, legacy teams.
+- Chose one canonical, fully resolved Scrum blueprint snapshot with every calendar, member,
+  responsibility/capacity, workflow/timing, backlog/risk, Jira-name, content, and Scrum-policy value
+  materialized before persistence so reload behavior has no hidden catalog/default dependency.
+- Chose an aware-UTC storage type that rejects naive datetimes, normalizes aware inputs to UTC, and
+  restores UTC tzinfo on load so SQLite does not erase time provenance at the domain boundary.
+- Chose migration 013 for the independently committed team/blueprint/run/runtime shell and migration
+  014 for the later live-slice/evidence/projection unit of work so each task has a complete downgrade
+  and can be reviewed or reverted independently.
+
+## [2026-08-10] M1 — Persist isolated team runtime shell
+- Used compact, sorted-key UTF-8 JSON with the documented fixed UUIDv5 namespace for canonical v2 identities.
+- Kept Task 1 runtime state at `CREATED`; optimistic runtime versioning remains Task 2/migration 014.
+
+## [2026-08-10] M1 — Task 1 review fix round 1
+- No new product assumptions made; this round implemented the approved Task 1 invariants and review findings.
+
+## [2026-08-10] M1 — Task 1 review fix round 2
+- No new product assumptions made; this round implements the specified aware-offset normalization
+  while retaining the approved canonical input and hash rules.
+
+## [2026-08-10] M1 — Task 1 review fix round 3
+- No new product assumptions made; this round implements the requested immutable canonical state
+  and strict wire-type boundary without changing the approved snapshot content.
+
+## [2026-08-10] M1 — Commit live slices atomically
+- Chose a maximum ledger page size of 100 because the approved contract required a bounded limit
+  but did not specify the numeric ceiling.
+- Treated a replay identity as table-global semantic key plus team/run ownership, schema/type and
+  aggregate identity, occurred instant, canonical payload, and hash. Commit ID, recorded time, and
+  transaction position remain occurrence metadata and therefore do not invalidate an identical
+  replay.
+- Used a fetch-of-`limit + 1` cursor rule so `next_cursor` is returned only when another row exists;
+  cursors remain exclusive table-local append sequences.
+- Used 255 characters for semantic keys, 20 for schema/status values, and 50 for type identifiers,
+  following the existing v2 bounded-text convention where the brief did not assign lengths.
+- Chose `LookupError` when `get_runtime` cannot find a team because the approved interfaces named no
+  separate not-found domain error; stale compare-and-swap writes still use `StaleRuntimeVersion`.
+- No further M1 implementation slice is assumed. The active near-term plan ends after Tasks 1 and
+  2, while M1 intentionally remains in progress pending review and an approved next slice.
+
+## [2026-08-10] M1 — Task 2 review fix round 1
+- Used a test-only session subclass that hides one already-committed semantic-key lookup to
+  deterministically reproduce the insert-race branch on SQLite, whose writer serialization masks
+  the real interleaving; the test still executes the real unique constraint and verifies final data.
+- Used a nested database savepoint around only the candidate semantic insert so an identical race
+  can recover the winner without discarding the runtime advance, while a typed differing-content
+  conflict still escapes to the outer UOW rollback and removes every proposed write.
+- No new product assumptions made; all other changes directly implement the supplied review findings.
+
+## [2026-08-10] M1 — Task 2 review fix round 2
+- No assumptions made; the supplied review finding explicitly required recursive rejection of every
+  non-string JSON object key while preserving the existing valid canonical representation.
+
+## [2026-08-10] M1 — Add deterministic decision sampling
+- Used `DurationSample.parameters` as the single immutable field retaining either `DwellAnchors` or
+  `TouchBounds` because the approved brief required that provenance but did not prescribe its field
+  name; the public sample still exposes the exact supplied draw and sampled hours.
+- Treated a non-empty, already-trimmed string `entity_id` as the caller-approved catalog-key form;
+  every semantic UUID path remains a strict `UUID` input and emits lower-case hyphenated text.
+- Reused the existing compact sorted-key UTF-8 encoder only for the closed string/integer decision
+  schema, as explicitly allowed, without changing `CANONICAL_JSON_V1` or blueprint hash behavior.
+- Accepted finite Python integers and floats for explicit sampler numbers, normalized them to
+  immutable floats, and rejected booleans even though `bool` subclasses `int`.
+
+## [2026-08-11] M1 — Task 3 review fix round 1
+- Chose the explicitly permitted sealed-construction design for `UniformDraw`: only
+  `DeterministicRandomStream.draw` can construct one, so keyed provenance is enforced without
+  storing or exposing the root seed on the result.
+- No product assumptions were made; UUID-only current decision entities, exact occurrence scopes,
+  the `0..2^53-1` domain, and formula-consistent duration provenance were supplied review findings.
+
+## [2026-08-11] M1 — Task 3 review fix round 2
+- Chose the explicitly permitted reconstruction policy of rejecting pickle/reduce for all six Task
+  3 value types instead of adding a private validating pickle protocol.
+- Scoped the guarantee to ordinary Python immutability: frozen/slotted values reject attribute,
+  instance-mapping, copy-clone, and reconstruction mutation paths, but do not claim protection from
+  deliberate low-level `object.__setattr__` calls, as required by the review finding.
+- No product behavior, algorithm, coordinate, formula, persistence, or schema assumption was added.
+
+## [2026-08-11] M1 — Add dual-clock business calendar
+- Used exact identity `US_FEDERAL_V1` with version `1`, matching the resolved starter blueprint and
+  approved authority.
+- Treated the start of the penultimate horizon year as still having exactly two complete local
+  calendar years remaining, so extension is a no-op through that date and begins only after it.
+- Allowed an elapsed half-open interval to end exactly at midnight immediately after the final
+  holiday-horizon date, because that exclusive endpoint requires no policy decision for the next
+  day; ordinary calendar queries beyond the horizon still reject.
+- Materialized the starter horizon from the aware `first_start` value's represented local calendar
+  year rather than first converting it to UTC, preserving the caller's explicit local-date anchor.
+- No next M1 implementation slice was assumed. Work/sprint/status-visit persistence now requires a
+  separate plan decision; M1 remains in progress.
+
+## [2026-08-11] M1 — Harden calendar horizon contracts
+- Superseded the earlier represented-datetime-year assumption: starter materialization now requires
+  the resolved team's IANA timezone and derives the calendar year after converting the instant into
+  that zone, because resolved blueprints normalize instants to UTC.
+- Chose the review's preferred stale-request behavior: extend repeatedly in exact ten-year blocks
+  until at least two complete local years remain, rather than rejecting a far-stale request.
+- Treated a canonical `US_FEDERAL_V1` horizon as full January-through-December bounds plus the exact
+  generated ordered holiday tuple; authentication occurs even when the extension would be a no-op.
+- Used `zoneinfo.available_timezones()` as the acceptance boundary and explicitly excluded its
+  non-geographic pseudo keys `Factory`, `localtime`, and `posixrules`.
+- Kept M1 in progress and did not infer the next persistence or engine slice.
+
+## [2026-08-11] M1 — Normalize calendar range errors
+- Used one stable message, `calendar operation exceeds the supported datetime range`, for both
+  timezone-conversion overflow and cadence date arithmetic overflow so nested public operations
+  propagate one domain boundary.
+- Caught only Python `OverflowError`; ordinary validation and DST `ValueError` categories retain
+  their existing messages and behavior.
+- No next M1 slice or wider date representation was assumed.
+
+## [2026-08-11] M1 — Persist authoritative Scrum state
+- Used semantic order keys matching each persisted uniqueness coordinate because the brief required
+  deterministic mapper ordering but did not prescribe one total ordering for every collection.
+- Kept member configuration exclusively in the persisted canonical blueprint. `MemberIdentity`
+  stores only the team UUID and blueprint array position, derives its UUID from that position, and
+  does not duplicate a member-count bound in revision 015.
+- Treated caller-supplied UUIDs whose semantic path was not specified (such as availability overlay
+  IDs) as already allocated semantic identities; every identity with an approved Task 3 or explicit
+  Task 5 path is reconstructed and validated before persistence.
+- Used existing bounded v2 text-column conventions where Task 5 specified content but not physical
+  string lengths. No server-generated identity, counter default, or timestamp was introduced.
+- No Task 6 atomic integration, transition/allocation behavior, revision 016, external call,
+  deployment, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 5 review fix round 1
+- Exported `StatusVisitSampleInput` because the new public sealed sample factory otherwise required
+  callers to depend on an unexported construction contract.
+- Treated repeated route statuses as valid when the exact `(status_key, required_activity)` step
+  exists, because the reviewed blueprint contract permits repeated status visits.
+- Kept SQLite boolean handling truthful: bound booleans use SQLite's integer storage class, while
+  Task 5's exact public Python type checks reject them before mapper writes.
+- Made no Task 6, lifecycle/allocation, revision 016, external-system, deployment, UAT, or M1
+  completion assumption; all other choices were supplied by the review findings.
+
+## [2026-08-11] M1 — Task 5 review fix round 2
+- No assumptions made. Nullable zero-touch steps, sparse touched-row after-images, complete
+  snapshot/new-visit sample cardinality, strict plain lower-case SHA-256 values, and the narrow
+  existing-visit update boundary were supplied explicitly by the review findings.
+- Preserved revision 015 and deferred generalized upsert/CAS, atomic UOW integration, counter
+  claims, lifecycle/allocation behavior, revision 016, external calls, deployment, UAT, and M1
+  completion exactly as instructed.
+
+## [2026-08-11] M1 — Task 5 review fix round 3
+
+- No assumptions made. The clean-session precondition for both mapper entry points, empty-write-set
+  rejection, exact nested draw/HMAC authentication, exact retained unit-float boundary, and Task 6
+  empty-after-image skip behavior were supplied explicitly by the review findings.
+- Preserved revision 015 and deferred generalized upsert/CAS, atomic UOW integration, counter
+  claims, lifecycle/allocation behavior, revision 016, external calls, deployment, UAT, and M1
+  completion exactly as instructed.
+
+## [2026-08-11] M1 — Task 5 review fix round 4
+
+- No assumptions made. Authoritative refresh of every Task 5 ORM read, clean cached corruption/
+  deletion handling, valid external-update visibility, warning-free deleted-visit restoration,
+  review-fix base `e9dd4cf`, and committed outcome `9049e1a`
+  (`fix(v2): refresh authoritative scrum reads`) were supplied explicitly by the review findings.
+- Preserved caller transaction ownership, revision 015, and the deferral of generalized Task 6
+  upsert/CAS, counter claims, lifecycle/allocation behavior, revision 016, external calls,
+  deployment, UAT, and M1 completion exactly as instructed.
+
+## [2026-08-11] M1 — Task 5 review fix round 5
+
+- No assumptions made. Base `9049e1a`, target-local same-key visit/sample detachment, preservation
+  of unrelated caller cache entries, isolated RED `1 failed in 0.28s`, isolated GREEN
+  `1 passed in 0.27s`, the exact final verification matrix, and pending commit subject
+  `fix(v2): detach cascaded scrum identities` were supplied explicitly.
+- Preserved caller transaction ownership, revision 015, and the deferral of generalized Task 6
+  upsert/CAS, counter claims, lifecycle/allocation behavior, revision 016, external calls,
+  deployment, UAT, and M1 completion exactly as instructed.
+
+## [2026-08-11] M1 — Commit authoritative Scrum state atomically
+
+- Treated an ordinal after-image inside an explicit claimed range as a declared allocation or exact
+  replay, while an unclaimed ordinal after-image is an update to an existing row. If persistence
+  proves such an unclaimed row is new, the whole slice rejects and rolls back.
+- Chose proactive zero-valued child-counter creation when a work-item or member owner is first
+  persisted because a positive claim must consume an occurrence, while disabled/ineligible or later
+  outcomes must consume nothing. Zero-valued seeds are plumbing, not allocations.
+- Treated every missing established counter as stale, including a deleted counter still at zero;
+  Task 6 never infers or reconstructs counter progress from state, evaluations, or append ledgers.
+- No Task 7, lifecycle/eligibility mechanics, allocator, live-flow engine, external wiring,
+  revision 016, deployment, UAT, or M1 completion was assumed. Base `b449ca0`, the exact commit
+  subject, and all final verification counts were supplied explicitly.
+
+## [2026-08-11] M1 — Task 6 review fix round 1
+
+- Treated Task 5/bootstrap as the only authorized first-persistence boundary for blueprint member
+  identities and their member-unavailability counters. Task 6 therefore rejects an absent member
+  rather than recreating possibly deleted history.
+- Treated any already-consumed allocation claim as replay of the entire submitted authoritative
+  slice. Mixing a fresh or changed state row, allocation claim, natural occurrence, or ledger draft
+  with that replay is stale/conflicting and rolls back atomically.
+- Preserved revision 015 and all Task 6 scope exclusions. No Task 7, allocator, lifecycle/live-flow
+  behavior, migration 016, external call, deployment, push, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 6 review fix round 2
+
+- Chose immutable nested reconstruction with `dataclasses.replace` because the committed result and
+  its runtime/ledger values are frozen and caller-owned inputs must remain unchanged.
+- Used `datetime.UTC`, which is the exact singleton also exposed as `timezone.utc`, for the retained
+  tzinfo identity contract; all aware offsets normalize to it and naive values remain invalid.
+- Preserved revision 015 and every Task 6 exclusion. No Task 7, migration 016, external call,
+  deployment, push, UAT, or M1 completion was assumed.
+
+## [2026-08-11] M1 — Task 6 acceptance closeout
+
+- No assumptions made. The exact commit chain through `47f9e55`, independent Ultra acceptance
+  result, Task 6/plan completion, and continued M1 IN PROGRESS state were supplied explicitly.
+- Did not infer Task 7 or a next detailed M1 plan.
+
+## [2026-08-11] M1 — Bootstrap coherent live-team Scrum state
+
+- Used the persisted runtime's `run_id`, rather than selecting a run independently, as the live
+  state authority because the slice requires restart-safe runtime continuity.
+- Derived the initial active sprint's planned interval directly from the resolved first boundary and
+  cadence; chose the configured inclusive capacity range with the persisted deterministic draw.
+- Assigned each timed initial route step to the first resolved member responsible for its activity;
+  WIP/capacity arbitration is deferred to the next incremental tick slice.
+
+## [2026-08-11] M1 — Honor v2 bootstrap boundaries
+
+- No assumptions made. The boundary, wake, DST cadence, and contiguous minimum-capacity policy were
+  supplied by the review resolution.
+
+## [2026-08-11] M1 — Advance incremental Scrum ticks atomically
+
+- Treated sampled dwell as business time in the status, including ordinary queue time but excluding
+  explicitly paused service-clock time, because persistence stores queue/pause/touch separately and
+  has no independent accumulated-dwell column.
+- Used proficiency to select the strongest eligible owner while retaining an already eligible owner;
+  touch credit remains ordinary elapsed labor because no proficiency speed multiplier was specified.
+- Emitted pending Jira intents only for status transitions; ownership, capacity, queue, and touch
+  progress remain internal evidence because v2 handoffs are not Jira assignee changes.
+- Seeded only per-work-item visit counters during bootstrap. Sprint/item counters remain deferred to
+  the lifecycle slice because this task allocates neither a sprint nor a work item.
+
+## [2026-08-11] M1 — Preserve pragmatic tick semantics
+
+- No assumptions made. Minimum active availability, pre-fraction ceiling semantics, availability
+  boundary splitting, earliest shared completion, residual interval handling, and causal payload
+  requirements were supplied explicitly by review findings.
+
+## [2026-08-11] M1 — Schedule fixed v2 sprints
+
+- Chose a 30-second APScheduler polling interval because persisted `next_wake_at`, not the poll
+  cadence, is authoritative and no host polling frequency was specified.
+- Used one concise downtime evidence pair for the complete restart gap even when lifecycle
+  boundaries require multiple zero-work commits; later cursor-only downtime commits add no
+  duplicate evidence.
+- Kept the supported-observation reconciler as the required injected local no-op/fakeable port;
+  Jira-backed observation reconciliation remains a later delivery/integration slice.
+
+## [2026-08-11] M1 — Task 3 review fix round 1
+
+- No assumptions made. The exclusive pagination cursor, default page size, sequential failure
+  isolation, evidence-before-lifecycle order, lifecycle-only zero-work transition, final rebase,
+  and exact exclusions were supplied explicitly by the review findings.
+
+## [2026-08-11] Stage 2 — Deliver v2 Jira intents
+
+- Chose a 10-second exponential retry base capped at 300 seconds because the instruction required a
+  modest capped schedule but did not prescribe exact non-429 intervals.
+- Kept an explicitly present empty `issue_ids` list as a valid empty scope operation. A missing
+  `issue_ids` field is an incomplete intent that stays retryable and cannot release `START_SPRINT`;
+  enriching lifecycle payloads remains deferred to the vertical-proof slice.
+- Used a stable `sim-v2-<UUID>` issue label and sprint-name suffix for provider-visible preflight;
+  project key and project-scoped board lookup are the corresponding stable project/board markers.
+
+## [2026-08-11] Stage 2 — Jira delivery review fix round 1
+
+- No assumptions made. Required incomplete-scope retry behavior and complete public Jira sprint
+  pagination were supplied explicitly by the review findings.
+
+## [2026-08-11] M1 — Prove the pragmatic live Scrum loop
+
+- Used the configured positive `duration_days` for member unavailability; when omitted, used the
+  existing deterministic draw stream to select one through three days because no fallback duration
+  was specified.
+- Closed a cancelled visit with zero remaining work and no fabricated additional credited labor,
+  because the accepted visit invariant requires every closed visit's work balance to be terminal.
+- Seeded only the existing natural cancellation and member-unavailability decision counters during
+  bootstrap; no separate proof/counter protocol or migration was introduced.
+- Built provisioning intents in the acceptance fixture through the public immutable intent and real
+  unit-of-work boundaries because production team creation does not yet own Jira provisioning.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 1
+
+- Superseded the acceptance-only provisioning assumption: production live-team bootstrap now owns
+  idempotent project/board/initial-issue intent composition and appends it in the existing bootstrap
+  transaction.
+- Kept visit-triggered external dependency on its approved visit UUID and fixed occurrence zero.
+  Accepted Task 6 natural-decision tables and owner checks support only cancellation and member
+  unavailability without a migration, so dependency exactly-once persistence uses its immutable
+  ground-truth record plus the persisted runtime entry cursor; accepted continuation uses the visit
+  pause clock and performs no redraw.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 2
+
+- No assumptions made. The review specified ground-truth-only continuation evidence tied to the
+  original entry decision/visit, with no redraw, duplicate activity, projection, schema, or protocol.
+
+## [2026-08-11] M1 — Close pragmatic v2 integration gaps
+
+- Chose the initial active `CREATE_SPRINT` intent to depend directly on the board plus every initial
+  issue semantic key because “after project/board/issues” did not prescribe the exact direct edge;
+  project delivery is already a transitive prerequisite of the board.
+- Made no other assumptions: cursor chronology, cadence containment, planned deferral, local-only
+  payload identity, intrinsic-pause exclusion, schema, migration, and verification constraints were
+  supplied explicitly by the final review.

@@ -1,128 +1,536 @@
 # Agent Instruction — Jira Team Simulator
 
-## Current Stage
-Stage 0 — COMPLETE
-Stage 1 — Data Model — COMPLETE
-Stage 2 — Config UI — COMPLETE
-Stage 3 — Jira Integration Layer — COMPLETE (pending UAT sign-off)
-Stage 4 — Simulation Engine — COMPLETE
+> **CURRENT EXECUTION POINTER (2026-08-11):** Pavel approved
+> [`docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md`](docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md).
+> V2 remains authoritative, accepted Tasks 1–6 stay frozen, and the capacity-credit Tasks 7/8 are
+> superseded/non-binding. Do not resume their exact-arithmetic or adversarial-hardening work. Team
+> count is configuration; five teams are a UAT/load fixture only.
 
-## What Has Been Implemented
-- LLM provider: OpenAI (NOT Anthropic — this was swapped before project start)
-- GitHub repo: https://github.com/mrscrum/jira-simulator
-- Full directory skeleton per AGENTS.md
-- AWS infrastructure live via Terraform: EC2 t3.small, EBS 20GB gp3, DLM snapshots, Elastic IP, Security Group, IAM roles
-- Backend scaffold: FastAPI with /health endpoint (stage "4")
-- Frontend scaffold: Vite + React + TypeScript + one test
-- Docker Compose: backend + nginx, production and dev configs
-- CI/CD pipeline: GitHub Actions (pytest → ruff → vitest → SSH deploy to EC2)
-- Both required skills installed (obra/superpowers TDD + clean-code-skills)
-- **Stage 1 complete:**
-  - Pydantic Settings config module loading all env vars
-  - SQLAlchemy database module with engine, session factory, get_db
-  - SQLite WAL mode and foreign keys enabled via event listener
-  - 10 SQLAlchemy models: Organization, Team, Member, Workflow, WorkflowStep, TouchTimeConfig, DysfunctionConfig, Sprint, Issue
-  - TimestampMixin base class for DRY (id, created_at, updated_at)
-  - All relationships, unique constraints, and defaults per spec
-  - Alembic setup with env.py and initial migration (001_initial_schema)
-  - Pydantic v2 schemas for all 9 entities (Base, Create, Read, Update)
-  - FastAPI lifespan event for table creation fallback
-  - 95 tests passing, ruff clean
-- **Stage 3 complete:**
-  - JiraClient async httpx wrapper (all Jira REST API v3 methods)
-  - JiraHealthMonitor with ONLINE/OFFLINE/RECOVERING state machine
-  - JiraWriteQueue persistent queue with pacing, recovery, and priority ordering
-  - JiraBootstrapper idempotent project/board/field/status provisioner
-  - AlertingService with AWS SES email alerts and daily digest
-  - APScheduler integration (health check every 60s, daily digest at 08:00 UTC)
-  - 4 new DB models: JiraConfig, JiraWriteQueueEntry, JiraIssueMap, JiraIssueLink
-  - 3 bootstrap columns on Team model (jira_bootstrapped, jira_bootstrap_warnings, jira_bootstrapped_at)
-  - 5 Alembic migrations (003-007)
-  - 6 new API endpoints: bootstrap, bootstrap status, health, queue status, retry-failed, project statuses
-  - Replaced hardcoded jira_proxy.py with real Jira integration router
-  - Pydantic schemas for all Jira API responses
-  - boto3 dependency for AWS SES
-  - alert_email_from, alert_email_to, aws_ses_region in Settings
-  - All integration services wired into FastAPI lifespan
-  - 289 tests passing, ruff clean
-- **Stage 4 complete:**
-  - `engine/calendar.py` — pure functions for timezone-aware business days, working hours, cross-TZ handoff lag (ZoneInfo)
-  - `engine/capacity.py` — DailyCapacityState frozen dataclass, WIP tracking, touch-time advancement, available worker selection
-  - `engine/issue_state_machine.py` — IssueState StrEnum (9 states), JiraWriteAction dataclass, transition_issue() with valid transition map
-  - `engine/sprint_lifecycle.py` — SprintPhase StrEnum, phase advancement logic, capacity-fitted/priority-ordered issue selection, carry-over detection, velocity calc
-  - `engine/events/` — BaseEvent ABC, TickContext/EventOutcome dataclasses, registry with 16 event handlers
-  - 16 events: carry_over, velocity_drift, sprint_goal_risk, stale_issue, move_left, descope, unplanned_absence, priority_change, split_story, external_block, uneven_load, review_bottleneck, onboarding_tax, late_planning, skipped_retro, scope_commitment_miss
-  - `engine/backlog.py` — depth check, story point distribution, TemplateContentGenerator + OpenAIContentGenerator (w/ fallback)
-  - `engine/simulation.py` — SimulationEngine tick orchestrator (STOPPED/RUNNING/PAUSED), per-team pause, write queue integration
-  - 6 new DB models: SimulationEventConfig, SimulationEventLog, MoveLeftConfig, MoveLeftTarget, MoveLeftSameStepStatus, DailyCapacityLog
-  - Extended Team (8 cols), Member (1 col), Sprint (7 cols), Issue (4 cols)
-  - Alembic migration 008_stage4_schema
-  - Updated Pydantic schemas for all modified entities
-  - 20+ simulation API endpoints: engine control, per-team control, sprint management, event config/log, backlog, capacity, health
-  - SimulationEngine created in FastAPI lifespan, stored on app.state
-  - 518 tests passing, ruff clean
+## Current Stage and Baseline
 
-## Live Infrastructure
-- **EC2 public IP**: 98.89.183.224
-- **Health check**: http://98.89.183.224/health → `{"status":"ok","stage":"4"}`
-- **Frontend**: http://98.89.183.224/
-- **SSH**: `ssh -i ~/.ssh/jira_simulator.pem ec2-user@98.89.183.224`
-- **Data volume**: /data (20GB EBS gp3, encrypted, daily DLM snapshots)
-- **App directory**: /app/jira-simulator
-- **SQLite**: /data/simulator.db (created by Alembic migration on deploy)
+Stage labels in `backlog/` are not a reliable description of the code. The repository contains
+configuration UI, Jira integration, a distribution-based simulation rewrite, precomputed sprint
+schedules, and scheduled-event dispatch. The north-star end-to-end workflow is still partial and
+has not been verified against the live `mrscrum` Jira instance in the latest assessment.
 
-## Key Files and What They Do
-- `AGENTS.md` — master project spec (development flow, domain model, tech stack, rules)
-- `backend/app/config.py` — Pydantic Settings loading env vars (.env), including alert/SES config
-- `backend/app/database.py` — SQLAlchemy engine, session factory, get_db dependency
-- `backend/app/models/base.py` — DeclarativeBase + TimestampMixin
-- `backend/app/models/*.py` — 19 SQLAlchemy model files (9 original + 4 Jira + 6 Stage 4)
-- `backend/app/models/__init__.py` — re-exports all models
-- `backend/app/schemas/*.py` — 10 Pydantic schema files (9 original + jira.py)
-- `backend/app/schemas/__init__.py` — re-exports all schemas
-- `backend/app/main.py` — FastAPI app with lifespan, /health, integration + engine wiring
-- `backend/app/engine/calendar.py` — pure business day/timezone/holiday calculations
-- `backend/app/engine/capacity.py` — DailyCapacityState, WIP, touch-time advancement
-- `backend/app/engine/issue_state_machine.py` — IssueState enum, transition logic, JiraWriteAction
-- `backend/app/engine/sprint_lifecycle.py` — SprintPhase, phase advancement, issue selection
-- `backend/app/engine/backlog.py` — depth check, content generation (template + OpenAI)
-- `backend/app/engine/simulation.py` — tick orchestrator, engine state machine
-- `backend/app/engine/events/base.py` — TickContext, EventOutcome, BaseEvent ABC
-- `backend/app/engine/events/registry.py` — 16-event handler registry
-- `backend/app/engine/events/*.py` — 16 individual event handler modules
-- `backend/app/integrations/jira_client.py` — async httpx Jira REST API wrapper
-- `backend/app/integrations/jira_health.py` — health monitor state machine
-- `backend/app/integrations/jira_write_queue.py` — persistent write queue with pacing
-- `backend/app/integrations/jira_bootstrapper.py` — idempotent Jira project provisioner
-- `backend/app/integrations/alerting.py` — AWS SES alerting service
-- `backend/app/integrations/scheduler.py` — APScheduler job definitions
-- `backend/app/integrations/exceptions.py` — typed Jira API exceptions
-- `backend/app/api/routers/simulation.py` — 20+ simulation API endpoints
-- `backend/app/api/routers/jira_integration.py` — 6 Jira API endpoints
-- `backend/alembic/env.py` — Alembic migration environment
-- `backend/alembic/versions/001-008` — 8 migrations (001 initial + 002 stage2 + 003-007 Jira + 008 stage4)
-- `backend/tests/` — 518 tests across 24+ test files
+Read `docs/requirements-functionality-map.md` before planning implementation. It is the
+evidence-backed baseline as of 2026-08-10 (`main` at `b65b133`).
 
-## Next Task — Stage 5: Dysfunction Events
-Per AGENTS.md, Stage 5 covers advanced dysfunction events. Awaiting spec from Pavel.
+The approved additive v2 specification and execution plan now begin at `docs/v2/README.md`. M1 is
+tracked under `backlog/v2/`; the completed persistence/deterministic-kernel slices are recorded in
+`backlog/v2/`, and `backlog/v2/m1-scrum-state.md` records the completed, technically accepted
+two-task Scrum-state plan. `backlog/v2/m1-capacity-credit.md` is preserved planning history only.
+The retryable Jira-delivery slice at revision 016 and the first causal-risk/fake-Jira vertical are
+complete. Their final integration corrections now bound risk chronology to the committed cursor,
+bootstrap late starts into the containing cadence window, provision initially active sprints, and
+exclude intrinsic service-clock pauses from dependency evaluation. Choose the next reviewable
+inbound-observation, content, transcript, or API slice from the approved pragmatic-v2 design.
+Historical Stage 4/5 plans are not executable for v2.
 
-## Active Decisions / Unresolved Questions
-- SprintPhase field exists on Sprint model but is treated as a backup field (user decision: use status primarily)
-- OpenAI SDK vs httpx for LLM calls — OpenAI SDK used in backlog.py OpenAIContentGenerator
-- Branch protection on main not yet configured
-- Pre-existing test_config.py failure: test_loads_default_database_url fails in Docker because container env overrides DATABASE_URL (not a real bug)
-- Tick orchestrator _tick_team has placeholder body — full wiring needed when integration-tested with real data
+## Product Boundary
 
-## Gotchas
-- **OpenAI is the LLM provider, NOT Anthropic** — check AGENTS.md env vars section
-- `.env` and `infra/terraform.tfvars` are gitignored — if you don't see them, they're correctly hidden
-- Deploy workflow uses `sudo docker compose` (ec2-user needs sudo for docker)
-- Deploy workflow sets `git config --global --add safe.directory /app/jira-simulator`
-- **Local venv at backend/.venv/** — run tests: `.venv/bin/python -m pytest tests/ --tb=short -q`
-- **Test deps need install after container rebuild**: `docker compose exec backend pip install pytest pytest-asyncio ruff boto3`
-- In-memory SQLite doesn't support WAL mode — WAL test uses file-based SQLite
-- SQLite doesn't support ALTER ADD CONSTRAINT — split_from_id FK enforced at ORM level only
-- Alembic migrations are hand-written, not autogenerated
-- `backend/app/api/routers/jira_proxy.py` still exists on disk but is no longer imported (replaced by jira_integration.py)
-- All event handlers use dependency-injected `rng` parameter for deterministic testing
-- Follow AGENTS.md mandatory development flow: plan → task split → TDD → docs → backlog update
+- Connect exactly one Jira instance: `mrscrum`.
+- Use one global Jira credential set and Jira client.
+- Support multiple teams; each team maps to a distinct Jira project and is configured separately.
+- Keep all Jira writes behind the persistent write queue.
+- Never use a simulator-originated update to change Jira's actual assignee or reporter after issue
+  creation. Preserve direct human changes; use virtual ownership fields and internal state.
+- Simulation timing is statistical and Jira statuses map 1:1 to configured workflow statuses.
+
+## What Is Implemented
+
+- FastAPI backend with 76 OpenAPI operations and 45 SQLAlchemy tables.
+- React UI for teams, members, workflows, timing templates, move-left configuration,
+  dependencies, simulation controls, and sprint/event schedules.
+- Per-team project key/board, members, workflow, timing, sprint, calendar, and backlog settings.
+- Log-normal full-time and uniform work-time distributions.
+- Sprint planning, move-left rolls, working-calendar calculations, and deterministic precompute.
+- Persistent scheduled events, Jira write queue, rate-limit handling, Jira client, bootstrapper,
+  health monitor, and queue-status auditor.
+- Pure v2 deterministic semantic identities, `HMAC_SHA256_U53_V1` decision draws, and bounded
+  dwell/touch sampling with slotted, reconstruction-resistant, formula-bound provenance and no
+  persistence/external dependency.
+- Pure v2 aware-UTC/business-time arithmetic, DST-safe IANA local-boundary resolution, fixed local
+  sprint cadence, and bounded `US_FEDERAL_V1` holiday-horizon materialization/extension.
+- Immutable detached authoritative Scrum state across member execution, work/factors,
+  sprints/scope, status visits/samples, semantic counters, and natural evaluations at reversible
+  Alembic revision 015, with a caller-owned-session mapper and composite ownership constraints.
+- Immutable Task 6 authoritative commands/results and a one-session unit-of-work operation that
+  atomically commits runtime CAS, sparse Scrum after-images, exact counter/natural claims, ordered
+  evidence, and pending projection intents without external delivery or revision 016.
+- A live-team store that reads the persisted runtime and authoritative Scrum state in one
+  transaction, plus deterministic idempotent initial Scrum bootstrap with direct zero-touch
+  transitions, containing-window late-start cadence selection, and authenticated samples only for
+  timed visits.
+- A pure incremental Scrum tick and application service that enforce business-time availability,
+  capacity/WIP, ranked responsibility/proficiency allocation, sticky ownership, dwell/touch
+  completion, direct zero-touch transitions, due risk/workday boundaries, recomputation at an early
+  committed visit boundary, fixed-sprint-end capping, and one stale retry while committing sparse
+  Scrum state and evidence atomically through Task 6.
+- Fixed local-cadence sprint activation/rollover with unchanged carryover, ranked backlog fill,
+  explicit new-row claims, and dependency-ordered pending sprint projection intents.
+- Persisted sorted due-team discovery, one sequential failure-isolated scheduler path, and restart
+  handling that reconciles first, records skipped downtime, advances lifecycle with zero work, and
+  preserves existing pending intents. APScheduler hosts one v2 poller job.
+- Revision 016 retry/delivery receipts and semantic Jira resource mappings, plus a short-transaction
+  FIFO/dependency store, sequential retryable worker, provider-visible idempotent create preflight,
+  initial-active-sprint create/scope/start provisioning, and one async delivery poller registered
+  after restart reconciliation.
+- Versioned due-trigger risk evaluation for sampled long stay, configured review return,
+  cancellation, deterministic external-dependency pause, and member-unavailability overlays, with
+  deterministic causal evidence, intrinsic-pause exclusion, due-boundary review timestamps, and no
+  language-model decision path.
+- A fake-Jira multi-sprint acceptance through the production scheduler/UOW/outbox/store/worker/
+  adapter seams, including restart, retained outage work, recovery drain, and idempotent
+  provider-success/local-receipt retry.
+- Terraform, Docker Compose, Nginx, and GitHub Actions deployment assets.
+
+## Most Recent Change
+
+On 2026-08-11, the pragmatic v2 final integration correction made the runtime cursor the hard
+chronology boundary for every risk mutation and evidence row. A provisional early visit completion
+now causes risk evaluation to restart from the original state at the shorter end, while configured
+workday and review-status triggers surface at their due boundaries. Late bootstrap selects the
+containing fixed local/DST cadence and correct next ordinal; its first tick cannot rewind. An
+initially active sprint atomically appends local-ID create/scope/start intents after base
+provisioning so its mapping exists before completion, while planned bootstrap still defers them.
+Intrinsic service-clock pauses cannot start or continue dependency risk. Revision 016 remains the
+sole head; no migration, live Jira, deployment, push, or UAT occurred.
+
+On 2026-08-11, Task 5 review fix round 2 made every committed external-dependency
+continuation delta atomic with a ground-truth-only causal record. Continuations still use the
+persisted visit pause clock, perform no outcome redraw, and emit no duplicate start activity or Jira
+projection. Revision 016 remains the sole head; no live Jira, deployment, push, or UAT occurred.
+
+On 2026-08-11, Task 5 review fix round 1 moved Jira project/board/initial-issue intent composition
+into production live-team bootstrap and removed the acceptance-only command builder. Bootstrap
+appends the logical semantic-ID payloads in its existing transaction and replays idempotently.
+Every due stochastic false outcome now persists causal ground truth without activity or mechanics.
+External dependency decides only at the persisted visit-entry cursor, continues accepted pause from
+visit state without redraw/duplicate start, and cannot reopen a same-tick cancellation because risk
+handlers consume accumulated state. Long-stay crossing uses business-service elapsed time rather
+than wall time. Revision 016 remains the sole head; no live Jira, deployment, push, or UAT occurred.
+
+On 2026-08-11, the fifth pragmatic v2 slice completed the first live-loop vertical. The tick kernel
+now evaluates configured risk rules only at their persisted trigger and applies five representative
+mechanical outcomes through accepted Scrum state and Task 6 claims. Ground truth records policy
+version, factors, deterministic draw, eligible people, causal clock deltas, reason, and logical Jira
+intent; fallback text is deterministic and no LLM is called. Lifecycle/progress intents carry local
+semantic UUIDs and logical Jira fields, and the concrete adapter resolves persisted provider
+mappings. The fake Jira scenario provisions a project, board, and issues, crosses two sprint ends,
+restarts without downtime credit, retains work during an outage, drains on recovery, and proves a
+failed local receipt after provider success does not duplicate resources. Revision 016 remains the
+sole migration head; no live Jira, deployment, push, or UAT occurred.
+
+On 2026-08-11, the fourth pragmatic v2 slice added retryable outbound Jira delivery without
+changing authoritative state or projection rows. Revision 016 owns only delivery receipts and
+team-scoped resource mappings and round-trips populated revision 015. The store releases the first
+outstanding intent per team only when canonical dependencies are delivered; one deferred/failed
+team does not block another. The worker awaits the integration adapter outside database sessions,
+persists 429 `Retry-After` or capped provider retry, then atomically records mappings plus success.
+Provider-visible issue labels and sprint-name markers prevent duplicate creation after provider
+success/local-commit failure. Review fix round 1 requires `issue_ids` on scope so incomplete intents
+stay retryable/block start, and exhausts public Jira board-sprint pages before create preflight.
+Startup reconciles persisted v2 state before registering exactly one delivery job. No live
+Jira/network call, credential access, comments, deployment, inbound
+reconciliation, or UAT was performed.
+
+Task 3 review fix round 1 drains due runtimes through exclusive `team_id` keyset pages instead of
+repeating the first default 100; one failure remains isolated while later pages run in the same
+sequential path. Restart now commits its idempotent downtime evidence before every due lifecycle
+boundary, applies lifecycle-only zero-work transitions, and performs one final cursor/wake rebase.
+This guarantees a failure after evidence cannot leave a lifecycle transition without its prior
+downtime record. No lease, concurrency, team-count branch, missed-work replay, or migration was
+added.
+
+On 2026-08-11, the third pragmatic v2 slice added fixed sprint lifecycle plus scheduler/restart
+ownership. Planned bootstrap stops at its first boundary, activates and scopes before work, and
+active rollover preserves unfinished status/owner/visit/sample/progress before ranked backlog fill.
+Every new sprint/visit uses an explicit accepted Task 6 claim; no backlog item or migration is
+created. `SqlAlchemyDueTeamStore` reads persisted wake authority, while `LiveScheduler` processes
+all configured teams through `TeamTickService` sequentially with team-scoped failure isolation.
+Restart calls the injected observation port first, records `DOWNTIME_SKIPPED`, crosses elapsed
+boundaries with zero work, schedules from `as_of`, and leaves prior pending intents immutable. The
+local reconciler is an injected no-op pending the Jira delivery/inbound-observation slice.
+
+On 2026-08-11, the second pragmatic v2 slice added incremental Scrum advancement and atomic commit.
+`calculate_scrum_tick` advances ordinary business intervals with sticky eligible owners,
+responsibility/proficiency selection, overlays, capacity, max WIP, and separate queue/pause/touch
+clocks, then emits sparse Task 6 after-images and concise evidence/intents. `TeamTickService` performs
+one coherent load per attempt and exactly one stale-runtime retry. Bootstrap now seeds each initial
+work item's actual next visit ordinal so a completed initial timed visit can open a later timed visit
+with one authenticated sample and explicit claim. Real SQLite success/rollback coverage is included.
+No migration, network call, risk evaluation, scheduler, deployment, or UAT occurred.
+
+Review fix round 1 preserves the pragmatic semantics: active configured/runtime fractions combine
+by minimum, the minimum pre-fraction daily ceiling is scaled once, processing splits at availability
+boundaries, and a tick stops all concurrent progress at the earliest meaningful visit completion.
+Residual time remains for the next tick. Ground truth now distinguishes unavailable, no-capable,
+WIP-limit, daily-capacity, dwelling, progressed, and transitioned causes with concise deltas and
+timing/config context. No deferred risk/scheduler/Jira behavior was added.
+
+## Accepted Task 1–6 History
+
+On 2026-08-11, Task 6 was committed as `4cfaa65` (`feat(v2): commit scrum state atomically`). Review
+fix round 1 is commit `6bac956` (`fix(v2): enforce authoritative after-image identity`) and binds
+every after-image to immutable ownership/history coordinates and requires an
+advanced allocation claim to authenticate the entire submitted replay: all state, allocation and
+natural claims, and ledger drafts must already be persisted and exact. Missing established blueprint
+members reject instead of being recreated or having counters reset; Task 5/bootstrap remains their
+initialization authority. Committed runtime/ledger results are deeply revalidated, returned
+counters/evaluations must be exact complete-snapshot members, and visible natural owner-kind
+cross-binding rejects before session creation. Review fix round 2 now immutably rebuilds every
+nested committed runtime/ledger value so each aware instant is retained with exact UTC tzinfo;
+naive instants still reject and caller-supplied frozen values stay unchanged. Round 2 is commit
+`47f9e55` (`fix(v2): normalize authoritative result instants`). Its verification matrix and direct
+probe are GREEN, and independent Ultra technical review reported CLEAN with no Critical or Important
+findings. Task 6 and the Scrum-state plan are complete; revision 015 and external boundaries are
+unchanged, M1 stays in progress, and no next detailed slice has been selected.
+
+On 2026-08-11, Task 5 review fix round 5 began on committed base `9049e1a`. A complete same-key
+visit/sample after-image now detaches only its confirmed-missing target-local visit and sample
+identities after an external cascade deletion, eliminating two sample identity-conflict
+`SAWarning`s while preserving unrelated caller cache entries. The isolated TDD regression moved
+from `1 failed in 0.28s` to `1 passed in 0.27s`. The full verification matrix is GREEN, the fix was
+committed as `0782070` (`fix(v2): detach cascaded scrum identities`), and the subsequent independent
+Ultra technical review reported CLEAN with no Critical or Important findings. Task 5 is accepted;
+Task 6 was still open at that checkpoint and is now accepted as described above. M1 remains in
+progress.
+
+On 2026-08-11, Task 5 review fix round 4 made every mapper authority/state read refresh matching
+clean ORM identities from the current transaction's database view. Cached team/run/blueprint/sample
+corruption and run deletion now reject; valid external state updates appear in complete `load` and
+sparse-`add` snapshots without broadly expiring unrelated caller identities. Member-only reads use
+the same boundary. A complete visit/sample after-image can restore an externally deleted cached
+visit without `StaleDataError` or SQLAlchemy identity-conflict warnings because only the
+confirmed-missing stale visit identity is detached first. The focused and full round-4 verification
+matrix is GREEN, and the change is committed as `9049e1a`
+(`fix(v2): refresh authoritative scrum reads`). At that checkpoint, revision 015 and the Task 6
+boundary were unchanged; external calls, deployment, UAT, and M1 completion were untouched.
+
+On 2026-08-11, Task 5 review fix round 3 made both caller-session mapper entry points reject
+non-empty ORM `new`, `dirty`, or `deleted` state before authority/candidate SQL, preserving rollback
+ownership and preventing implicit flushes or identity-map leakage into detached snapshots. Empty,
+coordinate-free write sets now reject before SQL instead of returning a false complete snapshot;
+Task 6 must skip the mapper when it has no Task 5 after-images. Trusted sample creation now exactly
+revalidates every nested deterministic draw scalar and the full keyed HMAC, and retained dwell/touch
+units require exact finite built-in floats in `[0, 1]`. Low-bit HMAC equality forgeries,
+low-level reconstructed inputs, and stateful float subclasses reject before persistence. Revision
+015 remains unchanged; no generalized Task 6 upsert, revision 016, external call, deployment, UAT,
+or M1 completion was added.
+
+On 2026-08-11, Task 5 review fix round 2 made the caller-owned mapper accept sparse touched-row
+after-images without weakening complete restart state. It resolves omitted persisted member/work
+owners and unchanged visit samples under `no_autoflush`, validates a complete merged snapshot
+before Task 5 DML, and returns that complete detached aggregate. Approved null-activity route steps
+persist and restart as exact `activity_key=None`, no-member, zero-touch visits with one authenticated
+sample. Every complete snapshot and new visit requires exactly one authenticated sample, and only
+existing visit rows receive the narrow reviewed after-image update.
+
+On 2026-08-11, Task 5 review fix round 1 bound authoritative Scrum state to its complete trusted
+authority. Task 5 values now reject runtime and scalar subclasses; status samples can be created
+only from exact authenticated Task 3 draws and are revalidated after restart against the persisted
+blueprint seed, team/run/visit coordinate, timing cell, sampler versions, formulas, and exact
+half-even microseconds. Revision 015 now gives visit/natural counters and natural evaluations typed
+work-item/member owner columns with composite foreign keys and exact owner-shape checks. The mapper
+loads the exact team/blueprint/run in the caller session, validates blueprint graph/reference and
+partial/semantic uniqueness before DML, and rejects persisted sample corruption on load. Task 6,
+revision 016, lifecycle/allocation behavior, external calls, deployment, UAT, and M1 completion were
+open or untouched at that checkpoint; Task 6 is now accepted as described above.
+
+On 2026-08-11, M1 Scrum-state Task 5 added immutable, slotted authoritative state values and the
+third isolated v2 mapping module. Revision 015 creates 11 constrained tables for semantic member
+identity, runtime availability/consumption, work/factors, sprints/scope, status visits/samples,
+counters, and natural-decision eligibility; it adds no transition or allocation behavior. Every
+run-derived reference is composite team/run owned, duration state is exact signed-range integer
+microseconds, and timing provenance is canonical and bound to its visit/sample coordinates. The
+caller-owned mapper validates before inserts, flushes without transaction ownership, returns
+detached semantic ordering, and reloads exactly after engine disposal. Populated revision 014
+survives 014→015→014→015 unchanged. Task 6 was still open at that checkpoint and is now accepted as
+described above. Jira/OpenAI, deployment, UAT, and M1 completion were not touched.
+
+On 2026-08-11, Task 4 review fix round 2 centralized business-calendar timezone conversion and
+local-boundary range handling. `business_date`, `working_interval`, nested next-working/addition,
+fixed cadence, and aware-UTC normalization now expose one stable domain `ValueError` when an
+otherwise valid extreme instant cannot be represented after conversion; raw `OverflowError` no
+longer crosses the public pure-domain boundary. Minimum/maximum tests cover Kiritimati and Los
+Angeles without changing ordinary DST, horizon, federal, cadence, schema, persistence, external,
+deployment, UAT, or M1 state.
+
+On 2026-08-11, Task 4 review fix round 1 hardened the pure calendar/horizon boundary. Federal
+starter materialization now requires the resolved team IANA timezone, so UTC-normalized blueprint
+instants still select the correct team-local year and equivalent offset representations agree.
+Only keys exposed by `zoneinfo.available_timezones()` are accepted after pseudo-zone exclusion.
+Extension authenticates full-year bounds and the exact generated `US_FEDERAL_V1` holiday tuple,
+then catches far-stale requests up in ten-year blocks; replay preserves identity. Business-calendar
+`Etc/UTC` horizon exhaustion, including `date.max`, raises a stable domain `ValueError`; review fix
+round 2 added the cross-zone extreme-conversion boundary. Round 1 added no schema, persistence,
+scheduler, engine, external call, deployment, UAT, or M1 completion.
+
+On 2026-08-11, deterministic-kernel Task 4 added the pure dual-clock calendar boundary.
+`BusinessCalendar` is constructed only from a resolved `CalendarBlueprint` and explicit IANA zone;
+it provides exact UTC/calendar and business elapsed time, business-duration addition, working
+interval/date/end queries, and next-working resolution. Local boundaries reject nonexistent or
+ambiguous DST wall times by UTC round trip. Fixed cadence preserves the anchor's local clock across
+DST and never shifts for weekends or holidays. `US_FEDERAL_V1` materialization contains the exact
+observed federal rules, excludes Inauguration Day, and extends its immutable horizon by ten years
+only when fewer than two complete local years remain. This task added no schema, persistence,
+scheduler, engine, external call, deployment, UAT, or M1 completion.
+
+On 2026-08-11, Task 3 review fix round 2 moved all six deterministic decision/sampling value
+dataclasses onto one frozen/slotted policy. They expose no instance `__dict__`, shallow/deep copy
+returns the same immutable value, and pickle/reduce plus injected pickle state reject. Tests cover
+ordinary field and mapping mutation of stream seeds, decisions, digests, unit values, duration
+parameters, and samples. This is an ordinary Python immutability guarantee and deliberately does
+not claim defense against explicit low-level `object.__setattr__`. Algorithms, public provenance
+fields, persistence, migrations, external boundaries, and Task 4 are unchanged.
+
+On 2026-08-11, Task 3 review fix round 1 sealed `UniformDraw` construction behind
+`DeterministicRandomStream.draw`, restricted every current decision entity to a semantic UUID,
+enforced the documented zero/nonzero occurrence scopes, and bounded every semantic
+ordinal/index/sequence plus occurrence/draw index to `0..2^53-1`. `DurationSample` construction and
+replacement now re-evaluate the exact retained dwell/touch formula. Corrected cancellation and
+maximum-safe-integer literals were independently re-encoded with Node.js. This added no state,
+allocator, migration, external dependency, Jira/OpenAI call, deployment, UAT, or M1 completion.
+
+On 2026-08-10, M1 deterministic-kernel Task 3 added the pure decision and timing-sampling boundary.
+`backend/app/v2/domain/deterministic_rng.py` owns the exact closed creation/decision enums, eight
+fixed-namespace semantic UUIDv5 paths, NFC-seeded HMAC-SHA-256 canonical messages, high-53-bit
+conversion, and frozen draw provenance. `backend/app/v2/domain/sampling.py` owns exact-anchor
+log1p-space dwell interpolation and bounded linear touch sampling from explicit unit draws. Literal
+vectors, fresh-process/reversed/interleaved replay, every starter timing cell, invalid booleans and
+finite/order boundaries, and AST isolation are covered. No occurrence allocation, persistence,
+migration, clock, scheduler, engine, Jira/OpenAI call, deployment, UAT, or M1 completion was added.
+
+On 2026-08-10, the reviewed two-task persistence spine was closed without completing M1, and the
+next active plan was defined as two pure-domain deterministic-kernel slices: exact HMAC-U53 plus
+bounded dwell/touch sampling, followed by dual-clock/DST-safe calendar primitives. This was a
+planning-only change; it added no migration, production behavior, Jira access, or M1 sign-off.
+
+On 2026-08-10, M1 Task 2 review fix round 2 made the live-slice JSON boundary strict about object
+keys. `DraftEnvelope` and all three draft factories now reject integer, boolean, `None`, mixed, and
+nested non-string mapping keys before canonical encoding or session creation, preventing silent
+`json.dumps` coercion. Valid strict JSON retains the same canonical bytes/hash and deep immutability.
+
+On 2026-08-10, M1 Task 2 review fix round 1 hardened revision-014 contracts without changing its
+schema. Direct construction, `dataclasses.replace`, and the UOW boundary now revalidate semantic
+UUIDs, canonical JSON/digests, non-empty type fields, non-negative versions, pending status, and
+aware instants before opening a session. Semantic-key insert races recover through a savepoint:
+identical content resolves to the winner, while differing content raises the typed conflict and
+rolls back the runtime plus all ledgers. Deep payload aliases reject `|=` and nested mutation. Every
+fresh public v2 model/UOW import order registers all seven v2 tables and can create the SQLite
+schema. Adapter-failure coverage now reloads ground truth explicitly as well as runtime, activity,
+and projection state.
+
+M1 Task 2 originally added revision 014 above the reviewed revision-013 team shell. Runtime rows
+expose an explicit optimistic version, and `backend/app/v2/persistence/unit_of_work.py` uses one
+compare-and-swap plus one database transaction to advance runtime and append ordered activity,
+immutable ground truth, and generic pending projection intent. Deterministic semantic UUIDs,
+canonical payload hashes, stable append cursors, stale-writer rollback, disposed-engine restart,
+and post-commit adapter failure are covered by focused tests.
+`backend/alembic/versions/014_add_v2_live_slice_ledgers.py` backfills version zero without retaining
+a server default, owns all three new tables, and returns exactly to populated revision 013 on
+downgrade. V2 remains isolated from the legacy runtime and invokes no Jira/OpenAI adapter.
+
+On 2026-08-10, Pavel approved the v2 product direction and then asked to keep the plan high level,
+leaving implementation detail to the capable model that builds it. The active requirements,
+architecture, roadmap, and MVP outcome now live in `docs/v2/high-level-plan.md`; milestone status is
+in `backlog/v2/README.md`. Earlier detailed v2 contracts and the 96-task decomposition are retained
+only as optional design exploration. Pavel additionally required managed projects to survive direct
+Jira sprint/card intervention, which remains an explicit active requirement. No source-code fixes or
+runtime changes were made.
+
+Accepted Task 6 evidence:
+
+- Task 6 focused: 252 passed.
+- V2, including Tasks 1-6: 1037 passed with 1 baseline warning.
+- Full safe backend: 1555 passed, 43 skipped, with 15 baseline warnings.
+- Ruff, touched-function shape/static/import checks, Alembic sole revision 015 with parent 014,
+  empty branches, linear history, and the no-migration diff are clean.
+- Evidence is retained under `evidence/v2/M1-T06/`; original commit is `4cfaa65`, round-1 commit is
+  `6bac956`, round-2 commit is `47f9e55`, and independent Ultra technical review reported CLEAN with
+  no Critical or Important findings.
+- Real Jira integration tests were not run and remain skipped in normal CI.
+
+## Key Files
+
+- `AGENTS.md` — mandatory development flow and highest-priority repository rules.
+- `docs/requirements-functionality-map.md` — current requirements/functionality baseline.
+- `docs/v2/high-level-plan.md` — active v2 requirements, architecture, roadmap, and MVP acceptance.
+- `docs/superpowers/specs/2026-08-11-pragmatic-v2-live-simulator-design.md` — approved execution
+  design and proportional engineering boundary for the live v2 loop.
+- `docs/v2/implementation-prompt.md` — ready-to-paste mandate for a long independent implementation
+  run, including autonomy, safety, priorities, verification, and morning handoff.
+- `docs/v2/README.md` — authority and resumption instructions.
+- `backlog/v2/README.md` — active milestone status.
+- `backlog/v2/m1-deterministic-kernel.md` — completed Tasks 3/4 requirements, TDD commands,
+  evidence, and completion gates.
+- `backlog/v2/m1-scrum-state.md` — completed and technically accepted Tasks 5/6 requirements:
+  revision-015 authoritative Scrum state followed by atomic runtime-CAS/UOW integration.
+- `backlog/v2/m1-capacity-credit.md` — superseded Tasks 7/8 planning history; do not execute it.
+- Other files under `docs/v2/` and `backlog/v2/stage-*.md` — optional detailed planning reference,
+  not the active contract or mandatory task sequence.
+- `docs/simulation-engine-rewrite-requirements.md` — superseded v1 requirements; historical only.
+- `backend/app/main.py` — application/service/scheduler wiring.
+- `backend/app/engine/simulation.py` — lifecycle tick and sprint precompute persistence.
+- `backend/app/engine/precompute.py` — in-memory sprint simulation and event generation.
+- `backend/app/engine/workflow_engine.py` — per-item distribution/capacity/status logic.
+- `backend/app/engine/event_dispatcher.py` — moves due scheduled events to the Jira queue.
+- `backend/app/integrations/jira_write_queue.py` — external-write boundary and operation routing.
+- `backend/app/integrations/jira_client.py` — Jira REST/Agile API client.
+- `backend/app/integrations/v2_jira_intent_adapter.py` — concrete public-`JiraClient` translation,
+  read-before-write absolute operations, and provider-visible create preflight.
+- `backend/app/integrations/scheduler.py` — background jobs and paused startup behavior.
+- `backend/app/api/routers/scheduled_events.py` — sprint/schedule management and diagnostics.
+- `backend/app/v2/domain/live_slice.py` — immutable live-slice drafts, stored records, runtime
+  advance, transaction command/result, and page contracts.
+- `backend/app/v2/domain/deterministic_rng.py` — closed semantic ID/decision enums, exact UUIDv5
+  paths, scoped safe-integer coordinates, and sealed stateless HMAC-U53 draws.
+- `backend/app/v2/domain/immutable_value.py` — shared frozen/slotted Task 3/5 copy, reconstruction,
+  and runtime-subclass policy; it covers ordinary mutation paths, not explicit
+  `object.__setattr__` misuse.
+- `backend/app/v2/domain/sampling.py` — validated dwell/touch parameters and pure explicit-draw
+  bounded duration samples whose retained result is formula-validated.
+- `backend/app/v2/domain/business_calendar.py` — resolved immutable business calendar, strict
+  aware-UTC inputs, dual elapsed/addition queries, and fixed unadjusted local cadence.
+- `backend/app/v2/domain/iana_timezone.py` — shared available-IANA-key boundary that excludes
+  loadable pseudo-zones before resolving a pure domain timezone.
+- `backend/app/v2/domain/us_federal_calendar.py` — exact observed `US_FEDERAL_V1` rules plus pure
+  team-zone-derived starter materialization, canonical-horizon authentication, and idempotent
+  ten-year-block catch-up.
+- `backend/app/v2/domain/scrum_state.py` — sealed Task 5 lifecycle/state, trusted blueprint-bound
+  timing samples, exact clocks/provenance, simulator rank, semantic counter, evaluation, write-set,
+  query, and detached snapshot contracts.
+- `backend/app/v2/domain/draw_source.py` — bootstrap/tick-facing Task 3 draw protocol and persisted
+  seed/runtime adapter.
+- `backend/app/v2/domain/scrum_bootstrap.py` — deterministic initial backlog, sprint scope, direct
+  zero-touch route transitions, timed-visit/sample construction, and initial visit-counter seeds.
+- `backend/app/v2/domain/scrum_tick.py` — pure bounded Scrum progress, allocation, clocks, route
+  transitions, lifecycle composition, sparse authoritative command, evidence, and pending Jira
+  intent construction.
+- `backend/app/v2/domain/sprint_lifecycle.py` — planned activation and fixed-cadence rollover,
+  unchanged carryover/ranked scope, evidence, claims, and dependent sprint intents.
+- `backend/app/v2/application/team_tick.py` — coherent-load/atomic-commit orchestration with exactly
+  one stale-runtime reload/recalculation retry.
+- `backend/app/v2/application/live_scheduler.py` — one persisted sequential due/restart path with
+  per-team failure isolation and downtime-skipped commits.
+- `backend/app/v2/application/jira_delivery.py` — transport-neutral delivery protocols, persisted
+  pacing errors, and sequential worker.
+- `backend/app/v2/persistence/jira_delivery_store.py` — short-transaction FIFO/dependency reads and
+  atomic retry/success/mapping writes.
+- `backend/app/v2/persistence/jira_delivery_models.py` — the two revision-016 delivery mappings.
+- `backend/alembic/versions/016_add_v2_jira_delivery_state.py` — reversible delivery-only migration
+  over revision 015.
+- `backend/app/v2/persistence/due_team_store.py` — sorted due/running runtime discovery.
+- `backend/app/v2/runtime.py` — v2 scheduler composition, local reconciliation seam, restart, and
+  one test-injectable APScheduler poller registration.
+- `backend/app/v2/application/live_team.py` — detached coherent aggregate/Scrum read model.
+- `backend/app/v2/persistence/live_team_store.py` — one-session transactional read/bootstrap store.
+- `backend/app/v2/domain/authoritative_slice.py` — exact immutable Task 6 claim, authoritative
+  command/result, team/run, coordinate, semantic-ID, and natural-eligibility binding contracts.
+- `backend/app/v2/persistence/scrum_state_models.py` — the 11 revision-015 Task 5 mappings and their
+  exact composite ownership, check, unique, and partial-index constraints.
+- `backend/app/v2/persistence/scrum_state_mapper.py` — caller-owned-session add/load and Task 6
+  after-image/claim mapping; it refreshes authoritative ORM reads, validates complete merged state,
+  applies sparse mutable/immutable semantics, seeds new-owner child counters at zero, keeps deleted
+  counters stale, and flushes but never commits or rolls back.
+- `backend/alembic/versions/015_add_v2_authoritative_scrum_state.py` — reversible Task 5 schema above
+  populated revision 014.
+- `backend/tests/v2/fixtures/hmac_sha256_u53_v1_vectors.json` — independently fixed canonical
+  message/digest/U53/unit literals, including Unicode NFC equivalence.
+- `evidence/v2/M1-T03/README.md` — Task 3 TDD, replay, sampler, architecture, and regression proof.
+- `evidence/v2/M1-T04/README.md` — Task 4 TDD, DST/cadence/holiday, regression, and isolation proof.
+- `evidence/v2/M1-T06/README.md` — Task 6 RED/GREEN, atomicity, stale/replay, restart, adapter,
+  regression, static, Alembic, and no-migration proof.
+- `backend/app/v2/persistence/unit_of_work.py` — the v2 persistence port and atomic SQLAlchemy
+  compare-and-swap implementations for live and authoritative slices; neither imports or calls an
+  external adapter.
+- `backend/app/v2/persistence/live_models.py` — the three append-oriented ledger mappings.
+- `backend/alembic/versions/014_add_v2_live_slice_ledgers.py` — reversible runtime-version and
+  live-ledger migration above revision 013.
+- `frontend/src/App.tsx` — top-level UI section routing.
+- `docker-compose.yml` — current PostgreSQL deployment, conflicting with SQLite-on-EBS rules.
+
+## Next Task
+
+Select the next focused pragmatic v2 slice from inbound Jira observation/reconciliation, structured
+content, internal transcripts, or v2 APIs. Preserve revision-016 delivery, local semantic intent
+payloads, deterministic risk mechanics, and the accepted Task 6 transaction boundary; do not call
+Jira from lifecycle/tick commits.
+
+## Active Decisions and External Gates
+
+1. Build an additive persisted-live v2 modular monolith, initially using SQLite/WAL on EBS and one
+   scheduler owner.
+2. Deliver Scrum and Codex first, then add Kanban. Team count is ordinary configuration; five teams
+   are an initial UAT/load fixture, and higher counts are measured only to discover actual limits.
+3. Use fixed sprint boundaries, unchanged carryover, team business-time mechanics, and both
+   business/calendar analytics.
+4. Use one company-managed project/board per team, virtual identity fields, internal transcripts,
+   and no v2 Jira comments.
+5. Treat supported manual Jira sprint/card edits as attributed inputs and reconcile Jira before
+   advancing after restart; incompatible/protected changes surface a scoped conflict.
+6. Keep Codex conversation/control separate from server-key OpenAI content generation and expose
+   complete calibration ground truth.
+7. Live Jira work requires a designated disposable target and authorization. Code work requires the
+   mandatory TDD skill from `AGENTS.md`.
+
+## Critical Gotchas
+
+- Precomputed final issue states are not applied to persistent `Issue` rows.
+- A newly generated schedule usually lacks the Jira sprint ID needed for add/start/complete events.
+- Event dispatch ignores sprint activation and per-team pause/deactivation.
+- Per-team start/resume does not start the global scheduler.
+- SimClock speed and tick-interval API changes do not accelerate/reconfigure scheduled dispatch.
+- Health recovery can remain stuck in `RECOVERING` because queue recovery is not wired.
+- Jira-synchronized sprint edit/delete paths use `app.state.jira_write_queue`, but startup stores
+  `app.state.write_queue`.
+- Dysfunction and cross-team dependency models do not affect the active simulation.
+- Historical documentation claims event-handler modules that no longer exist.
+- The API is unauthenticated, and the public deployment has no configured TLS listener.
+- V1 has no durable webhook/poll inbox for Jira-side manual sprint/card changes; v2 must not build
+  reconciliation on the current one-way dispatcher alone.
+- Restart must reconcile supported Jira interventions before boundary handling or new outbound
+  delivery, and must not manufacture missed daily work.
+- Jira provisioning and sprint creation have fake-client idempotency/read-back coverage but still
+  require designated-sandbox live acceptance before autonomous operation.
+- Domain Jira intents carry local semantic UUIDs only. Provider Jira IDs are resolved from
+  `v2_jira_resource_mappings` inside the concrete adapter; never write provider IDs into lifecycle,
+  risk, or tick payloads.
+- Initial Jira project/board/issue intents are owned by production live-team bootstrap. An active
+  initial sprint adds create/scope/start in the same transaction; a planned sprint defers them.
+  Acceptance tests must not recreate this composition path or inject equivalent commands directly.
+- Never place simulator/Jira/OpenAI credentials in source, browser bundles, URLs, logs, or evidence.
+- V2 projection delivery must consume only committed/read `PENDING` intents after the unit of work;
+  neither `commit_tick_slice` nor `commit_authoritative_slice` may import or invoke an adapter.
+- Treat `append_sequence` as the only pagination order. `occurred_at` may be equal or late, and
+  semantic replay must not allocate another row when canonical immutable content is identical.
+- Existing dirty documentation and untracked assessment/skill files belong to the current owner;
+  do not stash, reset, clean, or overwrite them during worktree setup.
+- `DraftEnvelope` cyclic Python containers currently fail before session/state mutation with a raw
+  `RecursionError`; this deferred non-blocking validation Minor is outside deterministic Tasks 3/4
+  and should be fixed separately before an API accepts arbitrary v2 payload objects.
+- Task 3 validates caller-supplied occurrences only. It deliberately has no counter or allocation;
+  future authoritative state transactions must allocate eligible occurrences on commit without
+  deriving them from ledger counts or call order.
+- Task 5 write sets may be sparse, but every returned/reloaded snapshot and every new visit must be
+  sample-complete. Reuse of an omitted sample is valid only for an already persisted visit after
+  the mapper loads and authenticates it in the caller's session.
+- Task 5 mapper `add` and `load` require clean caller ORM `new`/`dirty`/`deleted` collections before
+  authority SQL. The Task 6 in-session path flushes each after-image/claim class before the complete
+  reload and skips after-image application entirely when the write set is empty.
+- New Task 6 work-item owners receive deterministic zero-valued visit/cancellation child counters in
+  the same transaction. Blueprint members and their unavailability counters must already exist from
+  Task 5/bootstrap; Task 6 never recreates a missing member or its history. Every later
+  missing/deleted established counter is stale and must never be reconstructed from state or ledgers.
+- Task 5 authoritative reads deliberately populate matching existing ORM identities so clean caller
+  cache state cannot hide committed database updates, corruption, or deletion. This refresh is
+  limited to queried team/run state and does not expire unrelated identities.
+- Restoring a cascade-deleted complete visit/sample after-image must detach only the confirmed-
+  missing same-key visit and sample identities; unrelated caller cache entries remain preserved.
+
+## Mandatory Development Flow
+
+For every future change: plan and obtain approval, split and record tasks in `backlog/`, use strict
+RED → GREEN → REFACTOR TDD, apply Python clean-code skills, update all mandatory documents, verify
+all tests, deploy, and wait for Pavel's UAT/sign-off.

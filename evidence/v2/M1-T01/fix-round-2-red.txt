@@ -1,0 +1,136 @@
+.F......................F                                                [100%]
+=================================== FAILURES ===================================
+___ test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document ____
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document(
+        blueprint_document: dict[str, object],
+    ):
+        changed = deepcopy(blueprint_document)
+        changed["scrum"]["first_boundary"] = "2026-08-13T09:00:00-07:00"
+        availability = changed["members"][1]["availability"][0]
+        availability["starts_at"] = "2026-08-20T09:00:00-07:00"
+        availability["ends_at"] = "2026-08-20T17:00:00-07:00"
+        document = _canonical_document(changed)
+
+>       blueprint = ResolvedTeamBlueprint.from_canonical_json(document)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_team_blueprint.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'app.v2.domain.team_blueprint.ResolvedTeamBlueprint'>
+document = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+
+    @classmethod
+    def from_canonical_json(cls, document: str) -> "ResolvedTeamBlueprint":
+        """Parse only a byte-for-byte canonical resolved blueprint document."""
+        try:
+            raw_document = json.loads(document, parse_constant=_reject_non_finite)
+        except (json.JSONDecodeError, ValueError) as error:
+            raise ValueError("blueprint must be valid finite JSON") from error
+>       blueprint = cls.model_validate(raw_document)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 3 validation errors for ResolvedTeamBlueprint
+E       members.1.availability.0.starts_at
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T09:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E       members.1.availability.0.ends_at
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T17:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E       scrum.first_boundary
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-13T09:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+app/v2/domain/team_blueprint.py:354: ValidationError
+__________ test_create_team_hashes_original_canonical_offset_document __________
+
+self = <app.v2.application.create_team.CreateTeamService object at 0x10c715e20>
+command = CreateTeamCommand(idempotency_key='offset-request', blueprint_json='{"backlog":{"arrival_pattern":"ON_DEMAND","issue_t...","pauses_service_clock":false}]}}', requested_at=datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc))
+
+    def create(self, command: CreateTeamCommand) -> PersistedTeamAggregate:
+        requested_at = self._normalize_request_time(command.requested_at)
+        try:
+>           blueprint = ResolvedTeamBlueprint.from_canonical_json(command.blueprint_json)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/v2/application/create_team.py:43:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+cls = <class 'app.v2.domain.team_blueprint.ResolvedTeamBlueprint'>
+document = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+
+    @classmethod
+    def from_canonical_json(cls, document: str) -> "ResolvedTeamBlueprint":
+        """Parse only a byte-for-byte canonical resolved blueprint document."""
+        try:
+            raw_document = json.loads(document, parse_constant=_reject_non_finite)
+        except (json.JSONDecodeError, ValueError) as error:
+            raise ValueError("blueprint must be valid finite JSON") from error
+>       blueprint = cls.model_validate(raw_document)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       pydantic_core._pydantic_core.ValidationError: 3 validation errors for ResolvedTeamBlueprint
+E       members.1.availability.0.starts_at
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T09:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E       members.1.availability.0.ends_at
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T17:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E       scrum.first_boundary
+E         Value error, instant must be aware UTC [type=value_error, input_value='2026-08-13T09:00:00-07:00', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+app/v2/domain/team_blueprint.py:354: ValidationError
+
+The above exception was the direct cause of the following exception:
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+requested_at = datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)
+
+    def test_create_team_hashes_original_canonical_offset_document(
+        blueprint_document: dict[str, object], requested_at
+    ):
+        class ReturningRepository:
+            def create(self, aggregate):
+                return aggregate
+
+        changed = deepcopy(blueprint_document)
+        changed["scrum"]["first_boundary"] = "2026-08-13T09:00:00-07:00"
+        availability = changed["members"][1]["availability"][0]
+        availability["starts_at"] = "2026-08-20T09:00:00-07:00"
+        availability["ends_at"] = "2026-08-20T17:00:00-07:00"
+        document = canonical_json(changed)
+
+>       aggregate = CreateTeamService(ReturningRepository()).create(
+            CreateTeamCommand("offset-request", document, requested_at)
+        )
+
+tests/v2/unit/test_create_team.py:78:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <app.v2.application.create_team.CreateTeamService object at 0x10c715e20>
+command = CreateTeamCommand(idempotency_key='offset-request', blueprint_json='{"backlog":{"arrival_pattern":"ON_DEMAND","issue_t...","pauses_service_clock":false}]}}', requested_at=datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc))
+
+    def create(self, command: CreateTeamCommand) -> PersistedTeamAggregate:
+        requested_at = self._normalize_request_time(command.requested_at)
+        try:
+            blueprint = ResolvedTeamBlueprint.from_canonical_json(command.blueprint_json)
+        except ValueError as error:
+>           raise InvalidResolvedBlueprint(str(error)) from error
+E           app.v2.application.create_team.InvalidResolvedBlueprint: 3 validation errors for ResolvedTeamBlueprint
+E           members.1.availability.0.starts_at
+E             Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T09:00:00-07:00', input_type=str]
+E               For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E           members.1.availability.0.ends_at
+E             Value error, instant must be aware UTC [type=value_error, input_value='2026-08-20T17:00:00-07:00', input_type=str]
+E               For further information visit https://errors.pydantic.dev/2.13/v/value_error
+E           scrum.first_boundary
+E             Value error, instant must be aware UTC [type=value_error, input_value='2026-08-13T09:00:00-07:00', input_type=str]
+E               For further information visit https://errors.pydantic.dev/2.13/v/value_error
+
+app/v2/application/create_team.py:45: InvalidResolvedBlueprint
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_team_blueprint.py::test_aware_offset_instants_normalize_to_utc_and_keep_canonical_document
+FAILED tests/v2/unit/test_create_team.py::test_create_team_hashes_original_canonical_offset_document
+2 failed, 23 passed in 0.22s

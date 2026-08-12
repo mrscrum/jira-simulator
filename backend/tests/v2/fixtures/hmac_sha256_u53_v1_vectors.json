@@ -1,0 +1,75 @@
+{
+  "provenance": "Independently fixed from the written Task 3 contract without importing app.v2: original Unicode vectors used Python 3 standard-library uuid5/json/hashlib/hmac/unicodedata; corrected scoped and maximum-safe-integer vectors used Node.js ECMAScript JSON.stringify plus node:crypto.",
+  "vectors": [
+    {
+      "name": "composed_unicode_seed",
+      "seed": "caf\u00e9-seed",
+      "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "entity_id": "8f317d4f-8156-5b43-9571-6b3b32d32304",
+      "decision_type": "BACKLOG_PRIORITY",
+      "occurrence": 0,
+      "draw_index": 0,
+      "canonical_message": "{\"algorithm\":\"HMAC_SHA256_U53_V1\",\"decision_type\":\"BACKLOG_PRIORITY\",\"draw_index\":0,\"entity_id\":\"8f317d4f-8156-5b43-9571-6b3b32d32304\",\"occurrence\":0,\"run_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"team_id\":\"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6\"}",
+      "hmac_sha256": "bbadfc326a08d5d8fe1be5adde0bc06622d9cf934059278b17beaaa46409722a",
+      "u53_integer": 6603389916758298,
+      "unit_value": 0.7331235526162658
+    },
+    {
+      "name": "decomposed_unicode_seed",
+      "seed": "cafe\u0301-seed",
+      "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "entity_id": "8f317d4f-8156-5b43-9571-6b3b32d32304",
+      "decision_type": "BACKLOG_PRIORITY",
+      "occurrence": 0,
+      "draw_index": 0,
+      "canonical_message": "{\"algorithm\":\"HMAC_SHA256_U53_V1\",\"decision_type\":\"BACKLOG_PRIORITY\",\"draw_index\":0,\"entity_id\":\"8f317d4f-8156-5b43-9571-6b3b32d32304\",\"occurrence\":0,\"run_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"team_id\":\"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6\"}",
+      "hmac_sha256": "bbadfc326a08d5d8fe1be5adde0bc06622d9cf934059278b17beaaa46409722a",
+      "u53_integer": 6603389916758298,
+      "unit_value": 0.7331235526162658
+    },
+    {
+      "name": "distinct_unicode_seed",
+      "seed": "cafe-seed",
+      "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "entity_id": "8f317d4f-8156-5b43-9571-6b3b32d32304",
+      "decision_type": "BACKLOG_PRIORITY",
+      "occurrence": 0,
+      "draw_index": 0,
+      "canonical_message": "{\"algorithm\":\"HMAC_SHA256_U53_V1\",\"decision_type\":\"BACKLOG_PRIORITY\",\"draw_index\":0,\"entity_id\":\"8f317d4f-8156-5b43-9571-6b3b32d32304\",\"occurrence\":0,\"run_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"team_id\":\"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6\"}",
+      "hmac_sha256": "7b56db39fd37f747623524afa8fc3ec5f336ded929ad1ba5b6063cbcafe274bb",
+      "u53_integer": 4339615213266686,
+      "unit_value": 0.4817940727782284
+    },
+    {
+      "name": "positive_occurrence_and_draw",
+      "seed": "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276",
+      "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "entity_id": "8f317d4f-8156-5b43-9571-6b3b32d32304",
+      "decision_type": "RISK_CANCELLATION_OUTCOME",
+      "occurrence": 7,
+      "draw_index": 3,
+      "canonical_message": "{\"algorithm\":\"HMAC_SHA256_U53_V1\",\"decision_type\":\"RISK_CANCELLATION_OUTCOME\",\"draw_index\":3,\"entity_id\":\"8f317d4f-8156-5b43-9571-6b3b32d32304\",\"occurrence\":7,\"run_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"team_id\":\"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6\"}",
+      "hmac_sha256": "d3d025bfdfbbd5714ab5b66989e41279b5ce2135b364b9a6a24e3cdd7f7e66e0",
+      "u53_integer": 7452510079678330,
+      "unit_value": 0.8273948281709942
+    },
+    {
+      "name": "max_safe_integer_ecmascript",
+      "seed": "830ea9fac498205061f1bdcd0741664cafddefba102d3f0c209102efc9820276",
+      "team_id": "30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6",
+      "run_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "entity_id": "bdaf2033-9766-55f7-abf2-2cc41a15c10e",
+      "decision_type": "KANBAN_ARRIVAL_GAP",
+      "occurrence": 9007199254740991,
+      "draw_index": 9007199254740991,
+      "canonical_message": "{\"algorithm\":\"HMAC_SHA256_U53_V1\",\"decision_type\":\"KANBAN_ARRIVAL_GAP\",\"draw_index\":9007199254740991,\"entity_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"occurrence\":9007199254740991,\"run_id\":\"bdaf2033-9766-55f7-abf2-2cc41a15c10e\",\"team_id\":\"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6\"}",
+      "hmac_sha256": "00f95abf1bdae7fc74ab084052900221cf26ad8d3ddd75713ec6dad8761129f5",
+      "u53_integer": 34271018580828,
+      "unit_value": 0.00380484739057918
+    }
+  ]
+}

@@ -1,0 +1,482 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+______ test_unclaimed_sparse_ordinal_rows_are_valid_existing_after_images ______
+
+    def test_unclaimed_sparse_ordinal_rows_are_valid_existing_after_images():
+        state = ScrumStateWriteSet(
+            work_items=(make_work_item(),),
+            sprints=(make_sprint(),),
+            status_visits=(make_visit(),),
+        )
+
+>       command = AuthoritativeTickSliceCommit(_live_slice(), state, (), ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_authoritative_slice.py:269:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...dited_labor_microseconds=1800000000),), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = (), natural = ()
+
+    def _validate_claim_bindings(
+        state: ScrumStateWriteSet,
+        claims: tuple[SemanticCounterClaim, ...],
+        natural: tuple[EligibleNaturalDecisionClaim, ...],
+    ) -> None:
+        if state.semantic_counters or state.natural_decision_evaluations:
+            raise ValueError("counter and evaluation rows are owned by claims")
+        claim_map = _unique_claims(claims)
+        natural_map = _unique_natural_claims(natural)
+        allocation_scopes = _allocation_scopes(state)
+        natural_scopes = {_natural_scope(item): item for item in natural}
+        _validate_natural_bindings(claim_map, natural_map)
+        if set(claim_map) != allocation_scopes | set(natural_scopes):
+>           raise ValueError("missing, extra, or unrelated semantic counter claim")
+E           ValueError: missing, extra, or unrelated semantic counter claim
+
+app/v2/domain/authoritative_slice.py:195: ValueError
+_______ test_claimed_range_ignores_older_after_images_in_the_same_scope ________
+
+    def test_claimed_range_ignores_older_after_images_in_the_same_scope():
+        state = ScrumStateWriteSet(work_items=(make_work_item(), new_work_item()))
+
+>       command = AuthoritativeTickSliceCommit(_live_slice(), state, (item_claim(),), ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_authoritative_slice.py:277:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+app/v2/domain/authoritative_slice.py:196: in _validate_claim_bindings
+    _validate_allocation_ranges(state, claim_map)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = {SemanticCounterScope(kind=<SemanticCounterKind.ITEM_SEQUENCE: 'ITEM_SEQUENCE'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af3...ENCE'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), scope_key='INITIAL_BACKLOG'), expected_next=1, count=1)}
+
+    def _validate_allocation_ranges(
+        state: ScrumStateWriteSet,
+        claims: dict[SemanticCounterScope, SemanticCounterClaim],
+    ) -> None:
+        for scope in _allocation_scopes(state):
+            claim = claims[scope]
+            coordinates = _coordinates_for_scope(state, scope)
+            expected = tuple(range(claim.expected_next, claim.expected_next + claim.count))
+            if tuple(sorted(coordinates)) != expected:
+>               raise ValueError("allocated coordinates must equal one contiguous claimed range")
+E               ValueError: allocated coordinates must equal one contiguous claimed range
+
+app/v2/domain/authoritative_slice.py:258: ValueError
+_____ test_one_natural_counter_scope_cannot_claim_multiple_business_dates ______
+
+    def test_one_natural_counter_scope_cannot_claim_multiple_business_dates():
+        second_date = replace(
+            eligible_claim(),
+            business_date=BUSINESS_DATE.replace(day=BUSINESS_DATE.day + 1),
+        )
+
+>       with pytest.raises(ValueError, match="natural counter scope"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_authoritative_slice.py:357: Failed
+_______ test_uow_rejects_duck_typed_command_before_requesting_a_session ________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_uow_rejects_duck_typed_command_before_requesting_a_session(atomic_context):
+        class Impostor:
+            @staticmethod
+            def validate() -> None:
+                return None
+
+        counting = CountingSessionFactory(atomic_context.session_factory)
+
+        with pytest.raises(TypeError, match="AuthoritativeTickSliceCommit"):
+>           SqlAlchemyV2UnitOfWork(counting).commit_authoritative_slice(Impostor())
+
+tests/v2/integration/test_authoritative_unit_of_work.py:407:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:120: in commit_authoritative_slice
+    _raise_authoritative_error(error)
+app/v2/persistence/unit_of_work.py:239: in _raise_authoritative_error
+    raise error
+app/v2/persistence/unit_of_work.py:116: in commit_authoritative_slice
+    committed = self._commit_authoritative_in_session(session, commit)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10c8ada30>
+session = <sqlalchemy.orm.session.Session object at 0x10ce3e450>
+commit = <tests.v2.integration.test_authoritative_unit_of_work.test_uow_rejects_duck_typed_command_before_requesting_a_session.<locals>.Impostor object at 0x10ce3eae0>
+
+    def _commit_authoritative_in_session(
+        self, session: Session, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        mapper = SqlAlchemyScrumStateMapper()
+>       runtime = self._advance_runtime(session, commit.live_slice)
+                                                 ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'Impostor' object has no attribute 'live_slice'
+
+app/v2/persistence/unit_of_work.py:127: AttributeError
+_____ test_existing_sparse_after_images_update_without_reconsuming_claims ______
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_existing_sparse_after_images_update_without_reconsuming_claims(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        live = make_tick_commit(atomic_context.aggregate, 1, "existing-update")
+>       command = AuthoritativeTickSliceCommit(live, _existing_update_state(), (), ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:505:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...dited_labor_microseconds=1800000000),), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = (), natural = ()
+
+    def _validate_claim_bindings(
+        state: ScrumStateWriteSet,
+        claims: tuple[SemanticCounterClaim, ...],
+        natural: tuple[EligibleNaturalDecisionClaim, ...],
+    ) -> None:
+        if state.semantic_counters or state.natural_decision_evaluations:
+            raise ValueError("counter and evaluation rows are owned by claims")
+        claim_map = _unique_claims(claims)
+        natural_map = _unique_natural_claims(natural)
+        allocation_scopes = _allocation_scopes(state)
+        natural_scopes = {_natural_scope(item): item for item in natural}
+        _validate_natural_bindings(claim_map, natural_map)
+        if set(claim_map) != allocation_scopes | set(natural_scopes):
+>           raise ValueError("missing, extra, or unrelated semantic counter claim")
+E           ValueError: missing, extra, or unrelated semantic counter claim
+
+app/v2/domain/authoritative_slice.py:195: ValueError
+___________ test_existing_update_and_new_allocation_share_one_scope ____________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_existing_update_and_new_allocation_share_one_scope(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        state = ScrumStateWriteSet(work_items=(make_work_item(), _sequence_two_item()))
+        live = make_tick_commit(atomic_context.aggregate, 1, "mixed-allocation")
+>       command = AuthoritativeTickSliceCommit(live, state, (item_claim(2),), ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:529:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+app/v2/domain/authoritative_slice.py:196: in _validate_claim_bindings
+    _validate_allocation_ranges(state, claim_map)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = {SemanticCounterScope(kind=<SemanticCounterKind.ITEM_SEQUENCE: 'ITEM_SEQUENCE'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af3...ENCE'>, scope_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), scope_key='INITIAL_BACKLOG'), expected_next=2, count=1)}
+
+    def _validate_allocation_ranges(
+        state: ScrumStateWriteSet,
+        claims: dict[SemanticCounterScope, SemanticCounterClaim],
+    ) -> None:
+        for scope in _allocation_scopes(state):
+            claim = claims[scope]
+            coordinates = _coordinates_for_scope(state, scope)
+            expected = tuple(range(claim.expected_next, claim.expected_next + claim.count))
+            if tuple(sorted(coordinates)) != expected:
+>               raise ValueError("allocated coordinates must equal one contiguous claimed range")
+E               ValueError: allocated coordinates must equal one contiguous claimed range
+
+app/v2/domain/authoritative_slice.py:258: ValueError
+________ test_unclaimed_new_ordinal_row_is_typed_and_fully_rolled_back _________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_unclaimed_new_ordinal_row_is_typed_and_fully_rolled_back(atomic_context):
+        live = make_tick_commit(atomic_context.aggregate, 0, "missing-allocation-claim")
+        state = ScrumStateWriteSet(work_items=(new_work_item(),))
+>       command = AuthoritativeTickSliceCommit(live, state, (), ())
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:540:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...=(), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = (), natural = ()
+
+    def _validate_claim_bindings(
+        state: ScrumStateWriteSet,
+        claims: tuple[SemanticCounterClaim, ...],
+        natural: tuple[EligibleNaturalDecisionClaim, ...],
+    ) -> None:
+        if state.semantic_counters or state.natural_decision_evaluations:
+            raise ValueError("counter and evaluation rows are owned by claims")
+        claim_map = _unique_claims(claims)
+        natural_map = _unique_natural_claims(natural)
+        allocation_scopes = _allocation_scopes(state)
+        natural_scopes = {_natural_scope(item): item for item in natural}
+        _validate_natural_bindings(claim_map, natural_map)
+        if set(claim_map) != allocation_scopes | set(natural_scopes):
+>           raise ValueError("missing, extra, or unrelated semantic counter claim")
+E           ValueError: missing, extra, or unrelated semantic counter claim
+
+app/v2/domain/authoritative_slice.py:195: ValueError
+____ test_new_item_initializes_first_visit_and_natural_counters_atomically _____
+
+self = <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10ce1c1d0>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('21019c59-b240-5e56-a297-1e1cf4f32ba7'), team_i...pe.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        commit.validate()
+        with self._session_factory() as session:
+            try:
+>               committed = self._commit_authoritative_in_session(session, commit)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/v2/persistence/unit_of_work.py:116:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:130: in _commit_authoritative_in_session
+    counters = mapper.apply_counter_claims(session, commit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/persistence/scrum_state_mapper.py:159: in apply_counter_claims
+    counters = tuple(
+app/v2/persistence/scrum_state_mapper.py:160: in <genexpr>
+    _apply_counter_claim(session, commit, claim)
+app/v2/persistence/scrum_state_mapper.py:296: in _apply_counter_claim
+    current = _require_counter(session, commit, claim)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+session = <sqlalchemy.orm.session.Session object at 0x10d6c8230>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('21019c59-b240-5e56-a297-1e1cf4f32ba7'), team_i...pe.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.NATURAL_DECISION_OCCURRENCE: 'NATURAL_DECISI...cope_id=UUID('ced76ba9-c994-569b-af46-9ec0582c2a58'), scope_key='RISK_CANCELLATION_OUTCOME'), expected_next=0, count=1)
+
+    def _require_counter(
+        session: Session,
+        commit: AuthoritativeTickSliceCommit,
+        claim: SemanticCounterClaim,
+    ) -> SemanticCounter:
+        counter = _load_counter(session, commit, claim)
+        if counter is None:
+>           raise CounterClaimStaleError("semantic counter row is missing")
+E           app.v2.persistence.scrum_state_mapper.CounterClaimStaleError: semantic counter row is missing
+
+app/v2/persistence/scrum_state_mapper.py:378: CounterClaimStaleError
+
+The above exception was the direct cause of the following exception:
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_new_item_initializes_first_visit_and_natural_counters_atomically(atomic_context):
+        committed = SqlAlchemyV2UnitOfWork(
+            atomic_context.session_factory
+>       ).commit_authoritative_slice(_new_owner_command(atomic_context))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:609:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:120: in commit_authoritative_slice
+    _raise_authoritative_error(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+error = CounterClaimStaleError('semantic counter row is missing')
+
+    def _raise_authoritative_error(error: Exception) -> NoReturn:
+        if isinstance(error, CounterClaimStaleError):
+>           raise StaleSemanticCounter(str(error)) from error
+E           app.v2.persistence.unit_of_work.StaleSemanticCounter: semantic counter row is missing
+
+app/v2/persistence/unit_of_work.py:234: StaleSemanticCounter
+_____ test_new_owner_counter_initialization_rolls_back_with_later_failure ______
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_new_owner_counter_initialization_rolls_back_with_later_failure(atomic_context):
+        engine = atomic_context.session_factory.kw["bind"]
+
+        def fail_activity(*arguments):
+            if "INSERT INTO v2_activity_events" in arguments[2]:
+                raise RuntimeError("injected after counter initialization")
+
+        event.listen(engine, "before_cursor_execute", fail_activity)
+        try:
+>           with pytest.raises(RuntimeError, match="counter initialization"):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: Regex pattern did not match.
+E             Expected regex: 'counter initialization'
+E             Actual message: 'semantic counter row is missing'
+
+tests/v2/integration/test_authoritative_unit_of_work.py:628: AssertionError
+_________ test_changed_immutable_sprint_plan_is_typed_and_rolled_back __________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_changed_immutable_sprint_plan_is_typed_and_rolled_back(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        initial = unit_of_work.commit_authoritative_slice(atomic_context.command)
+        sprint = replace(
+            make_sprint(),
+            planned_end_at=make_sprint().planned_end_at + timedelta(days=1),
+            updated_at=LATER,
+        )
+        live = make_tick_commit(atomic_context.aggregate, 1, "sprint-plan-conflict")
+>       command = AuthoritativeTickSliceCommit(
+            live, ScrumStateWriteSet(sprints=(sprint,)), (), ()
+        )
+
+tests/v2/integration/test_authoritative_unit_of_work.py:685:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+<string>:7: in __init__
+    ???
+app/v2/domain/authoritative_slice.py:107: in __post_init__
+    self.validate()
+app/v2/domain/authoritative_slice.py:121: in validate
+    _validate_claim_bindings(self.state, claims, natural)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+state = ScrumStateWriteSet(member_identities=(), member_availability_overlays=(), member_business_date_consumption=(), work_it...),), sprint_scope=(), status_visits=(), status_visit_samples=(), semantic_counters=(), natural_decision_evaluations=())
+claims = (), natural = ()
+
+    def _validate_claim_bindings(
+        state: ScrumStateWriteSet,
+        claims: tuple[SemanticCounterClaim, ...],
+        natural: tuple[EligibleNaturalDecisionClaim, ...],
+    ) -> None:
+        if state.semantic_counters or state.natural_decision_evaluations:
+            raise ValueError("counter and evaluation rows are owned by claims")
+        claim_map = _unique_claims(claims)
+        natural_map = _unique_natural_claims(natural)
+        allocation_scopes = _allocation_scopes(state)
+        natural_scopes = {_natural_scope(item): item for item in natural}
+        _validate_natural_bindings(claim_map, natural_map)
+        if set(claim_map) != allocation_scopes | set(natural_scopes):
+>           raise ValueError("missing, extra, or unrelated semantic counter claim")
+E           ValueError: missing, extra, or unrelated semantic counter claim
+
+app/v2/domain/authoritative_slice.py:195: ValueError
+___ test_older_identical_natural_eligibility_replays_after_later_occurrence ____
+
+self = <app.v2.persistence.unit_of_work.SqlAlchemyV2UnitOfWork object at 0x10d7b3d40>
+commit = AuthoritativeTickSliceCommit(live_slice=TickSliceCommit(commit_id=UUID('494a2d6e-9d69-598f-a9cb-391320963239'), team_i...pe.RISK_CANCELLATION_OUTCOME: 'RISK_CANCELLATION_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)),))
+
+    def commit_authoritative_slice(
+        self, commit: AuthoritativeTickSliceCommit
+    ) -> CommittedAuthoritativeTickSlice:
+        commit.validate()
+        with self._session_factory() as session:
+            try:
+>               committed = self._commit_authoritative_in_session(session, commit)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app/v2/persistence/unit_of_work.py:116:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:130: in _commit_authoritative_in_session
+    counters = mapper.apply_counter_claims(session, commit)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/v2/persistence/scrum_state_mapper.py:159: in apply_counter_claims
+    counters = tuple(
+app/v2/persistence/scrum_state_mapper.py:160: in <genexpr>
+    _apply_counter_claim(session, commit, claim)
+app/v2/persistence/scrum_state_mapper.py:293: in _apply_counter_claim
+    return _require_advanced_counter(current, claim, False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+counter = SemanticCounter(team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10...URRENCE'>, scope_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), scope_key='RISK_CANCELLATION_OUTCOME'), next_value=2)
+claim = SemanticCounterClaim(scope=SemanticCounterScope(kind=<SemanticCounterKind.NATURAL_DECISION_OCCURRENCE: 'NATURAL_DECISI...cope_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), scope_key='RISK_CANCELLATION_OUTCOME'), expected_next=0, count=1)
+newly_inserted = False
+
+    def _require_advanced_counter(
+        counter: SemanticCounter | None,
+        claim: SemanticCounterClaim,
+        newly_inserted: bool,
+    ) -> SemanticCounter:
+        expected = claim.expected_next + claim.count
+        if newly_inserted or counter is None or counter.next_value != expected:
+>           raise CounterClaimStaleError("semantic counter does not match the claimed range")
+E           app.v2.persistence.scrum_state_mapper.CounterClaimStaleError: semantic counter does not match the claimed range
+
+app/v2/persistence/scrum_state_mapper.py:326: CounterClaimStaleError
+
+The above exception was the direct cause of the following exception:
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_older_identical_natural_eligibility_replays_after_later_occurrence(
+        atomic_context,
+    ):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(atomic_context.command)
+        next_claim = replace(eligible_claim(1), business_date=BUSINESS_DATE + timedelta(days=1))
+        second = _natural_only_command(atomic_context, next_claim, natural_counter_claim(1))
+        unit_of_work.commit_authoritative_slice(second)
+        old_live = make_tick_commit(atomic_context.aggregate, 2, "old-natural-replay")
+        old = AuthoritativeTickSliceCommit(
+            old_live,
+            ScrumStateWriteSet(),
+            (natural_counter_claim(0),),
+            (eligible_claim(0),),
+        )
+
+>       replay = unit_of_work.commit_authoritative_slice(old)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:757:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/persistence/unit_of_work.py:120: in commit_authoritative_slice
+    _raise_authoritative_error(error)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+error = CounterClaimStaleError('semantic counter does not match the claimed range')
+
+    def _raise_authoritative_error(error: Exception) -> NoReturn:
+        if isinstance(error, CounterClaimStaleError):
+>           raise StaleSemanticCounter(str(error)) from error
+E           app.v2.persistence.unit_of_work.StaleSemanticCounter: semantic counter does not match the claimed range
+
+app/v2/persistence/unit_of_work.py:234: StaleSemanticCounter
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_authoritative_slice.py::test_unclaimed_sparse_ordinal_rows_are_valid_existing_after_images
+FAILED tests/v2/unit/test_authoritative_slice.py::test_claimed_range_ignores_older_after_images_in_the_same_scope
+FAILED tests/v2/unit/test_authoritative_slice.py::test_one_natural_counter_scope_cannot_claim_multiple_business_dates
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_uow_rejects_duck_typed_command_before_requesting_a_session
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_existing_sparse_after_images_update_without_reconsuming_claims
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_existing_update_and_new_allocation_share_one_scope
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_unclaimed_new_ordinal_row_is_typed_and_fully_rolled_back
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_new_item_initializes_first_visit_and_natural_counters_atomically
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_new_owner_counter_initialization_rolls_back_with_later_failure
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_changed_immutable_sprint_plan_is_typed_and_rolled_back
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_older_identical_natural_eligibility_replays_after_later_occurrence
+11 failed, 82 deselected in 0.93s

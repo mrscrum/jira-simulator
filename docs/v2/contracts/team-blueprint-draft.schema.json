@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jira-simulator.local/contracts/v2/team-blueprint-draft.schema.json",
+  "title": "Jira Team Simulator v2 TeamBlueprintDraft",
+  "description": "A complete Codex-produced candidate. Draft means not yet server-validated, collision-resolved, or persisted; it does not permit a raw natural-language request or omitted required blueprint sections.",
+  "$ref": "./team-blueprint.schema.json"
+}

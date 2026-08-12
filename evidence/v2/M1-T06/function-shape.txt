@@ -1,0 +1,1 @@
+FUNCTION_SHAPE_OK: 8 files; max 30 lines; max 3 arguments

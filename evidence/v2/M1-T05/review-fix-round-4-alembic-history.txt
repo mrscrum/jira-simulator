@@ -1,0 +1,15 @@
+014 -> 015 (head), Add authoritative v2 Scrum state.
+013 -> 014, Add atomic v2 live-slice ledgers and runtime versioning.
+012 -> 013, Add isolated v2 team persistence spine.
+011 -> 012, Add scheduled events, audit log, precomputation runs, and sprint cadence
+010 -> 011, Add timing templates and status_category
+009 -> 010, Add story_points column to move_left_config
+008 -> 009, Engine rewrite — new columns for distribution-based simulation
+007 -> 008, Stage 4 schema — simulation engine tables and column additions
+006 -> 007, Create jira_issue_links table
+005 -> 006, Create jira_issue_map table
+004 -> 005, Create jira_write_queue table
+003 -> 004, Create jira_config table
+002 -> 003, Add jira bootstrap fields to teams
+001 -> 002, Add dysfunction detail fields and cross-team dependencies table
+<base> -> 001, initial schema

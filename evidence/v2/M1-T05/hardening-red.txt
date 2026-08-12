@@ -1,0 +1,47 @@
+FF.....F                                                                 [100%]
+=================================== FAILURES ===================================
+_____ test_sample_draw_provenance_is_bound_to_visit_and_canonical_message ______
+
+    def test_sample_draw_provenance_is_bound_to_visit_and_canonical_message():
+        sample = make_sample()
+        document = json.loads(sample.dwell_draw_json)
+        document["entity_id"] = str(uuid4())
+        forged_json = canonical_json(document)
+>       with pytest.raises(ValueError, match="visit"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE ValueError
+
+tests/v2/unit/test_scrum_state.py:262: Failed
+_ test_duration_microseconds_use_true_signed_sqlite_integers[9223372036854775808] _
+
+value = 9223372036854775808
+
+    @pytest.mark.parametrize("value", [2**63, True, 0.5])
+    def test_duration_microseconds_use_true_signed_sqlite_integers(value):
+>       with pytest.raises((TypeError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (TypeError, ValueError)
+
+tests/v2/unit/test_scrum_state.py:272: Failed
+_________________ test_database_rejects_infinite_sample_hours __________________
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-95/test_database_rejects_infinite0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_database_rejects_infinite_sample_hours(v2_session_factory):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        with v2_session_factory.begin() as session:
+            SqlAlchemyScrumStateMapper().add(session, state)
+            session.execute(delete(V2StatusVisitSampleModel))
+        values = _model_values(V2StatusVisitSampleModel, state)
+        values["dwell_sampled_hours"] = float("inf")
+>       with v2_session_factory() as session, pytest.raises(IntegrityError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE IntegrityError
+
+tests/v2/integration/test_scrum_state_mapper.py:351: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_scrum_state.py::test_sample_draw_provenance_is_bound_to_visit_and_canonical_message
+FAILED tests/v2/unit/test_scrum_state.py::test_duration_microseconds_use_true_signed_sqlite_integers[9223372036854775808]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_database_rejects_infinite_sample_hours
+3 failed, 5 passed in 0.42s

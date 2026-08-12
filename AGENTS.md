@@ -1,5 +1,14 @@
 # Jira Team Simulator — Claude Code Agent Guide
 
+> **Approved v2 implementation authority (2026-08-10):** For the new simulator, begin at
+> [`docs/v2/high-level-plan.md`](docs/v2/high-level-plan.md) and track milestones under
+> [`backlog/v2/`](backlog/v2/README.md).
+> The approved v2 product decisions supersede older product/domain examples in this file where they
+> explicitly differ, including runtime precomputation, carryover penalty, and Jira comments. The
+> mandatory plan, TDD, documentation, backlog, deployment, and UAT process below remains binding.
+> Detailed v2 schemas/algorithms/task lists are optional reference; create implementation tasks when
+> beginning each milestone.
+
 ## Project Purpose
 
 A multi-team Jira activity simulator that emulates how real engineering teams work,

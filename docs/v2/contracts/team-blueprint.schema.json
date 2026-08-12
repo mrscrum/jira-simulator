@@ -1,0 +1,533 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jira-simulator.local/contracts/v2/team-blueprint.schema.json",
+  "title": "Jira Team Simulator v2 TeamBlueprint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "team",
+    "jira",
+    "calendar",
+    "members",
+    "workflow",
+    "backlog",
+    "timing",
+    "risks",
+    "content",
+    "seed"
+  ],
+  "properties": {
+    "schema_version": { "const": "2.0" },
+    "team": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "summary", "description", "methodology", "archetype", "timezone", "locale"],
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "summary": { "type": "string", "minLength": 10, "maxLength": 255 },
+        "description": { "type": "string", "minLength": 20, "maxLength": 4000 },
+        "methodology": { "enum": ["SCRUM", "KANBAN"] },
+        "archetype": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "default": "Platform product team",
+          "description": "SCRUM_BALANCED_V1 resolves this exact archetype when a Scrum prompt omits one."
+        },
+        "timezone": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "locale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" }
+      }
+    },
+    "jira": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_name",
+        "project_key",
+        "board_name",
+        "project_type",
+        "topology_strategy"
+      ],
+      "properties": {
+        "project_name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "project_key": { "type": "string", "pattern": "^[A-Z][A-Z0-9]{1,9}$" },
+        "board_name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "project_type": { "const": "COMPANY_MANAGED" },
+        "topology_strategy": { "const": "OFFICIAL_PROJECT_SCOPED_V1" }
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "working_weekdays",
+        "workday_start",
+        "workday_end",
+        "holiday_calendar_profile",
+        "holiday_horizon_end",
+        "holidays"
+      ],
+      "properties": {
+        "working_weekdays": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] }
+        },
+        "workday_start": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+        "workday_end": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+        "holiday_calendar_profile": {
+          "enum": ["US_FEDERAL_V1", "CUSTOM_EXPLICIT_V1"]
+        },
+        "holiday_horizon_end": { "type": "string", "format": "date" },
+        "holidays": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "roles",
+          "daily_capacity_hours",
+          "max_concurrent_wip",
+          "responsibilities",
+          "availability"
+        ],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "roles": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 60 }
+          },
+          "daily_capacity_hours": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 24,
+            "description": "Baseline pre-fraction daily labor cap; used whenever no active configured interval supplies an override."
+          },
+          "max_concurrent_wip": { "type": "integer", "minimum": 1, "maximum": 10 },
+          "responsibilities": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["activity", "proficiency"],
+              "properties": {
+                "activity": { "type": "string", "minLength": 1, "maxLength": 80 },
+                "proficiency": { "type": "number", "minimum": 0.25, "maximum": 2.0 }
+              }
+            }
+          },
+          "availability": {
+            "type": "array",
+            "default": [],
+            "description": "Ordered, non-overlapping configured intervals. An empty array means fully available at fraction 1.0 with the member's baseline daily capacity. Runtime overlays are separate and compose by the most restrictive active fraction and cap.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["starts_at", "ends_at", "availability_fraction", "reason"],
+              "properties": {
+                "starts_at": { "type": "string", "format": "date-time" },
+                "ends_at": { "type": "string", "format": "date-time" },
+                "availability_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+                "daily_capacity_hours_override": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 24,
+                  "description": "Optional pre-fraction cap replacing daily_capacity_hours for this configured interval. Runtime cap overlays may only reduce the resolved cap."
+                },
+                "reason": { "type": "string", "minLength": 1, "maxLength": 255 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statuses", "routes"],
+      "properties": {
+        "statuses": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "jira_name", "category", "activities", "consumes_capacity", "pauses_service_clock"],
+            "properties": {
+              "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,49}$" },
+              "jira_name": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "category": { "enum": ["TODO", "IN_PROGRESS", "DONE"] },
+              "activities": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+              },
+              "consumes_capacity": { "type": "boolean" },
+              "pauses_service_clock": { "type": "boolean" }
+            }
+          }
+        },
+        "routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["issue_type", "steps"],
+            "properties": {
+              "issue_type": { "enum": ["STORY", "BUG", "TASK", "SPIKE", "ENABLER"] },
+              "steps": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["status_key", "required_activity"],
+                  "properties": {
+                    "status_key": {
+                      "type": "string",
+                      "pattern": "^[A-Z][A-Z0-9_]{1,49}$"
+                    },
+                    "required_activity": {
+                      "type": ["string", "null"],
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "timing_baseline_name": {
+                      "type": ["string", "null"],
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "backlog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_depth",
+        "issue_type_weights",
+        "story_point_weights",
+        "priority_weights",
+        "manual_import_default_issue_type",
+        "manual_import_default_story_points",
+        "arrival_pattern"
+      ],
+      "properties": {
+        "target_depth": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "issue_type_weights": { "$ref": "#/$defs/positiveWeightMap" },
+        "story_point_weights": { "$ref": "#/$defs/positiveWeightMap" },
+        "priority_weights": { "$ref": "#/$defs/positiveWeightMap" },
+        "manual_import_default_issue_type": {
+          "enum": ["STORY", "BUG", "TASK", "SPIKE", "ENABLER"]
+        },
+        "manual_import_default_story_points": { "enum": [1, 2, 3, 5, 8, 13] },
+        "arrival_pattern": { "enum": ["ON_DEMAND", "POISSON_BUSINESS_TIME", "SCHEDULED_BATCH"] }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline_name", "baseline_version", "overrides"],
+      "properties": {
+        "baseline_name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "baseline_version": { "type": "integer", "minimum": 1 },
+        "overrides": { "type": "array", "items": { "$ref": "#/$defs/timingEntry" } }
+      }
+    },
+    "risks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_name",
+        "profile_version",
+        "enabled_risks",
+        "review_rejection_targets",
+        "max_rework_returns_per_item",
+        "aging_warning_quantile",
+        "long_stay_quantile"
+      ],
+      "properties": {
+        "profile_name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "profile_version": { "type": "integer", "minimum": 1 },
+        "enabled_risks": {
+          "type": "array",
+          "uniqueItems": true,
+          "default": [
+            "EXTERNAL_DEPENDENCY",
+            "CANCELLATION",
+            "REVIEW_REJECTION",
+            "MEMBER_UNAVAILABLE"
+          ],
+          "items": {
+            "enum": [
+              "EXTERNAL_DEPENDENCY",
+              "CANCELLATION",
+              "REVIEW_REJECTION",
+              "MEMBER_UNAVAILABLE"
+            ]
+          }
+        },
+        "review_rejection_targets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,49}$"
+          }
+        },
+        "max_rework_returns_per_item": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "aging_warning_quantile": { "const": 0.5 },
+        "long_stay_quantile": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 0.99,
+          "default": 0.99
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "generation_enabled",
+        "generated_fields",
+        "model_profile",
+        "worker_limits",
+        "daily_transcript",
+        "jira_comments"
+      ],
+      "properties": {
+        "domain": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "generation_enabled": { "type": "boolean" },
+        "generated_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "BACKLOG_SUMMARY",
+              "ACCEPTANCE_CRITERIA",
+              "SPRINT_GOAL",
+              "EVENT_NARRATION"
+            ]
+          }
+        },
+        "model_profile": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "worker_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_jobs_per_cycle",
+            "request_timeout_seconds",
+            "max_retries",
+            "max_output_tokens"
+          ],
+          "properties": {
+            "max_jobs_per_cycle": { "type": "integer", "minimum": 1, "maximum": 20 },
+            "request_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120 },
+            "max_retries": { "type": "integer", "minimum": 0, "maximum": 3 },
+            "max_output_tokens": { "type": "integer", "minimum": 100, "maximum": 5000 }
+          }
+        },
+        "daily_transcript": { "const": true },
+        "jira_comments": { "const": false }
+      }
+    },
+    "scrum": { "$ref": "#/$defs/scrumPolicy" },
+    "kanban": { "$ref": "#/$defs/kanbanPolicy" },
+    "seed": { "type": "string", "minLength": 8, "maxLength": 128 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "team": { "properties": { "methodology": { "const": "SCRUM" } } } } },
+      "then": { "required": ["scrum"], "not": { "required": ["kanban"] } }
+    },
+    {
+      "if": { "properties": { "team": { "properties": { "methodology": { "const": "KANBAN" } } } } },
+      "then": { "required": ["kanban"], "not": { "required": ["scrum"] } }
+    }
+  ],
+  "$defs": {
+    "positiveWeightMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "timingEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status_key",
+        "issue_type",
+        "story_points",
+        "minimum_hours",
+        "p25_hours",
+        "p50_hours",
+        "p99_hours",
+        "maximum_hours",
+        "touch_minimum_hours",
+        "touch_maximum_hours"
+      ],
+      "properties": {
+        "status_key": { "type": "string" },
+        "issue_type": { "enum": ["STORY", "BUG", "TASK", "SPIKE", "ENABLER"] },
+        "story_points": { "enum": [1, 2, 3, 5, 8, 13] },
+        "minimum_hours": { "type": "number", "minimum": 0 },
+        "p25_hours": { "type": "number", "minimum": 0 },
+        "p50_hours": { "type": "number", "minimum": 0 },
+        "p99_hours": { "type": "number", "minimum": 0 },
+        "maximum_hours": { "type": "number", "minimum": 0 },
+        "touch_minimum_hours": { "type": "number", "minimum": 0 },
+        "touch_maximum_hours": { "type": "number", "minimum": 0 }
+      }
+    },
+    "scrumPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cadence_days", "first_start", "capacity_min_points", "capacity_max_points"],
+      "properties": {
+        "cadence_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 42,
+          "default": 14,
+          "description": "Local calendar days; successors retain the same local boundary time across DST."
+        },
+        "first_start": { "type": "string", "format": "date-time" },
+        "capacity_min_points": { "type": "integer", "minimum": 1 },
+        "capacity_max_points": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "kanbanPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status_wip_limits",
+        "blocked_items_count_against_suspended_status_wip",
+        "arrival_policy",
+        "manual_import_default_class_key",
+        "classes_of_service"
+      ],
+      "properties": {
+        "status_wip_limits": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        },
+        "blocked_items_count_against_suspended_status_wip": { "type": "boolean" },
+        "arrival_policy": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "minimum_business_hours",
+                "exponential_scale_business_hours",
+                "maximum_business_hours"
+              ],
+              "properties": {
+                "kind": { "const": "POISSON_BUSINESS_TIME" },
+                "minimum_business_hours": { "type": "number", "minimum": 0 },
+                "exponential_scale_business_hours": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "maximum_business_hours": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "ON_DEMAND" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "weekdays", "local_time", "batch_size"],
+              "properties": {
+                "kind": { "const": "SCHEDULED_BATCH" },
+                "weekdays": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": { "enum": ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] }
+                },
+                "local_time": { "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" },
+                "batch_size": { "type": "integer", "minimum": 1, "maximum": 100 }
+              }
+            }
+          ]
+        },
+        "manual_import_default_class_key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,49}$",
+          "default": "STANDARD",
+          "description": "KANBAN_BALANCED_V1 assigns STANDARD when a manual or Jira-imported item omits class of service."
+        },
+        "classes_of_service": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "name",
+              "priority_order",
+              "arrival_weight",
+              "start_status",
+              "pause_statuses",
+              "stop_statuses",
+              "target_business_hours",
+              "warning_fraction"
+            ],
+            "properties": {
+              "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,49}$" },
+              "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+              "priority_order": { "type": "integer", "minimum": 1, "maximum": 100 },
+              "arrival_weight": { "type": "number", "minimum": 0 },
+              "start_status": { "type": "string" },
+              "pause_statuses": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "type": "string" }
+              },
+              "stop_statuses": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "type": "string" }
+              },
+              "target_business_hours": { "type": "number", "exclusiveMinimum": 0 },
+              "warning_fraction": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

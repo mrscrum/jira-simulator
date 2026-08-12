@@ -1,0 +1,82 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_mapper_load_rejects_caller_pending_state_before_authority_sql[deleted_sample] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-157/test_mapper_load_rejects_calle0/v2.db), autoflush=True, expire_on_commit=True)
+case = 'deleted_sample'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_load_rejects_caller_pending_state_before_authority_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, state)
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, state)
+            statements, listener = _all_sql(engine)
+            try:
+>               with pytest.raises(ValueError, match="pending"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:297: Failed
+_ test_mapper_load_rejects_caller_pending_state_before_authority_sql[dirty_visit] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-157/test_mapper_load_rejects_calle1/v2.db), autoflush=True, expire_on_commit=True)
+case = 'dirty_visit'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_load_rejects_caller_pending_state_before_authority_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, state)
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, state)
+            statements, listener = _all_sql(engine)
+            try:
+>               with pytest.raises(ValueError, match="pending"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:297: Failed
+_ test_mapper_load_rejects_caller_pending_state_before_authority_sql[unrelated_new] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-157/test_mapper_load_rejects_calle2/v2.db), autoflush=True, expire_on_commit=True)
+case = 'unrelated_new'
+
+    @pytest.mark.parametrize("case", ["deleted_sample", "dirty_visit", "unrelated_new"])
+    def test_mapper_load_rejects_caller_pending_state_before_authority_sql(
+        v2_session_factory, case
+    ):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        mapper = SqlAlchemyScrumStateMapper()
+        with v2_session_factory.begin() as session:
+            expected = mapper.add(session, state)
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            _prepare_pending_change(session, case, state)
+            statements, listener = _all_sql(engine)
+            try:
+>               with pytest.raises(ValueError, match="pending"):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:297: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_load_rejects_caller_pending_state_before_authority_sql[deleted_sample]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_load_rejects_caller_pending_state_before_authority_sql[dirty_visit]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_mapper_load_rejects_caller_pending_state_before_authority_sql[unrelated_new]
+3 failed, 131 deselected in 0.48s

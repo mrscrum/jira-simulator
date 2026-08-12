@@ -1,0 +1,3 @@
+Touched Python files: ['backend/alembic/versions/015_add_v2_authoritative_scrum_state.py', 'backend/app/v2/domain/scrum_state.py', 'backend/app/v2/persistence/scrum_state_mapper.py', 'backend/app/v2/persistence/scrum_state_models.py', 'backend/tests/v2/integration/test_migration_015.py', 'backend/tests/v2/integration/test_scrum_state_mapper.py', 'backend/tests/v2/scrum_state_support.py', 'backend/tests/v2/unit/test_scrum_state.py']
+Functions over 30 lines: []
+Functions over 3 arguments: []

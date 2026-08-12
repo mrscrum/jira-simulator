@@ -1,0 +1,52 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_new_owners_seed_child_counters_for_restart_and_later_claims _______
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_new_owners_seed_child_counters_for_restart_and_later_claims(atomic_context):
+        first = SqlAlchemyV2UnitOfWork(atomic_context.session_factory).commit_authoritative_slice(
+            _owner_only_command(atomic_context)
+        )
+        values = {_counter_key(item): item.next_value for item in first.state.semantic_counters}
+>       assert all(values[key] == 0 for key in _owner_child_keys())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/integration/test_authoritative_unit_of_work.py:717:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <set_iterator object at 0x10ce46300>
+
+>   assert all(values[key] == 0 for key in _owner_child_keys())
+               ^^^^^^^^^^^
+E   KeyError: ('NATURAL_DECISION_OCCURRENCE', 'ced76ba9-c994-569b-af46-9ec0582c2a58', 'RISK_CANCELLATION_OUTCOME')
+
+tests/v2/integration/test_authoritative_unit_of_work.py:717: KeyError
+___________ test_deleted_established_child_counter_is_not_recreated ____________
+
+atomic_context = AtomicContext(session_factory=sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l...ER_UNAVAILABLE_OUTCOME: 'RISK_MEMBER_UNAVAILABLE_OUTCOME'>, occurrence=0), business_date=datetime.date(2026, 8, 10)))))
+
+    def test_deleted_established_child_counter_is_not_recreated(atomic_context):
+        unit_of_work = SqlAlchemyV2UnitOfWork(atomic_context.session_factory)
+        unit_of_work.commit_authoritative_slice(_owner_only_command(atomic_context))
+        counter = _new_owner_claims(new_work_item())[0][1]
+        scope = counter.scope
+        with atomic_context.session_factory.begin() as session:
+            result = session.execute(
+                delete(V2SemanticCounterModel).where(
+                    V2SemanticCounterModel.team_id == str(TEAM_ID),
+                    V2SemanticCounterModel.run_id == str(RUN_ID),
+                    V2SemanticCounterModel.kind == scope.kind.value,
+                    V2SemanticCounterModel.scope_id == str(scope.scope_id),
+                    V2SemanticCounterModel.scope_key == scope.scope_key,
+                )
+            )
+>           assert result.rowcount == 1
+E           assert 0 == 1
+E            +  where 0 = <sqlalchemy.engine.cursor.CursorResult object at 0x10d5ffcb0>.rowcount
+
+tests/v2/integration/test_authoritative_unit_of_work.py:765: AssertionError
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_new_owners_seed_child_counters_for_restart_and_later_claims
+FAILED tests/v2/integration/test_authoritative_unit_of_work.py::test_deleted_established_child_counter_is_not_recreated
+2 failed, 1 passed, 46 deselected in 0.36s

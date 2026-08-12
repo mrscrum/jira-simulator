@@ -1,5 +1,8 @@
 # Stage 3 — Jira Integration Layer Spec
 
+> **Historical v1 stage specification — do not execute for v2.** Start with
+> [`docs/v2/README.md`](docs/v2/README.md).
+
 ## Overview
 
 All Jira API interactions encapsulated in a dedicated integration layer. The simulator treats Jira as an eventually-consistent view of internal state — simulation never pauses for Jira. The bootstrapper provisions projects, boards, custom fields, and statuses idempotently. A write queue persists all pending Jira operations and replays them on reconnection.

@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 
@@ -26,7 +27,11 @@ from app.integrations.jira_client import JiraClient
 from app.integrations.jira_health import JiraHealthMonitor
 from app.integrations.jira_write_queue import JiraWriteQueue
 from app.integrations.scheduler import create_scheduler
+from app.integrations.v2_jira_intent_adapter import JiraClientV2IntentAdapter
 from app.models.base import Base
+from app.v2.application.jira_delivery import JiraDeliveryWorker
+from app.v2.persistence.jira_delivery_store import SqlAlchemyJiraDeliveryStore
+from app.v2.runtime import resume_and_register_v2
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +76,7 @@ async def lifespan(application: FastAPI):
     )
     application.state.simulation_engine = simulation_engine
 
-    bootstrapper = JiraBootstrapper(
-        jira_client, session_factory, alerting.send_alert
-    )
+    bootstrapper = JiraBootstrapper(jira_client, session_factory, alerting.send_alert)
     application.state.bootstrapper = bootstrapper
 
     event_dispatcher = EventDispatcher(session_factory, write_queue)
@@ -86,10 +89,23 @@ async def lifespan(application: FastAPI):
     application.state.cadence_checker = cadence_checker
 
     scheduler = create_scheduler(
-        health_monitor, alerting, write_queue, simulation_engine,
+        health_monitor,
+        alerting,
+        write_queue,
+        simulation_engine,
         event_dispatcher=event_dispatcher,
         event_auditor=event_auditor,
         cadence_checker=cadence_checker,
+    )
+    v2_delivery_store = SqlAlchemyJiraDeliveryStore(session_factory)
+    v2_delivery_adapter = JiraClientV2IntentAdapter(jira_client, v2_delivery_store)
+    v2_delivery_worker = JiraDeliveryWorker(v2_delivery_store, v2_delivery_adapter)
+    application.state.v2_jira_delivery_worker = v2_delivery_worker
+    application.state.v2_live_scheduler = resume_and_register_v2(
+        scheduler,
+        session_factory,
+        datetime.now(UTC),
+        v2_delivery_worker,
     )
     scheduler.start()
     application.state.scheduler = scheduler

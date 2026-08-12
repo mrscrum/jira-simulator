@@ -1,0 +1,10 @@
+Independently fixed with Python 3 standard-library uuid5/json/hashlib/hmac/unicodedata from the written Task 3 contract; no app.v2 production function was imported.
+composed_unicode_seed {"algorithm":"HMAC_SHA256_U53_V1","decision_type":"BACKLOG_PRIORITY","draw_index":0,"entity_id":"8f317d4f-8156-5b43-9571-6b3b32d32304","occurrence":0,"run_id":"bdaf2033-9766-55f7-abf2-2cc41a15c10e","team_id":"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"}
+bbadfc326a08d5d8fe1be5adde0bc06622d9cf934059278b17beaaa46409722a 6603389916758298 0.7331235526162658
+decomposed_unicode_seed {"algorithm":"HMAC_SHA256_U53_V1","decision_type":"BACKLOG_PRIORITY","draw_index":0,"entity_id":"8f317d4f-8156-5b43-9571-6b3b32d32304","occurrence":0,"run_id":"bdaf2033-9766-55f7-abf2-2cc41a15c10e","team_id":"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"}
+bbadfc326a08d5d8fe1be5adde0bc06622d9cf934059278b17beaaa46409722a 6603389916758298 0.7331235526162658
+distinct_unicode_seed {"algorithm":"HMAC_SHA256_U53_V1","decision_type":"BACKLOG_PRIORITY","draw_index":0,"entity_id":"8f317d4f-8156-5b43-9571-6b3b32d32304","occurrence":0,"run_id":"bdaf2033-9766-55f7-abf2-2cc41a15c10e","team_id":"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"}
+7b56db39fd37f747623524afa8fc3ec5f336ded929ad1ba5b6063cbcafe274bb 4339615213266686 0.4817940727782284
+positive_occurrence_and_draw {"algorithm":"HMAC_SHA256_U53_V1","decision_type":"RISK_CANCELLATION_OUTCOME","draw_index":3,"entity_id":"business-date/2026-08-10","occurrence":7,"run_id":"bdaf2033-9766-55f7-abf2-2cc41a15c10e","team_id":"30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6"}
+506d6e69b50673e0c64f4423ff9b6780f9a44d7a46be58c161d522e120e8158f 2829789890519246 0.3141697891305968
+All independently fixed literal vectors reproduced exactly.

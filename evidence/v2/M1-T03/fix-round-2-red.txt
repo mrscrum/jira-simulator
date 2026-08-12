@@ -1,0 +1,724 @@
+........................................................................ [ 29%]
+...................................FFFFFFFFFFFFFFFFFFFF................. [ 59%]
+........................................................................ [ 88%]
+FFFFFFFFFFFFFFFFFFFF...FFF.                                              [100%]
+=================================== FAILURES ===================================
+____________ test_rng_value_exposes_no_instance_dictionary[value0] _____________
+
+value = DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:551: Failed
+____________ test_rng_value_exposes_no_instance_dictionary[value1] _____________
+
+value = DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:551: Failed
+____________ test_rng_value_exposes_no_instance_dictionary[value2] _____________
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:551: Failed
+_ test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value0-occurrence-1] _
+
+value = DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=1)
+field = 'occurrence', tampered = 1
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+    def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_deterministic_rng.py:563: Failed
+_ test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value1-root_seed-changed-root] _
+
+value = DeterministicRandomStream(root_seed='changed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+field = 'root_seed', tampered = 'changed-root'
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+    def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_deterministic_rng.py:563: Failed
+_ test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value2-decision-tampered2] _
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('0e45dd9b-8583-5863-bbc7-af9dfe...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+field = 'decision'
+tampered = DecisionOccurrence(entity_id=UUID('0e45dd9b-8583-5863-bbc7-af9dfe5c0a43'), decision_type=<DecisionType.STATUS_TOUCH: 'STATUS_TOUCH'>, occurrence=0)
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+    def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_deterministic_rng.py:563: Failed
+_ test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value3-hmac_sha256-0000000000000000000000000000000000000000000000000000000000000000] _
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('0e45dd9b-8583-5863-bbc7-af9dfe...00000000000000000000000000000000000000000000000000000000', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+field = 'hmac_sha256'
+tampered = '0000000000000000000000000000000000000000000000000000000000000000'
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+    def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_deterministic_rng.py:563: Failed
+_ test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value4-unit_value-1.0] _
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('0e45dd9b-8583-5863-bbc7-af9dfe...ha256='0000000000000000000000000000000000000000000000000000000000000000', u53_integer=4950010279971209, unit_value=1.0)
+field = 'unit_value', tampered = 1.0
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _rng_mutation_cases())
+    def test_rng_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_deterministic_rng.py:563: Failed
+___________ test_rng_value_copy_operations_preserve_identity[value0] ___________
+
+value = DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       AssertionError: assert DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0) is DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0)
+E        +  where DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0) = copy(DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0))
+
+tests/v2/unit/test_deterministic_rng.py:572: AssertionError
+___________ test_rng_value_copy_operations_preserve_identity[value1] ___________
+
+value = DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       AssertionError: assert DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e')) is DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+E        +  where DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e')) = copy(DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e')))
+
+tests/v2/unit/test_deterministic_rng.py:572: AssertionError
+___________ test_rng_value_copy_operations_preserve_identity[value2] ___________
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       AssertionError: assert UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254) is UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+E        +  where UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254) = copy(UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254))
+
+tests/v2/unit/test_deterministic_rng.py:572: AssertionError
+_____________ test_rng_value_rejects_pickle_serialization[value0] ______________
+
+value = DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:578: Failed
+_____________ test_rng_value_rejects_pickle_serialization[value1] ______________
+
+value = DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:578: Failed
+_____________ test_rng_value_rejects_pickle_serialization[value2] ______________
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:578: Failed
+_______________ test_rng_value_rejects_reduce_protocols[value0] ________________
+
+value = DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), decision_type=<DecisionType.STATUS_DWELL: 'STATUS_DWELL'>, occurrence=0)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:584: Failed
+_______________ test_rng_value_rejects_reduce_protocols[value1] ________________
+
+value = DeterministicRandomStream(root_seed='fixed-root', team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), run_id=UUID('bdaf2033-9766-55f7-abf2-2cc41a15c10e'))
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:584: Failed
+_______________ test_rng_value_rejects_reduce_protocols[value2] ________________
+
+value = UniformDraw(algorithm='HMAC_SHA256_U53_V1', decision=DecisionOccurrence(entity_id=UUID('8f317d4f-8156-5b43-9571-6b3b32...fa4c4f18510219bbd8fb437261a8146538984930d58d63dae7c78196', u53_integer=4950010279971209, unit_value=0.5495615384955254)
+
+    @pytest.mark.parametrize("value", _rng_values())
+    def test_rng_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:584: Failed
+_ test_rng_value_rejects_tampered_pickle_state[DecisionOccurrence-tampered_state0] _
+
+value_type = <class 'app.v2.domain.deterministic_rng.DecisionOccurrence'>
+tampered_state = {'entity_id': UUID('8f317d4f-8156-5b43-9571-6b3b32d32304'), 'occurrence': True}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DecisionOccurrence, {"entity_id": ITEM_ID, "occurrence": True}),
+            (DeterministicRandomStream, {"root_seed": "changed-root"}),
+            (UniformDraw, {"hmac_sha256": "0" * 64, "u53_integer": 0, "unit_value": 0.0}),
+        ],
+    )
+    def test_rng_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:603: Failed
+_ test_rng_value_rejects_tampered_pickle_state[DeterministicRandomStream-tampered_state1] _
+
+value_type = <class 'app.v2.domain.deterministic_rng.DeterministicRandomStream'>
+tampered_state = {'root_seed': 'changed-root'}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DecisionOccurrence, {"entity_id": ITEM_ID, "occurrence": True}),
+            (DeterministicRandomStream, {"root_seed": "changed-root"}),
+            (UniformDraw, {"hmac_sha256": "0" * 64, "u53_integer": 0, "unit_value": 0.0}),
+        ],
+    )
+    def test_rng_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:603: Failed
+__ test_rng_value_rejects_tampered_pickle_state[UniformDraw-tampered_state2] ___
+
+value_type = <class 'app.v2.domain.deterministic_rng.UniformDraw'>
+tampered_state = {'hmac_sha256': '0000000000000000000000000000000000000000000000000000000000000000', 'u53_integer': 0, 'unit_value': 0.0}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DecisionOccurrence, {"entity_id": ITEM_ID, "occurrence": True}),
+            (DeterministicRandomStream, {"root_seed": "changed-root"}),
+            (UniformDraw, {"hmac_sha256": "0" * 64, "u53_integer": 0, "unit_value": 0.0}),
+        ],
+    )
+    def test_rng_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_deterministic_rng.py:603: Failed
+__________ test_sampling_value_exposes_no_instance_dictionary[value0] __________
+
+value = DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:278: Failed
+__________ test_sampling_value_exposes_no_instance_dictionary[value1] __________
+
+value = TouchBounds(minimum=1.0, maximum=4.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:278: Failed
+__________ test_sampling_value_exposes_no_instance_dictionary[value2] __________
+
+value = DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_exposes_no_instance_dictionary(value: object):
+>       with pytest.raises(TypeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:278: Failed
+_ test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value0-minimum-0.0] _
+
+value = DwellAnchors(minimum=0.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+field = 'minimum', tampered = 0.0
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+    def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_sampling.py:290: Failed
+_ test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value1-maximum-8.0] _
+
+value = TouchBounds(minimum=1.0, maximum=8.0), field = 'maximum', tampered = 8.0
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+    def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_sampling.py:290: Failed
+_ test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value2-parameters-tampered2] _
+
+value = DurationSample(parameters=TouchBounds(minimum=1.0, maximum=8.0), unit_draw=0.5, sampled_hours=3.0)
+field = 'parameters', tampered = TouchBounds(minimum=1.0, maximum=8.0)
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+    def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_sampling.py:290: Failed
+_ test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value3-unit_draw-0.75] _
+
+value = DurationSample(parameters=TouchBounds(minimum=1.0, maximum=8.0), unit_draw=0.75, sampled_hours=3.0)
+field = 'unit_draw', tampered = 0.75
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+    def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_sampling.py:290: Failed
+_ test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value4-sampled_hours-4.0] _
+
+value = DurationSample(parameters=TouchBounds(minimum=1.0, maximum=8.0), unit_draw=0.75, sampled_hours=4.0)
+field = 'sampled_hours', tampered = 4.0
+
+    @pytest.mark.parametrize(("value", "field", "tampered"), _sampling_mutation_cases())
+    def test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering(
+        value: object, field: str, tampered: object
+    ):
+        original = getattr(value, field)
+
+>       with pytest.raises(AttributeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE AttributeError
+
+tests/v2/unit/test_sampling.py:290: Failed
+________ test_sampling_value_copy_operations_preserve_identity[value0] _________
+
+value = DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       assert DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0) is DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+E        +  where DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0) = copy(DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0))
+
+tests/v2/unit/test_sampling.py:299: AssertionError
+________ test_sampling_value_copy_operations_preserve_identity[value1] _________
+
+value = TouchBounds(minimum=1.0, maximum=4.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       assert TouchBounds(minimum=1.0, maximum=4.0) is TouchBounds(minimum=1.0, maximum=4.0)
+E        +  where TouchBounds(minimum=1.0, maximum=4.0) = copy(TouchBounds(minimum=1.0, maximum=4.0))
+
+tests/v2/unit/test_sampling.py:299: AssertionError
+________ test_sampling_value_copy_operations_preserve_identity[value2] _________
+
+value = DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_copy_operations_preserve_identity(value: object):
+>       assert copy(value) is value
+E       assert DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0) is DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0)
+E        +  where DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0) = copy(DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0))
+
+tests/v2/unit/test_sampling.py:299: AssertionError
+___________ test_sampling_value_rejects_pickle_serialization[value0] ___________
+
+value = DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:305: Failed
+___________ test_sampling_value_rejects_pickle_serialization[value1] ___________
+
+value = TouchBounds(minimum=1.0, maximum=4.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:305: Failed
+___________ test_sampling_value_rejects_pickle_serialization[value2] ___________
+
+value = DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_pickle_serialization(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:305: Failed
+_____________ test_sampling_value_rejects_reduce_protocols[value0] _____________
+
+value = DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:311: Failed
+_____________ test_sampling_value_rejects_reduce_protocols[value1] _____________
+
+value = TouchBounds(minimum=1.0, maximum=4.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:311: Failed
+_____________ test_sampling_value_rejects_reduce_protocols[value2] _____________
+
+value = DurationSample(parameters=DwellAnchors(minimum=1.0, p25=2.0, p50=3.0, p99=5.0, maximum=6.0), unit_draw=0.5, sampled_hours=3.0)
+
+    @pytest.mark.parametrize("value", _sampling_values())
+    def test_sampling_value_rejects_reduce_protocols(value: object):
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:311: Failed
+_ test_sampling_value_rejects_tampered_pickle_state[DwellAnchors-tampered_state0] _
+
+value_type = <class 'app.v2.domain.sampling.DwellAnchors'>
+tampered_state = {'minimum': 9.0, 'maximum': 1.0}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DwellAnchors, {"minimum": 9.0, "maximum": 1.0}),
+            (TouchBounds, {"minimum": 9.0, "maximum": 1.0}),
+            (DurationSample, {"parameters": TouchBounds(1, 4), "sampled_hours": 3.0}),
+        ],
+    )
+    def test_sampling_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:330: Failed
+_ test_sampling_value_rejects_tampered_pickle_state[TouchBounds-tampered_state1] _
+
+value_type = <class 'app.v2.domain.sampling.TouchBounds'>
+tampered_state = {'minimum': 9.0, 'maximum': 1.0}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DwellAnchors, {"minimum": 9.0, "maximum": 1.0}),
+            (TouchBounds, {"minimum": 9.0, "maximum": 1.0}),
+            (DurationSample, {"parameters": TouchBounds(1, 4), "sampled_hours": 3.0}),
+        ],
+    )
+    def test_sampling_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:330: Failed
+_ test_sampling_value_rejects_tampered_pickle_state[DurationSample-tampered_state2] _
+
+value_type = <class 'app.v2.domain.sampling.DurationSample'>
+tampered_state = {'parameters': TouchBounds(minimum=1.0, maximum=4.0), 'sampled_hours': 3.0}
+
+    @pytest.mark.parametrize(
+        ("value_type", "tampered_state"),
+        [
+            (DwellAnchors, {"minimum": 9.0, "maximum": 1.0}),
+            (TouchBounds, {"minimum": 9.0, "maximum": 1.0}),
+            (DurationSample, {"parameters": TouchBounds(1, 4), "sampled_hours": 3.0}),
+        ],
+    )
+    def test_sampling_value_rejects_tampered_pickle_state(
+        value_type: type, tampered_state: dict[str, object]
+    ):
+        payload = tampered_pickle(value_type, tampered_state)
+
+>       with pytest.raises(TypeError, match="reconstructed"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE TypeError
+
+tests/v2/unit/test_sampling.py:330: Failed
+___________ test_task3_modules_import_only_pure_domain_dependencies ____________
+
+    def test_task3_modules_import_only_pure_domain_dependencies():
+        prohibited_prefixes = (
+            "app.database", "app.engine", "app.integrations", "app.models",
+            "app.v2.persistence", "random", "sqlalchemy",
+        )
+
+>       for tree in _task3_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:68:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:56: in _task3_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:57: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+______ test_task3_modules_have_no_hidden_nondeterminism_or_clock_sources _______
+
+    def test_task3_modules_have_no_hidden_nondeterminism_or_clock_sources():
+        prohibited_calls = {"hash", "uuid4", "now", "utcnow", "time"}
+
+>       for tree in _task3_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:85:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:56: in _task3_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:57: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+____________ test_task3_modules_have_no_mutable_module_level_state _____________
+
+    def test_task3_modules_have_no_mutable_module_level_state():
+        mutable_nodes = (ast.Dict, ast.List, ast.Set)
+
+>       for tree in _task3_source_trees():
+                    ^^^^^^^^^^^^^^^^^^^^^
+
+tests/v2/unit/test_architecture_boundaries.py:102:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/v2/unit/test_architecture_boundaries.py:56: in _task3_source_trees
+    return tuple(
+tests/v2/unit/test_architecture_boundaries.py:57: in <genexpr>
+    ast.parse((domain_root / filename).read_text(encoding="utf-8"))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1027: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = PosixPath('/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py')
+mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed to by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/app/v2/domain/immutable_value.py'
+
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py:1013: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_exposes_no_instance_dictionary[value0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_exposes_no_instance_dictionary[value1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_exposes_no_instance_dictionary[value2]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value0-occurrence-1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value1-root_seed-changed-root]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value2-decision-tampered2]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value3-hmac_sha256-0000000000000000000000000000000000000000000000000000000000000000]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_mapping_and_ordinary_attribute_tampering[value4-unit_value-1.0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_copy_operations_preserve_identity[value0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_copy_operations_preserve_identity[value1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_copy_operations_preserve_identity[value2]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_pickle_serialization[value0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_pickle_serialization[value1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_pickle_serialization[value2]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_reduce_protocols[value0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_reduce_protocols[value1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_reduce_protocols[value2]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_tampered_pickle_state[DecisionOccurrence-tampered_state0]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_tampered_pickle_state[DeterministicRandomStream-tampered_state1]
+FAILED tests/v2/unit/test_deterministic_rng.py::test_rng_value_rejects_tampered_pickle_state[UniformDraw-tampered_state2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_exposes_no_instance_dictionary[value0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_exposes_no_instance_dictionary[value1]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_exposes_no_instance_dictionary[value2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value0-minimum-0.0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value1-maximum-8.0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value2-parameters-tampered2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value3-unit_draw-0.75]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_mapping_and_ordinary_attribute_tampering[value4-sampled_hours-4.0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_copy_operations_preserve_identity[value0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_copy_operations_preserve_identity[value1]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_copy_operations_preserve_identity[value2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_pickle_serialization[value0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_pickle_serialization[value1]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_pickle_serialization[value2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_reduce_protocols[value0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_reduce_protocols[value1]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_reduce_protocols[value2]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_tampered_pickle_state[DwellAnchors-tampered_state0]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_tampered_pickle_state[TouchBounds-tampered_state1]
+FAILED tests/v2/unit/test_sampling.py::test_sampling_value_rejects_tampered_pickle_state[DurationSample-tampered_state2]
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task3_modules_import_only_pure_domain_dependencies
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task3_modules_have_no_hidden_nondeterminism_or_clock_sources
+FAILED tests/v2/unit/test_architecture_boundaries.py::test_task3_modules_have_no_mutable_module_level_state
+43 failed, 200 passed in 0.54s

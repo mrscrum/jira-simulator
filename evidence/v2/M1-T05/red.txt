@@ -1,0 +1,40 @@
+
+==================================== ERRORS ====================================
+______________ ERROR collecting tests/v2/unit/test_scrum_state.py ______________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/unit/test_scrum_state.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/unit/test_scrum_state.py:10: in <module>
+    from app.v2.domain.scrum_state import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.scrum_state'
+_______ ERROR collecting tests/v2/integration/test_scrum_state_mapper.py _______
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/integration/test_scrum_state_mapper.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/integration/test_scrum_state_mapper.py:6: in <module>
+    from app.v2.domain.scrum_state import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.scrum_state'
+_________ ERROR collecting tests/v2/integration/test_migration_015.py __________
+ImportError while importing test module '/Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/backend/tests/v2/integration/test_migration_015.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/pavel.ozolin/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/v2/integration/test_migration_015.py:14: in <module>
+    from tests.v2.scrum_state_support import MEMBER_ID, NOW, RUN_ID, TEAM_ID
+tests/v2/scrum_state_support.py:5: in <module>
+    from app.v2.domain.scrum_state import (
+E   ModuleNotFoundError: No module named 'app.v2.domain.scrum_state'
+=========================== short test summary info ============================
+ERROR tests/v2/unit/test_scrum_state.py
+ERROR tests/v2/integration/test_scrum_state_mapper.py
+ERROR tests/v2/integration/test_migration_015.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+3 errors in 0.32s

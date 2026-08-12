@@ -444,3 +444,59 @@ class TestGetSprintIssues:
             )
             result = await client.get_sprint_issues(10)
             assert len(result) == 2
+
+
+class TestGetBoardSprints:
+    @pytest.mark.asyncio
+    async def test_returns_every_page_of_board_sprints(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.side_effect = [
+                _mock_response(
+                    json_data={
+                        "values": [{"id": 10, "name": "Sprint 1"}],
+                        "isLast": False,
+                        "startAt": 0,
+                        "maxResults": 1,
+                        "total": 2,
+                    }
+                ),
+                _mock_response(
+                    json_data={
+                        "values": [{"id": 11, "name": "Sprint 2 [sim-v2-marker]"}],
+                        "isLast": True,
+                        "startAt": 1,
+                        "maxResults": 1,
+                        "total": 2,
+                    }
+                ),
+            ]
+
+            result = await client.get_board_sprints(42)
+
+            assert [item["id"] for item in result] == [10, 11]
+            assert [call.kwargs["params"]["startAt"] for call in mock_req.call_args_list] == [
+                0,
+                1,
+            ]
+
+    @pytest.mark.asyncio
+    async def test_stops_when_board_sprint_cursor_does_not_advance(self, client):
+        with patch.object(
+            client._http, "request", new_callable=AsyncMock
+        ) as mock_req:
+            mock_req.return_value = _mock_response(
+                json_data={
+                    "values": [{"id": 10, "name": "Sprint 1"}],
+                    "isLast": False,
+                    "startAt": 0,
+                    "maxResults": 0,
+                    "total": 2,
+                }
+            )
+
+            result = await client.get_board_sprints(42)
+
+            assert [item["id"] for item in result] == [10]
+            assert mock_req.await_count == 1

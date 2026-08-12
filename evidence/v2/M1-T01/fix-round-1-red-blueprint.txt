@@ -1,0 +1,416 @@
+F.......FFF..FFFFFFF...                                                  [100%]
+=================================== FAILURES ===================================
+__________ test_resolved_blueprint_round_trips_as_deeply_frozen_model __________
+
+resolved_blueprint_json = '{"backlog":{"arrival_pattern":"ON_DEMAND","issue_type_weights":{"STORY":1.0},"manual_import_default_issue_type":"STOR...ities":[],"category":"DONE","consumes_capacity":false,"jira_name":"Done","key":"DONE","pauses_service_clock":false}]}}'
+
+    def test_resolved_blueprint_round_trips_as_deeply_frozen_model(
+        resolved_blueprint_json: str,
+    ):
+        blueprint = ResolvedTeamBlueprint.from_canonical_json(resolved_blueprint_json)
+
+        assert blueprint.canonical_json() == resolved_blueprint_json
+>       assert blueprint.team.name == "Payments Platform"
+               ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'name'
+
+tests/v2/unit/test_team_blueprint.py:27: AttributeError
+_ test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path0-True] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('team', 'unexpected'), value = True
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "unexpected"), True),
+            (("members", 0, "unexpected"), True),
+            (("workflow", "statuses", 0, "unexpected"), True),
+            (("timing", "entries"), []),
+            (("risks", "rules"), []),
+            (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
+            (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        ],
+    )
+    def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+        changed = deepcopy(blueprint_document)
+        target = changed
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = value
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+_ test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path1-True] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('members', 0, 'unexpected'), value = True
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "unexpected"), True),
+            (("members", 0, "unexpected"), True),
+            (("workflow", "statuses", 0, "unexpected"), True),
+            (("timing", "entries"), []),
+            (("risks", "rules"), []),
+            (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
+            (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        ],
+    )
+    def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+        changed = deepcopy(blueprint_document)
+        target = changed
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = value
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+_ test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path2-True] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('workflow', 'statuses', 0, 'unexpected'), value = True
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "unexpected"), True),
+            (("members", 0, "unexpected"), True),
+            (("workflow", "statuses", 0, "unexpected"), True),
+            (("timing", "entries"), []),
+            (("risks", "rules"), []),
+            (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
+            (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        ],
+    )
+    def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+        changed = deepcopy(blueprint_document)
+        target = changed
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = value
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+_ test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path5-2026-08-13T16:00:00] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('scrum', 'first_boundary'), value = '2026-08-13T16:00:00'
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "unexpected"), True),
+            (("members", 0, "unexpected"), True),
+            (("workflow", "statuses", 0, "unexpected"), True),
+            (("timing", "entries"), []),
+            (("risks", "rules"), []),
+            (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
+            (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        ],
+    )
+    def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+        changed = deepcopy(blueprint_document)
+        target = changed
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = value
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+_ test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path6-2026-08-20T16:00:00-07:00] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+path = ('members', 1, 'availability', 0, 'starts_at')
+value = '2026-08-20T16:00:00-07:00'
+
+    @pytest.mark.parametrize(
+        ("path", "value"),
+        [
+            (("team", "unexpected"), True),
+            (("members", 0, "unexpected"), True),
+            (("workflow", "statuses", 0, "unexpected"), True),
+            (("timing", "entries"), []),
+            (("risks", "rules"), []),
+            (("scrum", "first_boundary"), "2026-08-13T16:00:00"),
+            (("members", 1, "availability", 0, "starts_at"), "2026-08-20T16:00:00-07:00"),
+        ],
+    )
+    def test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values(
+        blueprint_document: dict[str, object], path: tuple[object, ...], value: object
+    ):
+        changed = deepcopy(blueprint_document)
+        target = changed
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = value
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:95:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+__ test_resolved_blueprint_rejects_cross_field_inconsistency[unknown_status] ___
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+mutation = 'unknown_status'
+
+    @pytest.mark.parametrize(
+        "mutation", ["unknown_status", "missing_grid", "bad_anchor", "unsupported_activity", "overlap"]
+    )
+    def test_resolved_blueprint_rejects_cross_field_inconsistency(
+        blueprint_document: dict[str, object], mutation: str
+    ):
+        changed = deepcopy(blueprint_document)
+        if mutation == "unknown_status":
+            changed["workflow"]["routes"][0]["steps"][1]["status_key"] = "UNKNOWN"
+        elif mutation == "missing_grid":
+            changed["backlog"]["story_point_weights"] = {"3": 0.5, "5": 0.5}
+        elif mutation == "bad_anchor":
+            changed["timing"]["entries"][0]["p50"] = 7
+        elif mutation == "unsupported_activity":
+            changed["workflow"]["routes"][0]["steps"][1]["required_activity"] = "security"
+        else:
+            interval = deepcopy(changed["members"][1]["availability"][0])
+            interval["starts_at"] = "2026-08-20T18:00:00Z"
+            changed["members"][1]["availability"].append(interval)
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+___ test_resolved_blueprint_rejects_cross_field_inconsistency[missing_grid] ____
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+mutation = 'missing_grid'
+
+    @pytest.mark.parametrize(
+        "mutation", ["unknown_status", "missing_grid", "bad_anchor", "unsupported_activity", "overlap"]
+    )
+    def test_resolved_blueprint_rejects_cross_field_inconsistency(
+        blueprint_document: dict[str, object], mutation: str
+    ):
+        changed = deepcopy(blueprint_document)
+        if mutation == "unknown_status":
+            changed["workflow"]["routes"][0]["steps"][1]["status_key"] = "UNKNOWN"
+        elif mutation == "missing_grid":
+            changed["backlog"]["story_point_weights"] = {"3": 0.5, "5": 0.5}
+        elif mutation == "bad_anchor":
+            changed["timing"]["entries"][0]["p50"] = 7
+        elif mutation == "unsupported_activity":
+            changed["workflow"]["routes"][0]["steps"][1]["required_activity"] = "security"
+        else:
+            interval = deepcopy(changed["members"][1]["availability"][0])
+            interval["starts_at"] = "2026-08-20T18:00:00Z"
+            changed["members"][1]["availability"].append(interval)
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+____ test_resolved_blueprint_rejects_cross_field_inconsistency[bad_anchor] _____
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+mutation = 'bad_anchor'
+
+    @pytest.mark.parametrize(
+        "mutation", ["unknown_status", "missing_grid", "bad_anchor", "unsupported_activity", "overlap"]
+    )
+    def test_resolved_blueprint_rejects_cross_field_inconsistency(
+        blueprint_document: dict[str, object], mutation: str
+    ):
+        changed = deepcopy(blueprint_document)
+        if mutation == "unknown_status":
+            changed["workflow"]["routes"][0]["steps"][1]["status_key"] = "UNKNOWN"
+        elif mutation == "missing_grid":
+            changed["backlog"]["story_point_weights"] = {"3": 0.5, "5": 0.5}
+        elif mutation == "bad_anchor":
+            changed["timing"]["entries"][0]["p50"] = 7
+        elif mutation == "unsupported_activity":
+            changed["workflow"]["routes"][0]["steps"][1]["required_activity"] = "security"
+        else:
+            interval = deepcopy(changed["members"][1]["availability"][0])
+            interval["starts_at"] = "2026-08-20T18:00:00Z"
+            changed["members"][1]["availability"].append(interval)
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+_ test_resolved_blueprint_rejects_cross_field_inconsistency[unsupported_activity] _
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+mutation = 'unsupported_activity'
+
+    @pytest.mark.parametrize(
+        "mutation", ["unknown_status", "missing_grid", "bad_anchor", "unsupported_activity", "overlap"]
+    )
+    def test_resolved_blueprint_rejects_cross_field_inconsistency(
+        blueprint_document: dict[str, object], mutation: str
+    ):
+        changed = deepcopy(blueprint_document)
+        if mutation == "unknown_status":
+            changed["workflow"]["routes"][0]["steps"][1]["status_key"] = "UNKNOWN"
+        elif mutation == "missing_grid":
+            changed["backlog"]["story_point_weights"] = {"3": 0.5, "5": 0.5}
+        elif mutation == "bad_anchor":
+            changed["timing"]["entries"][0]["p50"] = 7
+        elif mutation == "unsupported_activity":
+            changed["workflow"]["routes"][0]["steps"][1]["required_activity"] = "security"
+        else:
+            interval = deepcopy(changed["members"][1]["availability"][0])
+            interval["starts_at"] = "2026-08-20T18:00:00Z"
+            changed["members"][1]["availability"].append(interval)
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+______ test_resolved_blueprint_rejects_cross_field_inconsistency[overlap] ______
+
+blueprint_document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+mutation = 'overlap'
+
+    @pytest.mark.parametrize(
+        "mutation", ["unknown_status", "missing_grid", "bad_anchor", "unsupported_activity", "overlap"]
+    )
+    def test_resolved_blueprint_rejects_cross_field_inconsistency(
+        blueprint_document: dict[str, object], mutation: str
+    ):
+        changed = deepcopy(blueprint_document)
+        if mutation == "unknown_status":
+            changed["workflow"]["routes"][0]["steps"][1]["status_key"] = "UNKNOWN"
+        elif mutation == "missing_grid":
+            changed["backlog"]["story_point_weights"] = {"3": 0.5, "5": 0.5}
+        elif mutation == "bad_anchor":
+            changed["timing"]["entries"][0]["p50"] = 7
+        elif mutation == "unsupported_activity":
+            changed["workflow"]["routes"][0]["steps"][1]["required_activity"] = "security"
+        else:
+            interval = deepcopy(changed["members"][1]["availability"][0])
+            interval["starts_at"] = "2026-08-20T18:00:00Z"
+            changed["members"][1]["availability"].append(interval)
+
+>       _rejects(changed)
+
+tests/v2/unit/test_team_blueprint.py:118:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+document = {'backlog': {'arrival_pattern': 'ON_DEMAND', 'issue_type_weights': {'STORY': 1.0}, 'manual_import_default_issue_type':...Payments Board', 'project_key': 'SIMPAY', 'project_name': 'SIM Payments', 'project_type': 'COMPANY_MANAGED', ...}, ...}
+
+    def _rejects(document: dict[str, object]) -> None:
+>       with pytest.raises((ValidationError, ValueError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValidationError, ValueError)
+
+tests/v2/unit/test_team_blueprint.py:17: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_round_trips_as_deeply_frozen_model
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path0-True]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path1-True]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path2-True]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path5-2026-08-13T16:00:00]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_nested_extra_incomplete_or_non_utc_values[path6-2026-08-20T16:00:00-07:00]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_cross_field_inconsistency[unknown_status]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_cross_field_inconsistency[missing_grid]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_cross_field_inconsistency[bad_anchor]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_cross_field_inconsistency[unsupported_activity]
+FAILED tests/v2/unit/test_team_blueprint.py::test_resolved_blueprint_rejects_cross_field_inconsistency[overlap]
+11 failed, 12 passed in 0.23s

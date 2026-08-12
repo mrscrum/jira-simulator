@@ -1,0 +1,33 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_elapsed_treats_midnight_after_horizon_as_an_exclusive_endpoint ______
+
+    def test_elapsed_treats_midnight_after_horizon_as_an_exclusive_endpoint():
+        interval = UtcInterval(_utc(2027, 12, 31, 17), _utc(2028, 1, 1, 8))
+
+>       assert _calendar(holidays=()).elapsed(interval) == DualElapsed(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            timedelta(hours=15), timedelta(hours=8)
+        )
+
+tests/v2/unit/test_business_calendar.py:248:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/v2/domain/business_calendar.py:267: in elapsed
+    working = self.working_interval(day)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = BusinessCalendar(_configuration=_CalendarConfiguration(timezone_name='America/Los_Angeles', timezone=zoneinfo.ZoneInfo...file='CUSTOM_EXPLICIT_V1', holiday_version='1', holiday_horizon_end=datetime.date(2027, 12, 31), holidays=frozenset()))
+day = datetime.date(2028, 1, 1)
+
+    def working_interval(self, day: date) -> UtcInterval | None:
+        resolved_day = _calendar_date(day)
+        config = self._configuration
+        if resolved_day > config.holiday_horizon_end:
+>           raise ValueError("day exceeds the holiday horizon")
+E           ValueError: day exceeds the holiday horizon
+
+app/v2/domain/business_calendar.py:234: ValueError
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_business_calendar.py::test_elapsed_treats_midnight_after_horizon_as_an_exclusive_endpoint
+1 failed in 0.12s

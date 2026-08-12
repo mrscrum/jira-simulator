@@ -1,0 +1,60 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_sample_required_microseconds_are_foreign_key_bound_to_visit _______
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-94/test_sample_required_microseco0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_sample_required_microseconds_are_foreign_key_bound_to_visit(v2_session_factory):
+        seed_parent_team_and_run(v2_session_factory)
+        state = make_write_set()
+        with v2_session_factory.begin() as session:
+            SqlAlchemyScrumStateMapper().add(session, state)
+            session.execute(delete(V2StatusVisitSampleModel))
+        values = _model_values(V2StatusVisitSampleModel, state)
+        values["required_work_microseconds"] = 1
+>       with v2_session_factory() as session, pytest.raises(IntegrityError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE IntegrityError
+
+tests/v2/integration/test_scrum_state_mapper.py:306: Failed
+_ test_database_rejects_unknown_natural_decision_types[V2SemanticCounterModel] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-94/test_database_rejects_unknown_0/v2.db), autoflush=True, expire_on_commit=True)
+model = <class 'app.v2.persistence.scrum_state_models.V2SemanticCounterModel'>
+
+    @pytest.mark.parametrize("model", [V2SemanticCounterModel, V2NaturalDecisionEvaluationModel])
+    def test_database_rejects_unknown_natural_decision_types(v2_session_factory, model):
+        seed_parent_team_and_run(v2_session_factory)
+        values = _model_values(model, make_write_set())
+        if model is V2SemanticCounterModel:
+            values.update(kind="NATURAL_DECISION_OCCURRENCE", scope_key="UNKNOWN_DECISION")
+        else:
+            values.update(id=str(uuid4()), decision_type="UNKNOWN_DECISION")
+>       with v2_session_factory() as session, pytest.raises(IntegrityError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE IntegrityError
+
+tests/v2/integration/test_scrum_state_mapper.py:319: Failed
+_ test_database_rejects_unknown_natural_decision_types[V2NaturalDecisionEvaluationModel] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-94/test_database_rejects_unknown_1/v2.db), autoflush=True, expire_on_commit=True)
+model = <class 'app.v2.persistence.scrum_state_models.V2NaturalDecisionEvaluationModel'>
+
+    @pytest.mark.parametrize("model", [V2SemanticCounterModel, V2NaturalDecisionEvaluationModel])
+    def test_database_rejects_unknown_natural_decision_types(v2_session_factory, model):
+        seed_parent_team_and_run(v2_session_factory)
+        values = _model_values(model, make_write_set())
+        if model is V2SemanticCounterModel:
+            values.update(kind="NATURAL_DECISION_OCCURRENCE", scope_key="UNKNOWN_DECISION")
+        else:
+            values.update(id=str(uuid4()), decision_type="UNKNOWN_DECISION")
+>       with v2_session_factory() as session, pytest.raises(IntegrityError):
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE IntegrityError
+
+tests/v2/integration/test_scrum_state_mapper.py:319: Failed
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_sample_required_microseconds_are_foreign_key_bound_to_visit
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_database_rejects_unknown_natural_decision_types[V2SemanticCounterModel]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_database_rejects_unknown_natural_decision_types[V2NaturalDecisionEvaluationModel]
+3 failed in 0.27s

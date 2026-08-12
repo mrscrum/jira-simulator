@@ -1,0 +1,359 @@
+........................................................................ [ 22%]
+........................................................FFFFFFFFFFF..... [ 44%]
+........................................................................ [ 66%]
+........................................................................ [ 88%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+_____ test_cached_sample_external_corruption_is_refreshed_before_use[load] _____
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_sample_external_co0/v2.db), autoflush=True, expire_on_commit=True)
+operation = <function _load_cached_state at 0x10b199620>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    def test_cached_sample_external_corruption_is_refreshed_before_use(
+        v2_session_factory, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        sample_identity = str(state.status_visit_samples[0].visit_id)
+        corruption = (
+            V2StatusVisitSampleModel,
+            sample_identity,
+            {"timing_profile": "CORRUPT"},
+        )
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(V2StatusVisitSampleModel, sample_identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, corruption)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:408: Failed
+__ test_cached_sample_external_corruption_is_refreshed_before_use[sparse-add] __
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_sample_external_co1/v2.db), autoflush=True, expire_on_commit=True)
+operation = <function _add_sparse_cached_state at 0x10b1996c0>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    def test_cached_sample_external_corruption_is_refreshed_before_use(
+        v2_session_factory, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        sample_identity = str(state.status_visit_samples[0].visit_id)
+        corruption = (
+            V2StatusVisitSampleModel,
+            sample_identity,
+            {"timing_profile": "CORRUPT"},
+        )
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(V2StatusVisitSampleModel, sample_identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, corruption)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:408: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[team-load] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority0/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2TeamModel'>, '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', {'blueprint_sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'})
+operation = <function _load_cached_state at 0x10b199620>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[team-sparse-add] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority1/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2TeamModel'>, '30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6', {'blueprint_sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'})
+operation = <function _add_sparse_cached_state at 0x10b1996c0>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[run-load] __
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority2/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2RunModel'>, 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', {'ordinal': 1})
+operation = <function _load_cached_state at 0x10b199620>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[run-sparse-add] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority3/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2RunModel'>, 'bdaf2033-9766-55f7-abf2-2cc41a15c10e', {'ordinal': 1})
+operation = <function _add_sparse_cached_state at 0x10b1996c0>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[blueprint-load] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority4/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2TeamBlueprintModel'>, '41582125-d8de-5bad-abc3-c71c86557fc7', {'sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'})
+operation = <function _load_cached_state at 0x10b199620>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+_ test_cached_external_authority_corruption_is_refreshed_before_use[blueprint-sparse-add] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_authority5/v2.db), autoflush=True, expire_on_commit=True)
+case = (<class 'app.v2.persistence.team_models.V2TeamBlueprintModel'>, '41582125-d8de-5bad-abc3-c71c86557fc7', {'sha256': 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'})
+operation = <function _add_sparse_cached_state at 0x10b1996c0>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    @pytest.mark.parametrize(
+        "case",
+        AUTHORITY_CORRUPTIONS,
+        ids=["team", "run", "blueprint"],
+    )
+    def test_cached_external_authority_corruption_is_refreshed_before_use(
+        v2_session_factory, case, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        model_type, identity, _values = case
+        engine = v2_session_factory.kw["bind"]
+
+        with v2_session_factory() as session:
+            cached = session.get(model_type, identity)
+            assert cached is not None
+            _externally_update(v2_session_factory, case)
+            statements, listener = _task5_dml(engine)
+            try:
+>               with pytest.raises(ValueError):
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+E               Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:436: Failed
+______ test_cached_external_run_deletion_cannot_return_an_empty_snapshot _______
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_cached_external_run_delet0/v2.db), autoflush=True, expire_on_commit=True)
+
+    def test_cached_external_run_deletion_cannot_return_an_empty_snapshot(
+        v2_session_factory,
+    ):
+        state = _persist_complete_state(v2_session_factory)
+
+        with v2_session_factory() as session:
+            cached = session.get(V2RunModel, str(RUN_ID))
+            assert cached is not None
+            with v2_session_factory.begin() as external:
+                result = external.execute(delete(V2RunModel).where(V2RunModel.id == str(RUN_ID)))
+                assert result.rowcount == 1
+>           with pytest.raises(ValueError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE ValueError
+
+tests/v2/integration/test_scrum_state_mapper.py:454: Failed
+_ test_valid_external_update_is_reflected_without_expiring_unrelated_cache[load] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_valid_external_update_is_0/v2.db), autoflush=True, expire_on_commit=True)
+operation = <function _load_cached_state at 0x10b199620>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    def test_valid_external_update_is_reflected_without_expiring_unrelated_cache(
+        v2_session_factory, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        other_team_id, _other_run_id = _seed_second_team_and_run(v2_session_factory)
+        factor_identity = str(state.work_item_factors[0].id)
+        external_value = 0.75
+
+        with v2_session_factory() as session:
+            cached_factor = session.get(V2WorkItemFactorModel, factor_identity)
+            assert cached_factor is not None
+            unrelated = session.get(V2TeamModel, str(other_team_id))
+            assert unrelated is not None
+            _externally_update(
+                v2_session_factory,
+                (V2WorkItemFactorModel, factor_identity, {"value": external_value}),
+            )
+
+            snapshot = operation(session, state)
+
+>           assert snapshot.work_item_factors[0].value == external_value
+E           AssertionError: assert 0.625 == 0.75
+E            +  where 0.625 = WorkItemFactor(id=UUID('38aac464-aee6-55b7-8f11-b992d9573a01'), team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), ...6e4606e807d1676e5ccc56f00dcebf4d4d5', recorded_at=datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)).value
+
+tests/v2/integration/test_scrum_state_mapper.py:481: AssertionError
+_ test_valid_external_update_is_reflected_without_expiring_unrelated_cache[sparse-add] _
+
+v2_session_factory = sessionmaker(class_='Session', bind=Engine(sqlite:////private/var/folders/47/1gtgf03178l7mx8rlzkj3nzh0000gn/T/pytest-of-pavel.ozolin/pytest-167/test_valid_external_update_is_1/v2.db), autoflush=True, expire_on_commit=True)
+operation = <function _add_sparse_cached_state at 0x10b1996c0>
+
+    @pytest.mark.parametrize(
+        "operation", [_load_cached_state, _add_sparse_cached_state], ids=["load", "sparse-add"]
+    )
+    def test_valid_external_update_is_reflected_without_expiring_unrelated_cache(
+        v2_session_factory, operation
+    ):
+        state = _persist_complete_state(v2_session_factory)
+        other_team_id, _other_run_id = _seed_second_team_and_run(v2_session_factory)
+        factor_identity = str(state.work_item_factors[0].id)
+        external_value = 0.75
+
+        with v2_session_factory() as session:
+            cached_factor = session.get(V2WorkItemFactorModel, factor_identity)
+            assert cached_factor is not None
+            unrelated = session.get(V2TeamModel, str(other_team_id))
+            assert unrelated is not None
+            _externally_update(
+                v2_session_factory,
+                (V2WorkItemFactorModel, factor_identity, {"value": external_value}),
+            )
+
+            snapshot = operation(session, state)
+
+>           assert snapshot.work_item_factors[0].value == external_value
+E           AssertionError: assert 0.625 == 0.75
+E            +  where 0.625 = WorkItemFactor(id=UUID('38aac464-aee6-55b7-8f11-b992d9573a01'), team_id=UUID('30a7c8bc-aa8f-5c80-af37-6e5fe3f516d6'), ...6e4606e807d1676e5ccc56f00dcebf4d4d5', recorded_at=datetime.datetime(2026, 8, 10, 18, 30, tzinfo=datetime.timezone.utc)).value
+
+tests/v2/integration/test_scrum_state_mapper.py:481: AssertionError
+=========================== short test summary info ============================
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_sample_external_corruption_is_refreshed_before_use[load]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_sample_external_corruption_is_refreshed_before_use[sparse-add]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[team-load]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[team-sparse-add]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[run-load]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[run-sparse-add]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[blueprint-load]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_authority_corruption_is_refreshed_before_use[blueprint-sparse-add]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_cached_external_run_deletion_cannot_return_an_empty_snapshot
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_valid_external_update_is_reflected_without_expiring_unrelated_cache[load]
+FAILED tests/v2/integration/test_scrum_state_mapper.py::test_valid_external_update_is_reflected_without_expiring_unrelated_cache[sparse-add]
+11 failed, 314 passed in 18.46s
