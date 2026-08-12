@@ -158,3 +158,166 @@ Revision 016 remains the sole migration head and Task 5 adds no migration.
   provisioning into a future application service remains a later slice, not a production fake hook.
 - Live Jira behavior, credentials, deployment, and UAT were explicitly out of scope and remain
   unverified. The single Starlette/httpx deprecation warning is pre-existing baseline noise.
+
+## Fix Round 1 — Important Review Findings
+
+### Finding verification
+
+- Production `SqlAlchemyLiveTeamStore.ensure_bootstrapped` created Scrum state but no projection
+  intents; the acceptance alone built project/board/issue commands.
+- False review, cancellation, dependency, and member-unavailability outcomes returned no ground
+  truth. Dependency also drew again whenever `entered_at < runtime cursor` and emitted another start.
+- Long-stay crossing subtracted pause from raw wall duration rather than using
+  `BusinessCalendar.elapsed(...).business`.
+- Every handler received the original state, and later right-biased write-set merging could replace
+  a cancelled closed visit with the dependency handler's open visit.
+- The accepted no-migration natural-evaluation schema supports only cancellation/member-
+  unavailability owner shapes. Approved visit-triggered dependency uses visit UUID occurrence zero,
+  so exactly-once dependency persistence uses ground truth plus the persisted entry cursor; accepted
+  continuation is identified by visit pause state and consumes no new draw.
+
+### RED
+
+Exact command:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py tests/v2/integration/test_live_team_store.py tests/v2/acceptance/test_live_scrum_fake_jira.py -q
+```
+
+Exact pytest summary output:
+
+```text
+.....FFFFFFF...FF                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_due_false_review_rejection_persists_evaluation_without_activity _____
+E       IndexError: tuple index out of range
+_______ test_due_false_cancellation_persists_evaluation_without_activity _______
+E       IndexError: tuple index out of range
+___________ test_due_false_dependency_is_recorded_once_for_the_entry ___________
+E           AssertionError: dependency outcome was redrawn
+______ test_due_false_unavailability_persists_evaluation_without_activity ______
+E       IndexError: tuple index out of range
+______ test_dependency_continuation_does_not_redraw_or_emit_another_start ______
+E           AssertionError: dependency outcome was redrawn
+________ test_long_stay_does_not_cross_during_non_business_weekend_time ________
+E       AssertionError: assert (ActivityEven...te_version=1)) == ()
+_____ test_cancellation_has_terminal_precedence_over_same_tick_dependency ______
+E               ValueError: open visit status must match current work status
+______ test_store_bootstrap_enqueues_dependency_ordered_jira_provisioning ______
+E       AssertionError: assert [] == ['CREATE_PROJ...CREATE_BOARD']
+_______ test_live_scrum_converges_after_restart_outage_and_receipt_retry _______
+E       assert 0 == 1
+=========================== short test summary info ============================
+FAILED tests/v2/unit/test_risks.py::test_due_false_review_rejection_persists_evaluation_without_activity
+FAILED tests/v2/unit/test_risks.py::test_due_false_cancellation_persists_evaluation_without_activity
+FAILED tests/v2/unit/test_risks.py::test_due_false_dependency_is_recorded_once_for_the_entry
+FAILED tests/v2/unit/test_risks.py::test_due_false_unavailability_persists_evaluation_without_activity
+FAILED tests/v2/unit/test_risks.py::test_dependency_continuation_does_not_redraw_or_emit_another_start
+FAILED tests/v2/unit/test_risks.py::test_long_stay_does_not_cross_during_non_business_weekend_time
+FAILED tests/v2/unit/test_risks.py::test_cancellation_has_terminal_precedence_over_same_tick_dependency
+FAILED tests/v2/integration/test_live_team_store.py::test_store_bootstrap_enqueues_dependency_ordered_jira_provisioning
+FAILED tests/v2/acceptance/test_live_scrum_fake_jira.py::test_live_scrum_converges_after_restart_outage_and_receipt_retry
+9 failed, 8 passed in 1.78s
+```
+
+The failures directly demonstrated the five reviewed defects before any production edit.
+
+### Implementation
+
+- Added `compose_jira_provisioning`, a small production application composer for logical local-ID
+  project, board, and initial-issue intents. Live bootstrap appends its projection-only slice through
+  existing UOW persistence in the same transaction and idempotently replays it.
+- Removed the acceptance-only provisioning command path; the vertical now enters provisioning only
+  through supported production bootstrap.
+- Recorded false due decisions as `RISK_EVALUATED` ground truth while retaining no activity,
+  projection, or mechanical after-image. Cancellation/unavailability still consume their accepted
+  Task 6 natural claims atomically.
+- Made dependency outcome due only at `visit.entered_at == runtime.simulation_time`; false/true entry
+  records once, and an accepted pause continues from persisted visit pause without another draw or
+  start record.
+- Switched long-stay crossing to business-service elapsed time and evaluated handlers sequentially
+  against accumulated state, preserving terminal cancellation precedence.
+- Refactored all newly changed handlers and provisioning helpers to at most three arguments and 30
+  lines. No migration or new framework was added.
+
+### GREEN and regression
+
+Focused GREEN after refactor:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/unit/test_risks.py tests/v2/integration/test_live_team_store.py tests/v2/acceptance/test_live_scrum_fake_jira.py tests/v2/unit/test_scrum_tick.py -q
+.................................                                        [100%]
+33 passed in 4.43s
+```
+
+Expanded affected regression:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2/integration/test_live_scheduler.py tests/v2/integration/test_team_tick.py tests/v2/unit/test_scrum_tick.py tests/v2/unit/test_v2_sprint_lifecycle.py tests/v2/unit/test_jira_delivery_worker.py tests/v2/integration/test_jira_delivery_store.py tests/v2/integration/test_live_team_store.py tests/v2/unit/test_risks.py tests/v2/acceptance/test_live_scrum_fake_jira.py -q
+.................................................................        [100%]
+65 passed in 8.82s
+```
+
+All-v2 regression:
+
+```text
+cd backend && ../.venv/bin/python -m pytest tests/v2 -q
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 19%]
+........................................................................ [ 25%]
+........................................................................ [ 32%]
+........................................................................ [ 38%]
+........................................................................ [ 45%]
+........................................................................ [ 51%]
+........................................................................ [ 58%]
+........................................................................ [ 64%]
+........................................................................ [ 71%]
+........................................................................ [ 77%]
+........................................................................ [ 84%]
+........................................................................ [ 90%]
+........................................................................ [ 97%]
+.................................                                        [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/pavel.ozolin/Documents/Codex/2026-08-10/https-github-com-mrscrum-jira-simulator/.worktrees/v2-live-simulator/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1113 passed, 1 warning in 40.75s
+```
+
+### Ruff, Alembic, and no-migration evidence
+
+```text
+cd backend && ../.venv/bin/python -m ruff check app/v2 tests/v2
+All checks passed!
+
+cd backend && ../.venv/bin/python -m ruff check app/integrations/v2_jira_intent_adapter.py
+All checks passed!
+
+cd backend && ../.venv/bin/python -m alembic heads
+016 (head)
+
+cd backend && git diff --name-only 11ded36 -- alembic/versions
+[no output]
+
+cd backend && git diff --check
+[no output]
+```
+
+### Self-review and concerns
+
+- The acceptance uses no test-only production hook and exercises the production bootstrap/UOW,
+  scheduler, durable store, worker, concrete adapter, and public Jira client surface.
+- Provider IDs remain adapter-only; composer payloads contain logical fields and local semantic UUIDs.
+- False decisions are auditable without creating user-visible activity or state mutation.
+- External dependency's fixed visit occurrence intentionally does not expand Task 6's two supported
+  counter-backed workday natural-owner shapes; this preserves revision 016 as sole head.
+- Live Jira, deployment, push, and UAT remain intentionally unperformed. The sole warning is the
+  pre-existing Starlette/httpx deprecation warning.
+
+### Fix-round commit
+
+- Implementation and living docs: `e736bb91e54e03dacd203c1451d48183b416c2e2`
+  (`fix: close v2 live loop review gaps`)
