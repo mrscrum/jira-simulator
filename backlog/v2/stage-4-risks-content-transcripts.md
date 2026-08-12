@@ -6,6 +6,7 @@ Status: NOT STARTED
 ## Tasks
 - [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
 - [x] First realism and vertical acceptance review fix round 1 — completed 2026-08-11
+- [x] First realism continuation-evidence review fix round 2 — completed 2026-08-11
 - [ ] V2-S4-T01 — Add durable verified Jira webhook intake
 - [ ] V2-S4-T02 — Register webhooks and normalize/deduplicate Jira interventions
 - [ ] V2-S4-T03 — Adopt manual sprint topology and scope membership
@@ -44,3 +45,5 @@ Status: NOT STARTED
 - Review fix round 1 records due false outcomes, makes dependency entry decisions one-shot with
   state-only continuation, uses business-service long-stay aging, and enforces terminal precedence
   when multiple configured risks share a tick.
+- Review fix round 2 gives every committed dependency continuation wait delta a ground-truth-only
+  record while preserving no-redraw, no-repeat-start, no-projection, and terminal precedence.

@@ -209,9 +209,10 @@ text describes committed mechanics; no language model participates in decisions.
 Every due stochastic branch records causal ground truth, including false outcomes; false evaluations
 create no visible activity, Jira intent, or mechanical state change. External dependency is decided
 once at the persisted visit-entry cursor. An accepted pause continues from the visit pause clock
-without another outcome draw or duplicate start event. Risk handlers consume accumulated same-tick
-state so terminal cancellation cannot be reopened by a later rule. Long-stay thresholds use team
-business-service elapsed time rather than wall time, excluding nights, weekends, and explicit pause.
+without another outcome draw or duplicate start event; every committed continuation delta has a
+ground-truth-only causal record. Risk handlers consume accumulated same-tick state so terminal
+cancellation cannot be reopened by a later rule. Long-stay thresholds use team business-service
+elapsed time rather than wall time, excluding nights, weekends, and explicit pause.
 
 Lifecycle and status-transition payloads contain local semantic UUID dependencies plus logical Jira
 fields. The concrete adapter resolves board, sprint, and issue mappings at delivery time, so provider

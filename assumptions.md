@@ -446,3 +446,8 @@
   unavailability without a migration, so dependency exactly-once persistence uses its immutable
   ground-truth record plus the persisted runtime entry cursor; accepted continuation uses the visit
   pause clock and performs no redraw.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 2
+
+- No assumptions made. The review specified ground-truth-only continuation evidence tied to the
+  original entry decision/visit, with no redraw, duplicate activity, projection, schema, or protocol.

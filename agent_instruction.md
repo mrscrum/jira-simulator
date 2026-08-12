@@ -80,6 +80,11 @@ approved pragmatic-v2 design. Historical Stage 4/5 plans are not executable for 
 
 ## Most Recent Change
 
+On 2026-08-11, Task 5 review fix round 2 made every committed external-dependency
+continuation delta atomic with a ground-truth-only causal record. Continuations still use the
+persisted visit pause clock, perform no outcome redraw, and emit no duplicate start activity or Jira
+projection. Revision 016 remains the sole head; no live Jira, deployment, push, or UAT occurred.
+
 On 2026-08-11, Task 5 review fix round 1 moved Jira project/board/initial-issue intent composition
 into production live-team bootstrap and removed the acceptance-only command builder. Bootstrap
 appends the logical semantic-ID payloads in its existing transaction and replays idempotently.

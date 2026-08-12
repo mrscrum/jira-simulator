@@ -436,7 +436,34 @@ def _dependency_continuation(
     if delta == 0:
         return _RiskRecords()
     blocked = _paused_visit(visit, delta)
-    return _RiskRecords(state=ScrumStateWriteSet(status_visits=(blocked,)))
+    evidence = _dependency_continuation_evidence(context, visit, delta)
+    batch = _EvidenceBatch(
+        evidence,
+        "RISK_EVALUATED",
+        state=ScrumStateWriteSet(status_visits=(blocked,)),
+    )
+    return _evidence_records(context.state, batch)
+
+
+def _dependency_continuation_evidence(
+    context: _RiskContext, visit: StatusVisitState, delta: int
+) -> _DecisionEvidence:
+    state = context.state
+    work = _work(state, visit.work_item_id)
+    return _DecisionEvidence(
+        context.rule,
+        visit.id,
+        state.aggregate.runtime.simulation_time,
+        _factors(state, work, visit),
+        1.0,
+        None,
+        True,
+        _eligible_people(state, visit),
+        delta,
+        0,
+        "external dependency pause continuation",
+        None,
+    )
 
 
 def _paused_visit(visit: StatusVisitState, delta: int) -> StatusVisitState:

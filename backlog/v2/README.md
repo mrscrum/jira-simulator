@@ -32,8 +32,10 @@ UAT/load fixture only.
   fake-Jira vertical now proves two sprint boundaries, restart without catch-up, outage recovery,
   retained intent drain, and provider-success/local-receipt replay without duplicate resources;
   review fix round 1 moves provisioning behind production bootstrap and corrects false-decision
-  evidence, dependency one-shot continuation, business-time aging, and terminal precedence; next
-  work is a focused inbound-observation, content, transcript, or API slice
+  evidence, dependency one-shot continuation, business-time aging, and terminal precedence; review
+  fix round 2 adds causal evidence for each committed continuation wait delta without redraw or
+  duplicate visible output; next work is a focused inbound-observation, content, transcript, or API
+  slice
 - [ ] M2 — Deliver the first live Jira and Codex vertical slice
 - [ ] M3 — Add manual Jira reconciliation, risks, content, transcripts, and ground truth
 - [ ] M4 — Release the dashboard-backed Scrum MVP and run configured-load UAT

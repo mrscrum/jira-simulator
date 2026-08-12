@@ -229,7 +229,9 @@ def test_due_false_unavailability_persists_evaluation_without_activity(v2_sessio
     assert len(evaluation.natural_decision_claims) == 1
 
 
-def test_dependency_continuation_does_not_redraw_or_emit_another_start(v2_session_factory):
+def test_dependency_continuation_records_wait_without_redraw_or_another_start(
+    v2_session_factory,
+):
     rule = _rule(
         "EXTERNAL_DEPENDENCY",
         "STATUS_ENTERED",
@@ -253,7 +255,16 @@ def test_dependency_continuation_does_not_redraw_or_emit_another_start(v2_sessio
     assert continued.id == visit.id
     assert continued.pause_microseconds == ONE_HOUR_MICROSECONDS
     assert second.activity == ()
-    assert second.ground_truth == ()
+    assert second.projection_intents == ()
+    assert len(second.ground_truth) == 1
+    continuation = second.ground_truth[0]
+    truth = json.loads(continuation.canonical_payload)
+    assert str(visit.id) in continuation.semantic_key
+    assert truth["draw"] is None
+    assert truth["outcome"] is True
+    assert truth["wait_delta_microseconds"] == ONE_HOUR_MICROSECONDS // 2
+    assert truth["progress_delta_microseconds"] == 0
+    assert truth["cause"] == "external dependency pause continuation"
 
 
 def test_long_stay_does_not_cross_during_non_business_weekend_time(v2_session_factory):

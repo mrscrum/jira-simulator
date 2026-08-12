@@ -10,6 +10,7 @@ Status: IN PROGRESS
 - [x] Fixed sprint lifecycle, persisted due-team scheduling, and restart without downtime replay — completed 2026-08-11
 - [x] First realism behaviors and fake-Jira vertical acceptance — completed 2026-08-11
 - [x] First realism and vertical acceptance review fix round 1 — completed 2026-08-11
+- [x] First realism continuation-evidence review fix round 2 — completed 2026-08-11
 - [ ] V2-S1-T01 — Add isolated blueprint, calendar, policy, and runtime persistence
 - [ ] V2-S1-T02 — Add member responsibility and availability persistence
 - [ ] V2-S1-T03 — Add canonical route and timing-catalog persistence
@@ -55,3 +56,5 @@ Status: IN PROGRESS
   receipt replay without duplicate resources through production seams.
 - Review fix round 1 moves project/board/initial-issue composition into production bootstrap; the
   acceptance now reaches provisioning exclusively through that supported path.
+- Review fix round 2 records each accepted external-dependency continuation wait delta atomically
+  without redrawing or emitting duplicate activity/projection output.

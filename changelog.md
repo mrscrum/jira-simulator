@@ -683,3 +683,15 @@
   prevented a later dependency handler from reopening a visit cancelled in the same tick.
 - Long-stay thresholds now use team business-service elapsed time, so nights and weekends do not
   age a visit toward its sampled dwell threshold.
+
+## [2026-08-11] M1 — Live Scrum loop review fix round 2
+
+### Changed
+
+- Added a ground-truth-only causal record for each committed external-dependency continuation wait
+  delta, keyed to the persisted visit and continuation cursor.
+
+### Fixed
+
+- Authoritative pause/queue accumulation no longer outgrows its recorded causal wait evidence over
+  multiple scheduler ticks; continuation still performs no redraw, activity, or Jira projection.
